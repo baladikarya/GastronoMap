@@ -740,46 +740,58 @@ let locSearchDebounce = null;
 async function searchLocation(query){
   const box = document.getElementById('locSuggestions');
   if(!query || query.length < 3){ box.classList.add('hidden'); return; }
+  let feats = [];
   try{
     const center = map.getCenter();
     const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lang=id&limit=6&lat=${center.lat}&lon=${center.lng}`;
     const res = await fetch(url);
     const geo = await res.json();
-    const feats = (geo.features || []);
-    if(feats.length === 0){
-      box.innerHTML = '<div class="loc-sugg-item" style="color:var(--muted);">Tidak ditemukan, coba kata lain atau pilih manual di peta</div>';
-      box.classList.remove('hidden');
-      return;
-    }
-    box.innerHTML = feats.map((f, idx)=>{
-      const p = f.properties;
-      const mainName = p.name || p.street || 'Lokasi';
-      const subParts = [p.street, p.city, p.state].filter(Boolean).filter(v=>v!==mainName);
-      return `<div class="loc-sugg-item" data-idx="${idx}"><b>${escapeHtml(mainName)}</b><span class="loc-sugg-sub">${escapeHtml(subParts.join(', '))}</span></div>`;
-    }).join('');
-    box.classList.remove('hidden');
-    box.querySelectorAll('.loc-sugg-item').forEach(el=>{
-      el.onclick = ()=>{
-        const idx = Number(el.dataset.idx);
-        if(isNaN(idx)) return;
-        const f = feats[idx];
-        const [lng, lat] = f.geometry.coordinates;
-        pickedLatLng = L.latLng(lat, lng);
-        if(tempMarker) map.removeLayer(tempMarker);
-        tempMarker = L.marker([lat, lng]).addTo(map);
-        map.setView([lat, lng], 17);
-        document.getElementById('pinStatus').textContent = `Lokasi dipilih: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-        const p = f.properties;
-        const addrParts = [p.street, p.housenumber, p.city, p.state].filter(Boolean);
-        if(addrParts.length) document.getElementById('f_address').value = addrParts.join(', ');
-        box.classList.add('hidden');
-        document.getElementById('locSearchInput').value = p.name || addrParts.join(', ');
-      };
-    });
-  }catch(e){
-    box.innerHTML = '<div class="loc-sugg-item" style="color:var(--muted);">Pencarian gagal, coba pilih manual di peta</div>';
-    box.classList.remove('hidden');
+    feats = (geo.features || []).map(f=>({
+      name: f.properties.name || f.properties.street || 'Lokasi',
+      sub: [f.properties.street, f.properties.city, f.properties.state].filter(Boolean).filter(v=>v!==(f.properties.name||f.properties.street)).join(', '),
+      lat: f.geometry.coordinates[1], lng: f.geometry.coordinates[0],
+      addr: [f.properties.street, f.properties.housenumber, f.properties.city, f.properties.state].filter(Boolean).join(', ')
+    }));
+  }catch(e){ /* lanjut coba Nominatim */ }
+
+  if(feats.length === 0){
+    try{
+      const url2 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=6&addressdetails=1`;
+      const res2 = await fetch(url2);
+      const arr = await res2.json();
+      feats = (arr || []).map(item=>({
+        name: item.display_name.split(',')[0],
+        sub: item.display_name.split(',').slice(1,4).join(',').trim(),
+        lat: parseFloat(item.lat), lng: parseFloat(item.lon),
+        addr: item.display_name
+      }));
+    }catch(e){ /* biarkan feats tetap kosong, tangani di bawah */ }
   }
+
+  if(feats.length === 0){
+    box.innerHTML = '<div class="loc-sugg-item" style="color:var(--muted);">Tidak ditemukan, coba kata lain atau pilih manual di peta</div>';
+    box.classList.remove('hidden');
+    return;
+  }
+  box.innerHTML = feats.map((f, idx)=>
+    `<div class="loc-sugg-item" data-idx="${idx}"><b>${escapeHtml(f.name)}</b><span class="loc-sugg-sub">${escapeHtml(f.sub)}</span></div>`
+  ).join('');
+  box.classList.remove('hidden');
+  box.querySelectorAll('.loc-sugg-item').forEach(el=>{
+    el.onclick = ()=>{
+      const idx = Number(el.dataset.idx);
+      if(isNaN(idx)) return;
+      const f = feats[idx];
+      pickedLatLng = L.latLng(f.lat, f.lng);
+      if(tempMarker) map.removeLayer(tempMarker);
+      tempMarker = L.marker([f.lat, f.lng]).addTo(map);
+      map.setView([f.lat, f.lng], 17);
+      document.getElementById('pinStatus').textContent = `Lokasi dipilih: ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}`;
+      if(f.addr) document.getElementById('f_address').value = f.addr;
+      box.classList.add('hidden');
+      document.getElementById('locSearchInput').value = f.name;
+    };
+  });
 }
 
 /* ================= BANTUAN ALAMAT (buka OSM di tab baru, tanpa fetch) ================= */
