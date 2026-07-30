@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>GastronoMap</title>
 
 <!-- PWA -->
@@ -36,7 +36,7 @@
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;color:var(--ink);background:var(--paper);}
-#app{position:relative;height:100vh;width:100vw;overflow:hidden;}
+#app{position:relative;height:100vh;height:100dvh;width:100vw;overflow:hidden;}
 
 /* ---------- HEADER ---------- */
 #header{
@@ -76,6 +76,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #loginDesc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;text-align:center;}
 #loginEmailInput{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);font-size:14px;margin-bottom:10px;font-family:'Work Sans',sans-serif;}
 #loginStatus{font-size:12.5px;text-align:center;margin-top:10px;min-height:16px;color:var(--teal-dark);}
+#googleHint{font-size:11px;text-align:center;color:var(--muted);margin-top:6px;}
 #loginDivider{text-align:center;color:var(--muted);font-size:11.5px;margin:14px 0;position:relative;}
 #loginDivider::before, #loginDivider::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:var(--line);}
 #loginDivider::before{left:0;} #loginDivider::after{right:0;}
@@ -115,7 +116,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   #searchInput{font-size:13px;padding:8px 12px;}
   #filters{top:54px;padding:6px 10px;}
   #placeBanner{top:96px;font-size:12px;padding:8px 12px;max-width:90vw;}
-  #fab{width:52px;height:52px;font-size:24px;bottom:18px;right:14px;}
+  #fab{width:52px;height:52px;font-size:24px;bottom:calc(18px + env(safe-area-inset-bottom));right:14px;}
   #locateBtn{bottom:82px;right:18px;width:38px;height:38px;}
   .ref-thumb, .ref-card{width:84px;height:84px;}
   #detailContent{padding:16px 14px 90px 14px;}
@@ -139,18 +140,34 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .chip.visit-chip.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
 
 /* ---------- TIME FILTER POPOVER ---------- */
-#timePopover{
+.filter-popover, #timePopover{
   position:absolute;top:102px;left:12px;z-index:1001;background:var(--card);
   border-radius:12px;box-shadow:var(--shadow);padding:14px;width:230px;
+  max-height:70vh;overflow-y:auto;
 }
-#timePopover.hidden{display:none;}
-#timePopover .field{margin-bottom:10px;}
-#timePopover .field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
-#timePopover select, #timePopover input[type=time]{
+.filter-popover.hidden, #timePopover.hidden{display:none;}
+.filter-popover .field, #timePopover .field{margin-bottom:10px;}
+.filter-popover .field label, #timePopover .field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+.filter-popover select, #timePopover select, .filter-popover input[type=time], #timePopover input[type=time]{
   width:100%;padding:7px 9px;border-radius:7px;border:1px solid var(--line);font-family:'Work Sans',sans-serif;font-size:13.5px;background:var(--paper);
 }
-#timePopover .popRow{display:flex;gap:8px;}
-#timePopover .popRow button{flex:1;font-size:12.5px;}
+.filter-popover .popRow, #timePopover .popRow{display:flex;gap:8px;margin-top:8px;}
+.filter-popover .popRow button, #timePopover .popRow button{flex:1;font-size:12.5px;}
+.filter-popover .popover-title{font-weight:700;font-size:12.5px;margin-bottom:8px;}
+.type-check-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;}
+.type-check-row input{width:16px;height:16px;}
+
+/* ---------- DROPDOWN FILTER BUTTON (Tipe Resto / Kunjungan) ---------- */
+.filter-dropdown-btn, .filter-select{
+  flex:0 0 auto;padding:6px 12px;border-radius:16px;background:var(--card);
+  border:1px solid var(--line);font-size:12.5px;font-weight:600;cursor:pointer;
+  white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.08);font-family:'Work Sans',sans-serif;color:var(--ink);
+}
+.filter-dropdown-btn.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+.filter-select{appearance:none;-webkit-appearance:none;padding-right:26px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7570'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;
+}
 
 /* ---------- MAP ---------- */
 #map{position:absolute;inset:0;z-index:1;}
@@ -170,7 +187,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
 /* ---------- FAB ---------- */
 #fab{
-  position:absolute;bottom:26px;right:20px;z-index:999;
+  position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));right:20px;z-index:999;
   width:58px;height:58px;border-radius:50%;
   background:var(--amber);color:var(--ink);border:none;
   font-size:28px;font-weight:700;box-shadow:var(--shadow);cursor:pointer;
@@ -179,7 +196,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #fab:active{background:var(--amber-dark);}
 
 #locateBtn{
-  position:absolute;bottom:96px;right:24px;z-index:999;
+  position:absolute;bottom:calc(96px + env(safe-area-inset-bottom));right:24px;z-index:999;
   width:42px;height:42px;border-radius:50%;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--shadow);cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:18px;
@@ -380,6 +397,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <div id="loginStatus"></div>
       <div id="loginDivider">atau</div>
       <button id="loginGoogleBtn" class="btn btn-secondary" style="width:100%;">🔵 Masuk dengan Google</button>
+      <div id="googleHint">Belum aktif? Selesaikan Langkah 5 di panduan migrasi dulu.</div>
       <button id="loginCancelBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;">Lihat peta dulu tanpa login</button>
     </div>
   </div>
@@ -412,6 +430,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     <div class="popRow">
       <button class="btn btn-secondary" id="tf_reset">Reset</button>
       <button class="btn btn-primary" id="tf_apply">Terapkan</button>
+    </div>
+  </div>
+  <div id="typePopover" class="filter-popover hidden">
+    <div class="popover-title">Pilih Tipe Resto</div>
+    <div id="typeCheckList"></div>
+    <div class="popRow">
+      <button class="btn btn-secondary" id="type_reset">Reset</button>
+      <button class="btn btn-primary" id="type_apply">Terapkan</button>
     </div>
   </div>
   <div id="map"></div>
@@ -528,7 +554,9 @@ let visitedIds = new Set(); // ID resto yang sudah ditandai dikunjungi OLEH USER
 let visitFilter = null; // null | 'visited' | 'unvisited'
 
 /* ================= SUPABASE CLIENT ================= */
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
 
 /* ================= AUTENTIKASI (login sungguhan via email magic link) ================= */
 async function initIdentity(){
@@ -769,49 +797,60 @@ function renderFilterChips(){
   timeChip.className = 'chip time-chip';
   timeChip.id = 'timeChip';
   timeChip.textContent = '🕐 Jam Buka';
-  timeChip.onclick = ()=> document.getElementById('timePopover').classList.toggle('hidden');
+  timeChip.onclick = ()=>{
+    document.getElementById('typePopover').classList.add('hidden');
+    document.getElementById('timePopover').classList.toggle('hidden');
+  };
   wrap.appendChild(timeChip);
 
-  const unvisitedChip = document.createElement('div');
-  unvisitedChip.className = 'chip visit-chip';
-  unvisitedChip.id = 'unvisitedChip';
-  unvisitedChip.textContent = '🆕 Belum Dikunjungi';
-  unvisitedChip.onclick = ()=>{
-    visitFilter = visitFilter === 'unvisited' ? null : 'unvisited';
-    updateVisitChips();
+  const typeBtn = document.createElement('button');
+  typeBtn.type = 'button';
+  typeBtn.className = 'filter-dropdown-btn';
+  typeBtn.id = 'typeFilterBtn';
+  typeBtn.textContent = 'Tipe Resto ▾';
+  typeBtn.onclick = ()=>{
+    document.getElementById('timePopover').classList.add('hidden');
+    document.getElementById('typePopover').classList.toggle('hidden');
+  };
+  wrap.appendChild(typeBtn);
+  renderTypeCheckList();
+
+  const visitSelect = document.createElement('select');
+  visitSelect.className = 'filter-select';
+  visitSelect.id = 'visitFilterSelect';
+  visitSelect.innerHTML = `
+    <option value="">Semua Kunjungan</option>
+    <option value="unvisited">🆕 Belum Dikunjungi</option>
+    <option value="visited">✅ Sudah Dikunjungi</option>
+  `;
+  visitSelect.onchange = ()=>{
+    visitFilter = visitSelect.value || null;
     renderMarkers();
   };
-  wrap.appendChild(unvisitedChip);
+  wrap.appendChild(visitSelect);
+}
 
-  const visitedChip = document.createElement('div');
-  visitedChip.className = 'chip visit-chip';
-  visitedChip.id = 'visitedChip';
-  visitedChip.textContent = '✅ Sudah Dikunjungi';
-  visitedChip.onclick = ()=>{
-    visitFilter = visitFilter === 'visited' ? null : 'visited';
-    updateVisitChips();
-    renderMarkers();
-  };
-  wrap.appendChild(visitedChip);
-
+function renderTypeCheckList(){
+  const list = document.getElementById('typeCheckList');
+  list.innerHTML = '';
   Object.keys(TYPES).forEach(t=>{
-    const chip = document.createElement('div');
-    chip.className = 'chip';
-    chip.textContent = `${TYPES[t].emoji} ${t}`;
-    chip.onclick = ()=>{
-      if(activeTypeFilters.has(t)) activeTypeFilters.delete(t); else activeTypeFilters.add(t);
-      chip.classList.toggle('active');
-      renderMarkers();
-    };
-    wrap.appendChild(chip);
+    const row = document.createElement('label');
+    row.className = 'type-check-row';
+    row.innerHTML = `<input type="checkbox" value="${t}" ${activeTypeFilters.has(t) ? 'checked' : ''}> ${TYPES[t].emoji} ${t}`;
+    list.appendChild(row);
   });
 }
 
-function updateVisitChips(){
-  const uc = document.getElementById('unvisitedChip');
-  const vc = document.getElementById('visitedChip');
-  if(uc) uc.classList.toggle('active', visitFilter === 'unvisited');
-  if(vc) vc.classList.toggle('active', visitFilter === 'visited');
+function updateTypeFilterBtnLabel(){
+  const btn = document.getElementById('typeFilterBtn');
+  if(!btn) return;
+  if(activeTypeFilters.size === 0){
+    btn.textContent = 'Tipe Resto ▾';
+    btn.classList.remove('active');
+  }else{
+    btn.textContent = `Tipe Resto (${activeTypeFilters.size}) ▾`;
+    btn.classList.add('active');
+  }
 }
 
 function populateTypeSelect(){
@@ -1586,6 +1625,21 @@ document.getElementById('tf_reset').onclick = ()=>{
 };
 document.getElementById('tf_day').value = currentDayName();
 document.getElementById('tf_time').value = currentTimeStr();
+document.getElementById('type_apply').onclick = ()=>{
+  activeTypeFilters = new Set(
+    Array.from(document.querySelectorAll('#typeCheckList input:checked')).map(el=>el.value)
+  );
+  updateTypeFilterBtnLabel();
+  document.getElementById('typePopover').classList.add('hidden');
+  renderMarkers();
+};
+document.getElementById('type_reset').onclick = ()=>{
+  activeTypeFilters = new Set();
+  renderTypeCheckList();
+  updateTypeFilterBtnLabel();
+  document.getElementById('typePopover').classList.add('hidden');
+  renderMarkers();
+};
 document.getElementById('locateBtn').onclick = ()=>{
   navigator.geolocation && navigator.geolocation.getCurrentPosition(pos=>{
     map.setView([pos.coords.latitude, pos.coords.longitude], 15);
