@@ -115,8 +115,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   #userBadge{padding:7px 8px;font-size:10.5px;max-width:70px;}
   #searchInput{font-size:13px;padding:8px 12px;}
   #filters{top:54px;padding:6px 10px;}
-  .filter-select{max-width:100px;font-size:11.5px;padding:6px 20px 6px 8px;}
-  .filter-dropdown-btn{font-size:11.5px;padding:6px 9px;}
+  #openFilterBtn{font-size:11.5px;padding:6px 11px;}
+  #filterPanel{max-height:88vh;}
   #placeBanner{top:96px;font-size:12px;padding:8px 12px;max-width:90vw;}
   #fab{width:52px;height:52px;font-size:24px;bottom:calc(18px + env(safe-area-inset-bottom));right:14px;}
   #locateBtn{bottom:82px;right:18px;width:38px;height:38px;}
@@ -142,34 +142,49 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .chip.visit-chip.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
 
 /* ---------- TIME FILTER POPOVER ---------- */
-.filter-popover, #timePopover{
-  position:absolute;top:102px;left:12px;z-index:1001;background:var(--card);
-  border-radius:12px;box-shadow:var(--shadow);padding:14px;width:230px;
-  max-height:70vh;overflow-y:auto;
+/* ---------- PANEL FILTER TERPADU (bottom sheet) ---------- */
+#filterOverlay{
+  position:absolute;inset:0;z-index:2000;background:rgba(20,25,24,0.5);
+  display:flex;align-items:flex-end;justify-content:center;
 }
-.filter-popover.hidden, #timePopover.hidden{display:none;}
-.filter-popover .field, #timePopover .field{margin-bottom:10px;}
-.filter-popover .field label, #timePopover .field label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
-.filter-popover select, #timePopover select, .filter-popover input[type=time], #timePopover input[type=time]{
-  width:100%;padding:7px 9px;border-radius:7px;border:1px solid var(--line);font-family:'Work Sans',sans-serif;font-size:13.5px;background:var(--paper);
+#filterOverlay.hidden{display:none;}
+#filterPanel{
+  background:var(--card);width:100%;max-width:480px;max-height:85vh;overflow-y:auto;
+  border-radius:18px 18px 0 0;padding:20px 20px 24px 20px;
 }
-.filter-popover .popRow, #timePopover .popRow{display:flex;gap:8px;margin-top:8px;}
-.filter-popover .popRow button, #timePopover .popRow button{flex:1;font-size:12.5px;}
-.filter-popover .popover-title{font-weight:700;font-size:12.5px;margin-bottom:8px;}
-.type-check-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;}
-.type-check-row input{width:16px;height:16px;}
+#filterPanel h2{font-family:'Fraunces',serif;font-size:20px;margin:0 0 14px 0;}
+.filter-section{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line);}
+.filter-section:last-of-type{border-bottom:none;}
+.filter-section-label{display:block;font-size:12.5px;font-weight:700;margin-bottom:8px;}
+.filter-section select, .filter-section input[type=time]{
+  width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);
+  font-family:'Work Sans',sans-serif;font-size:13.5px;background:var(--paper);
+}
+.filter-check-row{display:flex;align-items:center;gap:8px;padding:6px 0 0 0;font-size:12.5px;color:var(--muted);}
+.filter-check-row input{width:16px;height:16px;}
+.filter-check-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.filter-check-chip{
+  display:flex;align-items:center;gap:5px;padding:6px 11px;border-radius:14px;
+  border:1px solid var(--line);font-size:12.5px;cursor:pointer;user-select:none;background:var(--paper);
+}
+.filter-check-chip.checked{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+.filter-check-chip input{display:none;}
+.popRow{display:flex;gap:8px;}
+.popRow button{flex:1;font-size:12.5px;}
 
-/* ---------- DROPDOWN FILTER BUTTON (Tipe Resto / Kunjungan) ---------- */
-.filter-dropdown-btn, .filter-select{
-  flex:0 0 auto;padding:6px 12px;border-radius:16px;background:var(--card);
-  border:1px solid var(--line);font-size:12.5px;font-weight:600;cursor:pointer;
+/* ---------- TOMBOL FILTER TUNGGAL DI BAR ATAS ---------- */
+#openFilterBtn{
+  flex:0 0 auto;padding:6px 14px;border-radius:16px;background:var(--card);
+  border:1px solid var(--line);font-size:12.5px;font-weight:700;cursor:pointer;
   white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.08);font-family:'Work Sans',sans-serif;color:var(--ink);
+  display:flex;align-items:center;gap:6px;
 }
-.filter-dropdown-btn.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
-.filter-select{appearance:none;-webkit-appearance:none;padding-right:26px;max-width:130px;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7570'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 10px center;
+#openFilterBtn.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+#openFilterBtn .filter-count-badge{
+  background:var(--amber);color:var(--ink);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800;
 }
+#openFilterBtn.active .filter-count-badge{background:#fff;color:var(--teal-dark);}
+
 
 /* ---------- MAP ---------- */
 #map{position:absolute;inset:0;z-index:1;}
@@ -412,34 +427,59 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     <button id="userBadge" title="Akun">Login</button>
   </div>
   <div id="filters"></div>
-  <div id="timePopover" class="hidden">
-    <div class="field">
-      <label>Hari</label>
-      <select id="tf_day">
-        <option value="Senin">Senin</option>
-        <option value="Selasa">Selasa</option>
-        <option value="Rabu">Rabu</option>
-        <option value="Kamis">Kamis</option>
-        <option value="Jumat">Jumat</option>
-        <option value="Sabtu">Sabtu</option>
-        <option value="Minggu">Minggu</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Jam</label>
-      <input type="time" id="tf_time">
-    </div>
-    <div class="popRow">
-      <button class="btn btn-secondary" id="tf_reset">Reset</button>
-      <button class="btn btn-primary" id="tf_apply">Terapkan</button>
-    </div>
-  </div>
-  <div id="typePopover" class="filter-popover hidden">
-    <div class="popover-title">Pilih Tipe Resto</div>
-    <div id="typeCheckList"></div>
-    <div class="popRow">
-      <button class="btn btn-secondary" id="type_reset">Reset</button>
-      <button class="btn btn-primary" id="type_apply">Terapkan</button>
+  <div id="filterOverlay" class="hidden">
+    <div id="filterPanel">
+      <h2>Filter</h2>
+
+      <div class="filter-section">
+        <label class="filter-section-label">🕐 Jam Buka</label>
+        <div class="field-row">
+          <div class="field">
+            <select id="tf_day">
+              <option value="Senin">Senin</option>
+              <option value="Selasa">Selasa</option>
+              <option value="Rabu">Rabu</option>
+              <option value="Kamis">Kamis</option>
+              <option value="Jumat">Jumat</option>
+              <option value="Sabtu">Sabtu</option>
+              <option value="Minggu">Minggu</option>
+            </select>
+          </div>
+          <div class="field">
+            <input type="time" id="tf_time">
+          </div>
+        </div>
+        <label class="filter-check-row"><input type="checkbox" id="tf_enable"> Aktifkan filter jam buka</label>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-section-label">🍽️ Tipe Resto</label>
+        <div id="typeCheckList" class="filter-check-grid"></div>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-section-label">🛵 Ketersediaan Online</label>
+        <div id="platformCheckList" class="filter-check-grid"></div>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-section-label">💰 Range Harga</label>
+        <div id="priceCheckList" class="filter-check-grid"></div>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-section-label">🎯 Kunjungan</label>
+        <select id="visitFilterSelect" style="width:100%;">
+          <option value="">Semua</option>
+          <option value="unvisited">🆕 Belum Dikunjungi</option>
+          <option value="visited">✅ Sudah Dikunjungi</option>
+        </select>
+      </div>
+
+      <div class="popRow" style="margin-top:18px;">
+        <button class="btn btn-secondary" id="filterResetAllBtn">Reset Semua</button>
+        <button class="btn btn-primary" id="filterApplyAllBtn">Terapkan</button>
+      </div>
     </div>
   </div>
   <div id="map"></div>
@@ -738,10 +778,7 @@ function initMap(){
   map.on('click', (e) => {
     const modalOpen = !document.getElementById('modalOverlay').classList.contains('hidden');
     if(modalOpen){
-      pickedLatLng = e.latlng;
-      if(tempMarker) map.removeLayer(tempMarker);
-      tempMarker = L.marker(e.latlng).addTo(map);
-      setPinStatus(`Lokasi dipilih (tap peta): ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`);
+      placeDraggableMarker(e.latlng.lat, e.latlng.lng, 'tap peta');
     }
   });
 
@@ -803,11 +840,8 @@ async function searchLocation(query){
       const idx = Number(el.dataset.idx);
       if(isNaN(idx)) return;
       const f = feats[idx];
-      pickedLatLng = L.latLng(f.lat, f.lng);
-      if(tempMarker) map.removeLayer(tempMarker);
-      tempMarker = L.marker([f.lat, f.lng]).addTo(map);
       map.setView([f.lat, f.lng], 17);
-      setPinStatus(`Lokasi dipilih: ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}`);
+      placeDraggableMarker(f.lat, f.lng, 'sugesti alamat');
       if(f.addr) document.getElementById('f_address').value = f.addr;
       else document.getElementById('f_address').value = f.name;
       box.classList.add('hidden');
@@ -821,6 +855,25 @@ function setPinStatus(text){
   if(!el) return;
   el.textContent = text;
   el.classList.add('has-location');
+}
+
+/* Menaruh pin SEMENTARA yang bisa digeser (draggable) di peta -- dipakai oleh
+   semua cara pilih lokasi (tap peta, sugesti alamat, koordinat, GPS) supaya
+   user selalu bisa lihat dulu & koreksi posisinya sebelum lanjut isi data. */
+function placeDraggableMarker(lat, lng, sourceLabel){
+  pickedLatLng = L.latLng(lat, lng);
+  if(tempMarker) map.removeLayer(tempMarker);
+  tempMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+  tempMarker.on('dragend', ()=>{
+    const pos = tempMarker.getLatLng();
+    pickedLatLng = pos;
+    setPinStatus(`Lokasi (digeser manual): ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`);
+  });
+  tempMarker.on('click', ()=>{
+    showToast('📍 Lokasi ini yang akan dipakai. Geser pin kalau kurang pas, lalu lanjutkan isi data resto.');
+  });
+  setPinStatus(`Lokasi dipilih${sourceLabel ? ' (' + sourceLabel + ')' : ''}: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Bisa digeser kalau kurang pas.`);
+  return tempMarker;
 }
 
 /* Buka Google Maps di tab baru untuk bantu cari nama/alamat resto secara manual
@@ -842,12 +895,9 @@ function applyPastedCoords(){
   if(!match){ showToast('Format koordinat tidak dikenali. Contoh: -6.1754, 106.8272'); return; }
   const lat = parseFloat(match[1]), lng = parseFloat(match[2]);
   if(lat < -90 || lat > 90 || lng < -180 || lng > 180){ showToast('Angka koordinat di luar jangkauan wajar'); return; }
-  pickedLatLng = L.latLng(lat, lng);
-  if(tempMarker) map.removeLayer(tempMarker);
-  tempMarker = L.marker([lat, lng]).addTo(map);
   map.setView([lat, lng], 17);
-  setPinStatus(`Lokasi dipilih (dari koordinat): ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-  showToast('Pin ditaruh persis di koordinat itu');
+  placeDraggableMarker(lat, lng, 'dari koordinat');
+  showToast('Pin ditaruh persis di koordinat itu, geser kalau perlu');
 }
 
 /* Ambil lokasi HP user SEKARANG dengan akurasi tinggi, langsung taruh pin di situ
@@ -861,12 +911,9 @@ function useMyLocationNow(){
   navigator.geolocation.getCurrentPosition(
     (pos)=>{
       const { latitude: lat, longitude: lng, accuracy } = pos.coords;
-      pickedLatLng = L.latLng(lat, lng);
-      if(tempMarker) map.removeLayer(tempMarker);
-      tempMarker = L.marker([lat, lng]).addTo(map);
       map.setView([lat, lng], 18);
-      setPinStatus(`Lokasi dipilih (GPS HP, akurasi ±${Math.round(accuracy)}m): ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-      showToast(accuracy > 50 ? 'Lokasi ditaruh, tapi akurasi GPS agak rendah -- cek lagi posisinya di peta' : 'Pin ditaruh di lokasi Anda sekarang');
+      placeDraggableMarker(lat, lng, `GPS HP, akurasi ±${Math.round(accuracy)}m`);
+      showToast(accuracy > 50 ? 'Lokasi ditaruh, tapi akurasi GPS agak rendah -- cek & geser pin kalau perlu' : 'Pin ditaruh di lokasi Anda -- geser kalau kurang pas, lalu lanjut isi data');
       btn.textContent = originalText;
       btn.disabled = false;
     },
@@ -880,68 +927,77 @@ function useMyLocationNow(){
 }
 
 /* ================= FILTER CHIPS ================= */
+const PLATFORM_FILTER_META = {
+  GrabFood:   {emoji:'🛵', color:'#00B14F'},
+  GoFood:     {emoji:'🛵', color:'#00AA13'},
+  ShopeeFood: {emoji:'🛵', color:'#EE4D2D'}
+};
+const PRICE_RANGES = ['< Rp 25rb', 'Rp 25rb - 50rb', 'Rp 50rb - 100rb', 'Rp 100rb - 250rb', '> Rp 250rb'];
+
+let activePlatformFilters = new Set();
+let activePriceFilters = new Set();
+
 function renderFilterChips(){
   const wrap = document.getElementById('filters');
   wrap.innerHTML = '';
 
-  const timeChip = document.createElement('div');
-  timeChip.className = 'chip time-chip';
-  timeChip.id = 'timeChip';
-  timeChip.textContent = '🕐 Jam Buka';
-  timeChip.onclick = ()=>{
-    document.getElementById('typePopover').classList.add('hidden');
-    document.getElementById('timePopover').classList.toggle('hidden');
-  };
-  wrap.appendChild(timeChip);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'openFilterBtn';
+  btn.innerHTML = '🔧 Filter';
+  btn.onclick = openFilterPanel;
+  wrap.appendChild(btn);
 
-  const typeBtn = document.createElement('button');
-  typeBtn.type = 'button';
-  typeBtn.className = 'filter-dropdown-btn';
-  typeBtn.id = 'typeFilterBtn';
-  typeBtn.textContent = 'Tipe Resto ▾';
-  typeBtn.onclick = ()=>{
-    document.getElementById('timePopover').classList.add('hidden');
-    document.getElementById('typePopover').classList.toggle('hidden');
-  };
-  wrap.appendChild(typeBtn);
   renderTypeCheckList();
+  renderPlatformCheckList();
+  renderPriceCheckList();
+  updateFilterBtnLabel();
+}
 
-  const visitSelect = document.createElement('select');
-  visitSelect.className = 'filter-select';
-  visitSelect.id = 'visitFilterSelect';
-  visitSelect.innerHTML = `
-    <option value="">Kunjungan</option>
-    <option value="unvisited">🆕 Belum</option>
-    <option value="visited">✅ Sudah</option>
-  `;
-  visitSelect.onchange = ()=>{
-    visitFilter = visitSelect.value || null;
-    renderMarkers();
-  };
-  wrap.appendChild(visitSelect);
+function openFilterPanel(){
+  // sinkronkan checklist dengan state aktif sebelum ditampilkan
+  renderTypeCheckList();
+  renderPlatformCheckList();
+  renderPriceCheckList();
+  document.getElementById('tf_enable').checked = !!timeFilter;
+  document.getElementById('tf_day').value = timeFilter ? timeFilter.day : currentDayName();
+  document.getElementById('tf_time').value = timeFilter ? timeFilter.time : currentTimeStr();
+  document.getElementById('visitFilterSelect').value = visitFilter || '';
+  document.getElementById('filterOverlay').classList.remove('hidden');
+}
+
+function makeCheckChip(container, value, label, checkedSet){
+  const chip = document.createElement('label');
+  chip.className = 'filter-check-chip' + (checkedSet.has(value) ? ' checked' : '');
+  chip.innerHTML = `<input type="checkbox" value="${escapeAttr(value)}" ${checkedSet.has(value) ? 'checked' : ''}> ${label}`;
+  chip.querySelector('input').onchange = (e)=> chip.classList.toggle('checked', e.target.checked);
+  container.appendChild(chip);
 }
 
 function renderTypeCheckList(){
   const list = document.getElementById('typeCheckList');
   list.innerHTML = '';
-  Object.keys(TYPES).forEach(t=>{
-    const row = document.createElement('label');
-    row.className = 'type-check-row';
-    row.innerHTML = `<input type="checkbox" value="${t}" ${activeTypeFilters.has(t) ? 'checked' : ''}> ${TYPES[t].emoji} ${t}`;
-    list.appendChild(row);
-  });
+  Object.keys(TYPES).forEach(t=> makeCheckChip(list, t, `${TYPES[t].emoji} ${t}`, activeTypeFilters));
 }
 
-function updateTypeFilterBtnLabel(){
-  const btn = document.getElementById('typeFilterBtn');
+function renderPlatformCheckList(){
+  const list = document.getElementById('platformCheckList');
+  list.innerHTML = '';
+  Object.keys(PLATFORM_FILTER_META).forEach(p=> makeCheckChip(list, p, `${PLATFORM_FILTER_META[p].emoji} ${p}`, activePlatformFilters));
+}
+
+function renderPriceCheckList(){
+  const list = document.getElementById('priceCheckList');
+  list.innerHTML = '';
+  PRICE_RANGES.forEach(p=> makeCheckChip(list, p, p, activePriceFilters));
+}
+
+function updateFilterBtnLabel(){
+  const btn = document.getElementById('openFilterBtn');
   if(!btn) return;
-  if(activeTypeFilters.size === 0){
-    btn.textContent = 'Tipe Resto ▾';
-    btn.classList.remove('active');
-  }else{
-    btn.textContent = `Tipe Resto (${activeTypeFilters.size}) ▾`;
-    btn.classList.add('active');
-  }
+  const count = activeTypeFilters.size + activePlatformFilters.size + activePriceFilters.size + (timeFilter ? 1 : 0) + (visitFilter ? 1 : 0);
+  btn.innerHTML = count > 0 ? `🔧 Filter <span class="filter-count-badge">${count}</span>` : '🔧 Filter';
+  btn.classList.toggle('active', count > 0);
 }
 
 function populateTypeSelect(){
@@ -1139,9 +1195,7 @@ function makeIcon(type, visited){
 function matchesSearch(r, q){
   if(!q) return true;
   const testiText = (r.testimonials||[]).map(t=>t.text||'').join(' ').toLowerCase();
-  const platformText = (r.onlinePlatforms||[]).join(' ').toLowerCase(); // mis. "grabfood gofood"
-  const platformAliasHit = (q.includes('gojek') && platformText.includes('gofood')); // Gojek = brand induk GoFood
-  return r.name.toLowerCase().includes(q) || (r.address||'').toLowerCase().includes(q) || testiText.includes(q) || (r.description||'').toLowerCase().includes(q) || platformText.includes(q) || platformAliasHit;
+  return r.name.toLowerCase().includes(q) || (r.address||'').toLowerCase().includes(q) || testiText.includes(q) || (r.description||'').toLowerCase().includes(q);
 }
 
 function renderMarkers(){
@@ -1149,6 +1203,8 @@ function renderMarkers(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   Object.values(allRestos).forEach(r=>{
     if(activeTypeFilters.size > 0 && !activeTypeFilters.has(r.type)) return;
+    if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(p))) return;
+    if(activePriceFilters.size > 0 && !activePriceFilters.has(r.priceRange)) return;
     if(!matchesSearch(r, q)) return;
     if(timeFilter && !isOpenAt(r.hoursByDay, timeFilter.day, timeFilter.time)) return;
     const isVisited = visitedIds.has(r.id);
@@ -1730,41 +1786,46 @@ document.getElementById('searchInput').addEventListener('blur', ()=>{
   setTimeout(()=> document.getElementById('searchSuggestions').classList.add('hidden'), 150);
 });
 
-document.getElementById('tf_apply').onclick = ()=>{
-  const day = document.getElementById('tf_day').value;
-  const time = document.getElementById('tf_time').value || currentTimeStr();
-  timeFilter = {day, time};
-  document.getElementById('timeChip').classList.add('active');
-  document.getElementById('timeChip').textContent = `🕐 ${day} ${time}`;
-  document.getElementById('timePopover').classList.add('hidden');
-  renderMarkers();
-  showToast(`Menampilkan resto yang buka ${day} jam ${time}`);
-};
-document.getElementById('tf_reset').onclick = ()=>{
-  timeFilter = null;
-  document.getElementById('tf_day').value = currentDayName();
-  document.getElementById('tf_time').value = currentTimeStr();
-  document.getElementById('timeChip').classList.remove('active');
-  document.getElementById('timeChip').textContent = '🕐 Jam Buka';
-  document.getElementById('timePopover').classList.add('hidden');
-  renderMarkers();
-};
 document.getElementById('tf_day').value = currentDayName();
 document.getElementById('tf_time').value = currentTimeStr();
-document.getElementById('type_apply').onclick = ()=>{
-  activeTypeFilters = new Set(
-    Array.from(document.querySelectorAll('#typeCheckList input:checked')).map(el=>el.value)
-  );
-  updateTypeFilterBtnLabel();
-  document.getElementById('typePopover').classList.add('hidden');
-  renderMarkers();
+
+document.getElementById('filterOverlay').onclick = (e)=>{
+  if(e.target.id === 'filterOverlay') document.getElementById('filterOverlay').classList.add('hidden');
 };
-document.getElementById('type_reset').onclick = ()=>{
-  activeTypeFilters = new Set();
-  renderTypeCheckList();
-  updateTypeFilterBtnLabel();
-  document.getElementById('typePopover').classList.add('hidden');
+
+document.getElementById('filterApplyAllBtn').onclick = ()=>{
+  activeTypeFilters = new Set(Array.from(document.querySelectorAll('#typeCheckList input:checked')).map(el=>el.value));
+  activePlatformFilters = new Set(Array.from(document.querySelectorAll('#platformCheckList input:checked')).map(el=>el.value));
+  activePriceFilters = new Set(Array.from(document.querySelectorAll('#priceCheckList input:checked')).map(el=>el.value));
+  if(document.getElementById('tf_enable').checked){
+    timeFilter = { day: document.getElementById('tf_day').value, time: document.getElementById('tf_time').value || currentTimeStr() };
+  }else{
+    timeFilter = null;
+  }
+  visitFilter = document.getElementById('visitFilterSelect').value || null;
+  updateFilterBtnLabel();
+  document.getElementById('filterOverlay').classList.add('hidden');
   renderMarkers();
+  showToast('Filter diterapkan');
+};
+
+document.getElementById('filterResetAllBtn').onclick = ()=>{
+  activeTypeFilters = new Set();
+  activePlatformFilters = new Set();
+  activePriceFilters = new Set();
+  timeFilter = null;
+  visitFilter = null;
+  document.getElementById('tf_enable').checked = false;
+  document.getElementById('tf_day').value = currentDayName();
+  document.getElementById('tf_time').value = currentTimeStr();
+  document.getElementById('visitFilterSelect').value = '';
+  renderTypeCheckList();
+  renderPlatformCheckList();
+  renderPriceCheckList();
+  updateFilterBtnLabel();
+  document.getElementById('filterOverlay').classList.add('hidden');
+  renderMarkers();
+  showToast('Semua filter direset');
 };
 document.getElementById('locateBtn').onclick = ()=>{
   navigator.geolocation && navigator.geolocation.getCurrentPosition(pos=>{
