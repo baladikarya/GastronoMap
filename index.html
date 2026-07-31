@@ -46,8 +46,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   display:flex;align-items:center;gap:12px;
   box-shadow:var(--shadow);
 }
-#logo{font-family:'Fraunces',serif;font-weight:700;font-size:20px;letter-spacing:0.3px;white-space:nowrap;color:var(--amber);}
-#logo span{color:var(--paper);}
+#logo{flex-shrink:0;display:flex;align-items:center;}
+#logo img{width:34px;height:34px;border-radius:9px;display:block;}
 #searchWrap{flex:1;min-width:0;position:relative;display:flex;align-items:center;}
 #searchSuggestions{
   position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:1002;
@@ -115,6 +115,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   #userBadge{padding:7px 8px;font-size:10.5px;max-width:70px;}
   #searchInput{font-size:13px;padding:8px 12px;}
   #filters{top:54px;padding:6px 10px;}
+  .filter-select{max-width:100px;font-size:11.5px;padding:6px 20px 6px 8px;}
+  .filter-dropdown-btn{font-size:11.5px;padding:6px 9px;}
   #placeBanner{top:96px;font-size:12px;padding:8px 12px;max-width:90vw;}
   #fab{width:52px;height:52px;font-size:24px;bottom:calc(18px + env(safe-area-inset-bottom));right:14px;}
   #locateBtn{bottom:82px;right:18px;width:38px;height:38px;}
@@ -164,7 +166,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.08);font-family:'Work Sans',sans-serif;color:var(--ink);
 }
 .filter-dropdown-btn.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
-.filter-select{appearance:none;-webkit-appearance:none;padding-right:26px;
+.filter-select{appearance:none;-webkit-appearance:none;padding-right:26px;max-width:130px;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7570'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 10px center;
 }
@@ -402,9 +404,9 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     </div>
   </div>
   <div id="header">
-    <div id="logo"><span>Gastrono</span>Map</div>
+    <div id="logo"><img src="icons/icon-192.png" alt="GastronoMap"></div>
     <div id="searchWrap">
-      <input id="searchInput" type="text" placeholder="Silakan mencari">
+      <input id="searchInput" type="text" placeholder="Eksplorasi rasa bersama GastronoMap">
       <div id="searchSuggestions" class="hidden"></div>
     </div>
     <button id="userBadge" title="Akun">Login</button>
@@ -458,19 +460,24 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <div class="field"><label>Nama Resto</label><input type="text" id="f_name" placeholder="mis. Bakmi Pak Slamet"></div>
 
       <div class="field" style="position:relative;">
-        <label>Cari Lokasi (ketik nama resto/jalan)</label>
-        <input type="text" id="locSearchInput" placeholder="mis. Blok M, atau nama resto...">
+        <label>Alamat</label>
+        <input type="text" id="f_address" placeholder="Ketik nama resto/jalan, pilih dari sugesti...">
         <div id="locSuggestions" class="hidden"></div>
       </div>
-
-      <div class="pin-hint">📍 <span id="pinStatus">Belum ada lokasi dipilih. Cari di atas, atau klik "Pilih di peta" di bawah.</span></div>
-      <button type="button" id="pickLocationBtn" class="btn btn-secondary" style="width:100%;margin-bottom:14px;">Pilih lokasi di peta (manual)</button>
+      <button type="button" id="searchGmapsBtn" class="btn btn-secondary" style="width:100%;margin-top:2px;margin-bottom:8px;font-size:12.5px;padding:8px;">🔍 Cari di Google Maps (tab baru)</button>
 
       <div class="field">
-        <label>Alamat</label>
-        <input type="text" id="f_address" placeholder="Tulis alamat, atau salin dari tombol di bawah">
-        <button type="button" id="openOsmAddrBtn" class="btn btn-secondary" style="width:100%;margin-top:6px;font-size:12.5px;padding:8px;">🔍 Cari alamat di OpenStreetMap (tab baru)</button>
+        <label>Tempel koordinat dari Google Maps (opsional, paling presisi)</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="coordPasteInput" placeholder="-6.1754, 106.8272" style="flex:1;">
+          <button type="button" id="coordApplyBtn" class="btn btn-secondary" style="flex:0 0 auto;">Pakai</button>
+        </div>
       </div>
+
+      <div class="pin-hint">📍 <span id="pinStatus">Belum ada lokasi dipilih. Ketik alamat di atas, atau klik "Pilih di peta" di bawah.</span></div>
+      <button type="button" id="useMyLocationBtn" class="btn btn-primary" style="width:100%;margin-bottom:8px;">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
+      <button type="button" id="pickLocationBtn" class="btn btn-secondary" style="width:100%;margin-bottom:14px;">Pilih lokasi di peta (manual)</button>
+      <button type="button" id="openOsmAddrBtn" class="btn btn-secondary" style="width:100%;margin-bottom:14px;font-size:12.5px;padding:8px;">🔍 Cari alamat di OpenStreetMap (tab baru)</button>
 
       <div class="field-row">
         <div class="field"><label>Tipe</label>
@@ -788,8 +795,8 @@ async function searchLocation(query){
       map.setView([f.lat, f.lng], 17);
       document.getElementById('pinStatus').textContent = `Lokasi dipilih: ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}`;
       if(f.addr) document.getElementById('f_address').value = f.addr;
+      else document.getElementById('f_address').value = f.name;
       box.classList.add('hidden');
-      document.getElementById('locSearchInput').value = f.name;
     };
   });
 }
@@ -798,6 +805,63 @@ async function searchLocation(query){
 function openOsmAddressHelper(){
   if(!pickedLatLng){ showToast('Pilih lokasi di peta dulu'); return; }
   window.open(`https://nominatim.openstreetmap.org/ui/reverse.html?lat=${pickedLatLng.lat}&lon=${pickedLatLng.lng}&zoom=18`, '_blank');
+}
+
+/* Buka Google Maps di tab baru untuk bantu cari nama/alamat resto secara manual
+   (tab terpisah tidak bisa "mengirim balik" data ke sini secara otomatis --
+   ini batasan keamanan dasar semua browser, bukan keterbatasan kode). */
+function openGoogleMapsHelper(){
+  const q = document.getElementById('f_name').value.trim() || document.getElementById('f_address').value.trim();
+  const url = q
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
+    : `https://www.google.com/maps`;
+  window.open(url, '_blank');
+}
+
+/* Terima paste koordinat "lat, lng" dari Google Maps -> taruh pin PERSIS di titik itu,
+   tanpa perlu OSM mengenali alamatnya sama sekali (jadi presisinya sama seperti di Google Maps). */
+function applyPastedCoords(){
+  const raw = document.getElementById('coordPasteInput').value.trim();
+  const match = raw.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+  if(!match){ showToast('Format koordinat tidak dikenali. Contoh: -6.1754, 106.8272'); return; }
+  const lat = parseFloat(match[1]), lng = parseFloat(match[2]);
+  if(lat < -90 || lat > 90 || lng < -180 || lng > 180){ showToast('Angka koordinat di luar jangkauan wajar'); return; }
+  pickedLatLng = L.latLng(lat, lng);
+  if(tempMarker) map.removeLayer(tempMarker);
+  tempMarker = L.marker([lat, lng]).addTo(map);
+  map.setView([lat, lng], 17);
+  document.getElementById('pinStatus').textContent = `Lokasi dipilih (dari koordinat): ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  showToast('Pin ditaruh persis di koordinat itu');
+}
+
+/* Ambil lokasi HP user SEKARANG dengan akurasi tinggi, langsung taruh pin di situ
+   (beda dari tombol kompas di peta yang cuma menggeser tampilan peta). */
+function useMyLocationNow(){
+  if(!navigator.geolocation){ showToast('HP/browser ini tidak mendukung deteksi lokasi'); return; }
+  const btn = document.getElementById('useMyLocationBtn');
+  const originalText = btn.textContent;
+  btn.textContent = '📍 Mencari lokasi presisi...';
+  btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      pickedLatLng = L.latLng(lat, lng);
+      if(tempMarker) map.removeLayer(tempMarker);
+      tempMarker = L.marker([lat, lng]).addTo(map);
+      map.setView([lat, lng], 18);
+      document.getElementById('pinStatus').textContent =
+        `Lokasi dipilih (GPS HP, akurasi ±${Math.round(accuracy)}m): ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      showToast(accuracy > 50 ? 'Lokasi ditaruh, tapi akurasi GPS agak rendah -- cek lagi posisinya di peta' : 'Pin ditaruh di lokasi Anda sekarang');
+      btn.textContent = originalText;
+      btn.disabled = false;
+    },
+    (err)=>{
+      showToast('Gagal mengambil lokasi: ' + (err.message || 'izin lokasi ditolak'));
+      btn.textContent = originalText;
+      btn.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+  );
 }
 
 /* ================= FILTER CHIPS ================= */
@@ -831,9 +895,9 @@ function renderFilterChips(){
   visitSelect.className = 'filter-select';
   visitSelect.id = 'visitFilterSelect';
   visitSelect.innerHTML = `
-    <option value="">Semua Kunjungan</option>
-    <option value="unvisited">🆕 Belum Dikunjungi</option>
-    <option value="visited">✅ Sudah Dikunjungi</option>
+    <option value="">Kunjungan</option>
+    <option value="unvisited">🆕 Belum</option>
+    <option value="visited">✅ Sudah</option>
   `;
   visitSelect.onchange = ()=>{
     visitFilter = visitSelect.value || null;
@@ -1473,7 +1537,6 @@ function openForm(existing){
   pickedLatLng = existing ? L.latLng(existing.lat, existing.lng) : null;
   document.getElementById('formTitle').textContent = existing ? 'Edit Resto' : 'Tambah Resto';
   document.getElementById('f_address').value = existing ? (existing.address || '') : '';
-  document.getElementById('locSearchInput').value = '';
   document.getElementById('locSuggestions').classList.add('hidden');
   document.getElementById('f_name').value = existing ? existing.name : '';
   document.getElementById('f_type').value = existing ? existing.type : 'Indonesian';
@@ -1600,15 +1663,18 @@ document.getElementById('addImgUrlBtn').onclick = ()=> addImgUrlRow('');
 document.getElementById('addRefUrlBtn').onclick = ()=> addRefUrlRow('');
 document.getElementById('addFavBtn').onclick = ()=> addFavRow('');
 document.getElementById('pickLocationBtn').onclick = ()=> setPlacing(true);
-document.getElementById('locSearchInput').oninput = (e)=>{
+document.getElementById('f_address').oninput = (e)=>{
   clearTimeout(locSearchDebounce);
   const val = e.target.value.trim();
   locSearchDebounce = setTimeout(()=> searchLocation(val), 400);
 };
-document.getElementById('locSearchInput').addEventListener('blur', ()=>{
+document.getElementById('f_address').addEventListener('blur', ()=>{
   setTimeout(()=> document.getElementById('locSuggestions').classList.add('hidden'), 200);
 });
 document.getElementById('openOsmAddrBtn').onclick = openOsmAddressHelper;
+document.getElementById('searchGmapsBtn').onclick = openGoogleMapsHelper;
+document.getElementById('coordApplyBtn').onclick = applyPastedCoords;
+document.getElementById('useMyLocationBtn').onclick = useMyLocationNow;
 document.getElementById('cancelPlace').onclick = ()=> setPlacing(false);
 document.getElementById('searchInput').oninput = ()=>{ renderMarkers(); renderSearchSuggestions(); };
 document.getElementById('searchInput').onfocus = renderSearchSuggestions;
