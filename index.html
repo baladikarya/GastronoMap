@@ -276,10 +276,10 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .field textarea{resize:vertical;min-height:60px;}
 .field-row{display:flex;gap:10px;}
 .field-row .field{flex:1;}
-.pin-hint{
-  background:#FFF6E5;border:1px dashed var(--amber-dark);border-radius:8px;
-  padding:9px 11px;font-size:12.5px;margin-bottom:14px;display:flex;gap:8px;align-items:center;
+#pinStatusCaption{
+  font-size:11.5px;color:var(--muted);margin:6px 0 14px 0;line-height:1.5;
 }
+#pinStatusCaption.has-location{color:var(--teal-dark);font-weight:600;}
 .img-url-row{display:flex;gap:6px;margin-bottom:6px;}
 .img-url-row input{flex:1;}
 .img-url-row button{border:none;background:var(--paper);border-radius:6px;padding:0 10px;cursor:pointer;color:var(--red);font-weight:700;}
@@ -443,9 +443,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     </div>
   </div>
   <div id="map"></div>
-  <div id="placeBanner" class="hidden">
-    📍 Tap peta untuk menaruh pin lokasi resto <button id="cancelPlace">Batal</button>
-  </div>
   <div id="locateBtn" title="Lokasi saya">🧭</div>
   <button id="fab" title="Tambah resto">+</button>
 
@@ -464,20 +461,18 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <input type="text" id="f_address" placeholder="Ketik nama resto/jalan, pilih dari sugesti...">
         <div id="locSuggestions" class="hidden"></div>
       </div>
-      <button type="button" id="searchGmapsBtn" class="btn btn-secondary" style="width:100%;margin-top:2px;margin-bottom:8px;font-size:12.5px;padding:8px;">🔍 Cari di Google Maps (tab baru)</button>
+      <button type="button" id="useMyLocationBtn" class="btn btn-primary" style="width:100%;margin-top:8px;">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
+      <button type="button" id="searchGmapsBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:12.5px;padding:8px;">🔍 Cari di Google Maps (tab baru)</button>
 
-      <div class="field">
-        <label>Tempel koordinat dari Google Maps (opsional, paling presisi)</label>
+      <div class="field" style="margin-top:8px;">
+        <label>Koordinat dari Google Maps (opsional, paling presisi)</label>
         <div style="display:flex;gap:6px;">
           <input type="text" id="coordPasteInput" placeholder="-6.1754, 106.8272" style="flex:1;">
           <button type="button" id="coordApplyBtn" class="btn btn-secondary" style="flex:0 0 auto;">Pakai</button>
         </div>
       </div>
 
-      <div class="pin-hint">📍 <span id="pinStatus">Belum ada lokasi dipilih. Ketik alamat di atas, atau klik "Pilih di peta" di bawah.</span></div>
-      <button type="button" id="useMyLocationBtn" class="btn btn-primary" style="width:100%;margin-bottom:8px;">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
-      <button type="button" id="pickLocationBtn" class="btn btn-secondary" style="width:100%;margin-bottom:14px;">Pilih lokasi di peta (manual)</button>
-      <button type="button" id="openOsmAddrBtn" class="btn btn-secondary" style="width:100%;margin-bottom:14px;font-size:12.5px;padding:8px;">🔍 Cari alamat di OpenStreetMap (tab baru)</button>
+      <div id="pinStatusCaption">💡 Anda juga bisa tap langsung di peta untuk pilih lokasi.</div>
 
       <div class="field-row">
         <div class="field"><label>Tipe</label>
@@ -500,9 +495,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       </div>
 
       <div class="field">
-        <label>Foto Menu (tempel link gambar)</label>
-        <div id="imgUrlList"></div>
-        <button type="button" id="addImgUrlBtn">+ Tambah link gambar</button>
+        <label>Foto Menu</label>
+        <div class="photo-grid" id="menuPhotoGrid"></div>
+        <input type="file" id="menuPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="menuPhotoGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row">
+          <button type="button" id="menuPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="menuPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+        </div>
       </div>
 
       <div class="field">
@@ -554,7 +554,18 @@ const TYPES = {
 
 const DAYS = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
 
-let map, markersLayer, allRestos = {}, activeTypeFilters = new Set(), placingMode = false, pickedLatLng = null, editingId = null, tempMarker = null;
+let map, markersLayer, allRestos = {}, activeTypeFilters = new Set(), pickedLatLng = null, editingId = null, tempMarker = null;
+let formMenuImages = []; // foto menu yang sudah diunggah untuk resto yang sedang diisi di form
+let myGpsLatLng = null; // lokasi HP user saat ini, dipakai supaya sugesti alamat prioritas ke sekitar sini
+
+function refreshMyGpsLocation(){
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{ myGpsLatLng = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+    ()=>{ /* izin ditolak/gagal, biarkan fallback ke pusat peta saat pencarian */ },
+    { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+  );
+}
 let timeFilter = null; // {day:"Senin", time:"18:00"} or null = tidak difilter
 let myUserId = null, myEmail = null, isAdmin = false;
 let visitedIds = new Set(); // ID resto yang sudah ditandai dikunjungi OLEH USER INI (personal, tidak memengaruhi orang lain)
@@ -725,13 +736,12 @@ function initMap(){
   markersLayer = L.layerGroup().addTo(map);
 
   map.on('click', (e) => {
-    if(placingMode){
+    const modalOpen = !document.getElementById('modalOverlay').classList.contains('hidden');
+    if(modalOpen){
       pickedLatLng = e.latlng;
       if(tempMarker) map.removeLayer(tempMarker);
       tempMarker = L.marker(e.latlng).addTo(map);
-      document.getElementById('pinStatus').textContent = `Lokasi dipilih: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-      setPlacing(false);
-      document.getElementById('modalOverlay').classList.remove('hidden');
+      setPinStatus(`Lokasi dipilih (tap peta): ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`);
     }
   });
 
@@ -748,9 +758,11 @@ async function searchLocation(query){
   const box = document.getElementById('locSuggestions');
   if(!query || query.length < 3){ box.classList.add('hidden'); return; }
   let feats = [];
+  // Prioritaskan lokasi GPS asli user (kalau ada) supaya sugesti condong ke sekitar
+  // posisi dia sekarang, baru fallback ke pusat tampilan peta kalau GPS tidak tersedia.
+  const bias = myGpsLatLng || map.getCenter();
   try{
-    const center = map.getCenter();
-    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lang=id&limit=6&lat=${center.lat}&lon=${center.lng}`;
+    const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lang=id&limit=6&lat=${bias.lat}&lon=${bias.lng}&location_bias_scale=0.9&zoom=15`;
     const res = await fetch(url);
     const geo = await res.json();
     feats = (geo.features || []).map(f=>({
@@ -763,7 +775,9 @@ async function searchLocation(query){
 
   if(feats.length === 0){
     try{
-      const url2 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=6&addressdetails=1`;
+      // viewbox sebagai preferensi lunak (bukan batas keras) di sekitar ±0.35 derajat (~35km)
+      const vb = `${bias.lng-0.35},${bias.lat+0.35},${bias.lng+0.35},${bias.lat-0.35}`;
+      const url2 = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=6&addressdetails=1&viewbox=${vb}`;
       const res2 = await fetch(url2);
       const arr = await res2.json();
       feats = (arr || []).map(item=>({
@@ -793,7 +807,7 @@ async function searchLocation(query){
       if(tempMarker) map.removeLayer(tempMarker);
       tempMarker = L.marker([f.lat, f.lng]).addTo(map);
       map.setView([f.lat, f.lng], 17);
-      document.getElementById('pinStatus').textContent = `Lokasi dipilih: ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}`;
+      setPinStatus(`Lokasi dipilih: ${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}`);
       if(f.addr) document.getElementById('f_address').value = f.addr;
       else document.getElementById('f_address').value = f.name;
       box.classList.add('hidden');
@@ -802,9 +816,11 @@ async function searchLocation(query){
 }
 
 /* ================= BANTUAN ALAMAT (buka OSM di tab baru, tanpa fetch) ================= */
-function openOsmAddressHelper(){
-  if(!pickedLatLng){ showToast('Pilih lokasi di peta dulu'); return; }
-  window.open(`https://nominatim.openstreetmap.org/ui/reverse.html?lat=${pickedLatLng.lat}&lon=${pickedLatLng.lng}&zoom=18`, '_blank');
+function setPinStatus(text){
+  const el = document.getElementById('pinStatusCaption');
+  if(!el) return;
+  el.textContent = text;
+  el.classList.add('has-location');
 }
 
 /* Buka Google Maps di tab baru untuk bantu cari nama/alamat resto secara manual
@@ -830,7 +846,7 @@ function applyPastedCoords(){
   if(tempMarker) map.removeLayer(tempMarker);
   tempMarker = L.marker([lat, lng]).addTo(map);
   map.setView([lat, lng], 17);
-  document.getElementById('pinStatus').textContent = `Lokasi dipilih (dari koordinat): ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  setPinStatus(`Lokasi dipilih (dari koordinat): ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
   showToast('Pin ditaruh persis di koordinat itu');
 }
 
@@ -849,8 +865,7 @@ function useMyLocationNow(){
       if(tempMarker) map.removeLayer(tempMarker);
       tempMarker = L.marker([lat, lng]).addTo(map);
       map.setView([lat, lng], 18);
-      document.getElementById('pinStatus').textContent =
-        `Lokasi dipilih (GPS HP, akurasi ±${Math.round(accuracy)}m): ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      setPinStatus(`Lokasi dipilih (GPS HP, akurasi ±${Math.round(accuracy)}m): ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
       showToast(accuracy > 50 ? 'Lokasi ditaruh, tapi akurasi GPS agak rendah -- cek lagi posisinya di peta' : 'Pin ditaruh di lokasi Anda sekarang');
       btn.textContent = originalText;
       btn.disabled = false;
@@ -1545,16 +1560,17 @@ function openForm(existing){
   document.querySelectorAll('#platformPicker .platform-toggle').forEach(el=>{
     el.classList.toggle('active', existingPlatforms.includes(el.dataset.platform));
   });
-  document.getElementById('pinStatus').textContent = pickedLatLng
+  const captionEl = document.getElementById('pinStatusCaption');
+  captionEl.classList.remove('has-location');
+  captionEl.textContent = pickedLatLng
     ? `Lokasi dipilih: ${pickedLatLng.lat.toFixed(5)}, ${pickedLatLng.lng.toFixed(5)}`
-    : 'Belum ada lokasi dipilih. Klik "Pilih di peta" di bawah.';
+    : '💡 Anda juga bisa tap langsung di peta untuk pilih lokasi.';
+  if(pickedLatLng) captionEl.classList.add('has-location');
 
   renderDayHoursRows(existing && existing.hoursByDay ? existing.hoursByDay : emptyHours());
 
-  const imgList = document.getElementById('imgUrlList');
-  imgList.innerHTML = '';
-  const imgs = existing && existing.menuImages && existing.menuImages.length ? existing.menuImages : [''];
-  imgs.forEach(url => addImgUrlRow(url));
+  formMenuImages = (existing && existing.menuImages) ? existing.menuImages.slice() : [];
+  renderMenuPhotoGrid();
 
   const favList = document.getElementById('favList');
   favList.innerHTML = '';
@@ -1569,12 +1585,41 @@ function openForm(existing){
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
 
-function addImgUrlRow(value=''){
-  const row = document.createElement('div');
-  row.className = 'img-url-row';
-  row.innerHTML = `<input type="url" placeholder="https://..." value="${escapeAttr(value)}"><button type="button">✕</button>`;
-  row.querySelector('button').onclick = ()=> row.remove();
-  document.getElementById('imgUrlList').appendChild(row);
+function renderMenuPhotoGrid(){
+  const grid = document.getElementById('menuPhotoGrid');
+  if(formMenuImages.length === 0){
+    grid.innerHTML = '<span style="color:var(--muted);font-size:12.5px;">Belum ada foto menu.</span>';
+    return;
+  }
+  grid.innerHTML = formMenuImages.map((url, idx)=>`
+    <div class="photo-card">
+      <img src="${escapeAttr(url)}" onerror="this.style.opacity=0.2">
+      <button type="button" class="photo-del-btn" data-idx="${idx}" title="Hapus foto">✕</button>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.photo-del-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      formMenuImages.splice(Number(btn.dataset.idx), 1);
+      renderMenuPhotoGrid();
+    };
+  });
+}
+
+async function uploadMenuImage(file){
+  if(!requireLogin()) return null;
+  showToast('Mengunggah foto menu...');
+  try{
+    const blob = await compressImage(file);
+    const path = `menu/${myUserId}_${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+    const { error: upErr } = await sb.storage.from('visit-photos').upload(path, blob, { contentType: 'image/jpeg' });
+    if(upErr) throw upErr;
+    const url = sb.storage.from('visit-photos').getPublicUrl(path).data.publicUrl;
+    showToast('Foto menu ditambahkan');
+    return url;
+  }catch(e){
+    showToast('Gagal unggah: ' + e.message);
+    return null;
+  }
 }
 
 function addRefUrlRow(value=''){
@@ -1588,13 +1633,6 @@ function addRefUrlRow(value=''){
 function closeForm(){
   document.getElementById('modalOverlay').classList.add('hidden');
   if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
-  setPlacing(false);
-}
-
-function setPlacing(on){
-  placingMode = on;
-  document.getElementById('placeBanner').classList.toggle('hidden', !on);
-  if(on) document.getElementById('modalOverlay').classList.add('hidden');
 }
 
 async function handleSave(){
@@ -1602,7 +1640,7 @@ async function handleSave(){
   if(!name){ showToast('Nama resto wajib diisi'); return; }
   if(!pickedLatLng){ showToast('Pilih lokasi di peta dulu'); return; }
   if(!requireLogin()) return;
-  const imgUrls = Array.from(document.querySelectorAll('.img-url-row input')).map(i=>i.value.trim()).filter(Boolean);
+  const imgUrls = formMenuImages;
   const favMenus = Array.from(document.querySelectorAll('.fav-row input')).map(i=>i.value.trim()).filter(Boolean);
   const refUrlsRaw = Array.from(document.querySelectorAll('.ref-url-row input')).map(i=>i.value.trim()).filter(Boolean);
   const platforms = Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>el.dataset.platform);
@@ -1655,14 +1693,15 @@ function showToast(msg){
 }
 
 /* ================= EVENTS ================= */
-document.getElementById('fab').onclick = ()=> openForm(null);
+document.getElementById('fab').onclick = ()=>{ refreshMyGpsLocation(); openForm(null); };
 document.getElementById('closeDetail').onclick = closeDetail;
 document.getElementById('cancelForm').onclick = closeForm;
+document.getElementById('modalOverlay').onclick = (e)=>{
+  if(e.target.id === 'modalOverlay') closeForm();
+};
 document.getElementById('saveForm').onclick = handleSave;
-document.getElementById('addImgUrlBtn').onclick = ()=> addImgUrlRow('');
 document.getElementById('addRefUrlBtn').onclick = ()=> addRefUrlRow('');
 document.getElementById('addFavBtn').onclick = ()=> addFavRow('');
-document.getElementById('pickLocationBtn').onclick = ()=> setPlacing(true);
 document.getElementById('f_address').oninput = (e)=>{
   clearTimeout(locSearchDebounce);
   const val = e.target.value.trim();
@@ -1671,11 +1710,20 @@ document.getElementById('f_address').oninput = (e)=>{
 document.getElementById('f_address').addEventListener('blur', ()=>{
   setTimeout(()=> document.getElementById('locSuggestions').classList.add('hidden'), 200);
 });
-document.getElementById('openOsmAddrBtn').onclick = openOsmAddressHelper;
 document.getElementById('searchGmapsBtn').onclick = openGoogleMapsHelper;
 document.getElementById('coordApplyBtn').onclick = applyPastedCoords;
 document.getElementById('useMyLocationBtn').onclick = useMyLocationNow;
-document.getElementById('cancelPlace').onclick = ()=> setPlacing(false);
+document.getElementById('menuPhotoCameraBtn').onclick = ()=>{ if(requireLogin()) document.getElementById('menuPhotoCameraInput').click(); };
+document.getElementById('menuPhotoGalleryBtn').onclick = ()=>{ if(requireLogin()) document.getElementById('menuPhotoGalleryInput').click(); };
+const handleMenuPhotoPick = async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  const url = await uploadMenuImage(file);
+  if(url){ formMenuImages.push(url); renderMenuPhotoGrid(); }
+};
+document.getElementById('menuPhotoCameraInput').onchange = handleMenuPhotoPick;
+document.getElementById('menuPhotoGalleryInput').onchange = handleMenuPhotoPick;
 document.getElementById('searchInput').oninput = ()=>{ renderMarkers(); renderSearchSuggestions(); };
 document.getElementById('searchInput').onfocus = renderSearchSuggestions;
 document.getElementById('searchInput').addEventListener('blur', ()=>{
@@ -1739,6 +1787,7 @@ initMap();
 renderFilterChips();
 populateTypeSelect();
 initPlatformPicker();
+refreshMyGpsLocation();
 (async ()=>{
   await initIdentity();
   await loadAllRestos();
