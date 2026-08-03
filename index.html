@@ -64,18 +64,18 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 #searchInput:focus{box-shadow:0 0 0 2px var(--amber);}
 
-/* ---------- LOGIN OVERLAY ---------- */
-#loginOverlay{
+/* ---------- LOGIN OVERLAY & PROFILE OVERLAY (gaya sama) ---------- */
+#loginOverlay, #profileOverlay{
   position:fixed;inset:0;z-index:5000;background:rgba(20,25,24,0.72);
   display:flex;align-items:center;justify-content:center;padding:20px;
 }
-#loginOverlay.hidden{display:none;}
+#loginOverlay.hidden, #profileOverlay.hidden{display:none;}
 #loginBox{background:var(--card);border-radius:16px;padding:26px 22px;max-width:360px;width:100%;box-shadow:var(--shadow);}
 #loginLogo{font-family:'Fraunces',serif;font-weight:700;font-size:22px;text-align:center;margin-bottom:10px;color:var(--amber-dark);}
 #loginLogo span{color:var(--ink);}
 #loginDesc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;text-align:center;}
 #loginEmailInput{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);font-size:14px;margin-bottom:10px;font-family:'Work Sans',sans-serif;}
-#loginStatus{font-size:12.5px;text-align:center;margin-top:10px;min-height:16px;color:var(--teal-dark);}
+#loginStatus, #profileStatus{font-size:12.5px;text-align:center;margin-top:10px;min-height:16px;color:var(--teal-dark);}
 #googleHint{font-size:11px;text-align:center;color:var(--muted);margin-top:6px;}
 #loginDivider{text-align:center;color:var(--muted);font-size:11.5px;margin:14px 0;position:relative;}
 #loginDivider::before, #loginDivider::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:var(--line);}
@@ -418,6 +418,31 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <button id="loginCancelBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;">Lihat peta dulu tanpa login</button>
     </div>
   </div>
+  <div id="profileOverlay" class="hidden">
+    <div id="loginBox">
+      <div id="loginLogo"><span>Lengkapi</span> Profil</div>
+      <p id="loginDesc">Sekali saja -- supaya testimoni & rating Anda tercatat atas nama sendiri, bukan anonim.</p>
+      <div class="field" style="text-align:left;">
+        <label>Username</label>
+        <input type="text" id="profileUsernameInput" placeholder="mis. rendra_bp" maxlength="24">
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>Jenis Kelamin</label>
+        <select id="profileGenderInput">
+          <option value="">Pilih...</option>
+          <option value="L">Laki-laki</option>
+          <option value="P">Perempuan</option>
+          <option value="Lainnya">Lainnya</option>
+        </select>
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>Usia</label>
+        <input type="number" id="profileAgeInput" placeholder="mis. 27" min="1" max="119">
+      </div>
+      <button id="profileSaveBtn" class="btn btn-primary" style="width:100%;margin-top:6px;">Simpan Profil</button>
+      <div id="profileStatus"></div>
+    </div>
+  </div>
   <div id="header">
     <div id="logo"><img src="icons/icon-192.png" alt="GastronoMap"></div>
     <div id="searchWrap">
@@ -581,16 +606,17 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 /* ================= CONFIG: TIPE RESTO ================= */
 const TYPES = {
   "Indonesian": {emoji:"🍛", color:"#E8A33D"},
-  "Bakery":     {emoji:"🥐", color:"#C4801F"},
-  "Chinese":    {emoji:"🥢", color:"#C1443B"},
-  "Japanese":   {emoji:"🍣", color:"#3B6E8F"},
-  "Korean":     {emoji:"🌶️", color:"#B23A48"},
+  "Asian":      {emoji:"🥢", color:"#C1443B"},
   "Western":    {emoji:"🍔", color:"#6B4C93"},
+  "Bakery":     {emoji:"🥐", color:"#C4801F"},
   "Cafe":       {emoji:"☕", color:"#6F4E37"},
+  "Sweet":      {emoji:"🍰", color:"#E85D9E"},
+  "Snack":      {emoji:"🍿", color:"#3D8B8B"},
   "Seafood":    {emoji:"🦐", color:"#2E86AB"},
-  "Vegetarian": {emoji:"🥗", color:"#4C9A2A"},
-  "Lainnya":    {emoji:"📍", color:"#555555"}
+  "Traditional":{emoji:"🍲", color:"#8B5A2B"},
+  "AYCE":       {emoji:"♾️", color:"#C99700"}
 };
+const DEFAULT_TYPE_META = {emoji:"📍", color:"#555555"}; // fallback untuk tipe lama/tidak dikenal (data sebelum perubahan ini)
 
 const DAYS = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
 
@@ -608,6 +634,8 @@ function refreshMyGpsLocation(){
 }
 let timeFilter = null; // {day:"Senin", time:"18:00"} or null = tidak difilter
 let myUserId = null, myEmail = null, isAdmin = false;
+let myUsername = null, myGender = null, myAge = null;
+let profilesMap = {}; // { userId: username } -- dipakai untuk menampilkan nama penulis testimoni
 let visitedIds = new Set(); // ID resto yang sudah ditandai dikunjungi OLEH USER INI (personal, tidak memengaruhi orang lain)
 let visitFilter = null; // null | 'visited' | 'unvisited'
 
@@ -633,10 +661,15 @@ async function applySession(session){
   if(session && session.user){
     myUserId = session.user.id;
     myEmail = session.user.email;
-    const { data: profile } = await sb.from('profiles').select('role').eq('id', myUserId).single();
+    const { data: profile } = await sb.from('profiles').select('role, username, gender, age').eq('id', myUserId).single();
     isAdmin = !!(profile && profile.role === 'admin');
+    myUsername = profile ? (profile.username || null) : null;
+    myGender = profile ? (profile.gender || null) : null;
+    myAge = profile ? (profile.age || null) : null;
+    if(!myUsername) setTimeout(openProfileCompletionModal, 400); // beri jeda dikit supaya tidak "nabrak" transisi login
   }else{
     myUserId = null; myEmail = null; isAdmin = false;
+    myUsername = null; myGender = null; myAge = null;
   }
   updateUserBadge();
   await loadVisited();
@@ -670,7 +703,7 @@ function updateUserBadge(){
   const btn = document.getElementById('userBadge');
   if(!btn) return;
   if(myUserId){
-    btn.textContent = (isAdmin ? '🔑 ' : '👤 ') + (myEmail || 'Akun');
+    btn.textContent = (isAdmin ? '🔑 ' : '👤 ') + (myUsername || 'Lengkapi Profil');
     btn.classList.toggle('active', isAdmin);
   }else{
     btn.textContent = 'Login';
@@ -697,6 +730,34 @@ async function signOut(){
     await sb.auth.signOut();
     showToast('Berhasil logout');
   }
+}
+
+function openProfileCompletionModal(){
+  if(!myUserId || myUsername) return; // sudah punya username, tidak perlu dipaksa lagi
+  document.getElementById('profileUsernameInput').value = '';
+  document.getElementById('profileGenderInput').value = '';
+  document.getElementById('profileAgeInput').value = '';
+  document.getElementById('profileStatus').textContent = '';
+  document.getElementById('profileOverlay').classList.remove('hidden');
+}
+
+async function saveProfile(){
+  const username = document.getElementById('profileUsernameInput').value.trim();
+  const gender = document.getElementById('profileGenderInput').value;
+  const ageRaw = document.getElementById('profileAgeInput').value.trim();
+  const statusEl = document.getElementById('profileStatus');
+  if(!username){ statusEl.textContent = 'Username wajib diisi'; return; }
+  if(username.length < 3){ statusEl.textContent = 'Username minimal 3 karakter'; return; }
+  const age = ageRaw ? parseInt(ageRaw, 10) : null;
+  statusEl.textContent = 'Menyimpan...';
+  const { error } = await sb.from('profiles').update({
+    username, gender: gender || null, age: (age && age > 0 && age < 120) ? age : null
+  }).eq('id', myUserId);
+  if(error){ statusEl.textContent = 'Gagal: ' + error.message; return; }
+  myUsername = username; myGender = gender || null; myAge = age || null;
+  updateUserBadge();
+  document.getElementById('profileOverlay').classList.add('hidden');
+  showToast('Profil tersimpan, terima kasih!');
 }
 
 function emptyHours(){
@@ -1110,14 +1171,17 @@ function addFavRow(value=''){
 /* ================= STORAGE (Supabase) ================= */
 async function loadAllRestos(){
   try{
-    const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}] = await Promise.all([
+    const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}, {data: profileRows}] = await Promise.all([
       sb.from('restos').select('*'),
       sb.from('ratings').select('*'),
       sb.from('testimonials').select('*'),
       sb.from('favorite_menu').select('*'),
       sb.from('references_link').select('*'),
-      sb.from('visit_photos').select('*')
+      sb.from('visit_photos').select('*'),
+      sb.from('profiles').select('id, username')
     ]);
+    profilesMap = {};
+    (profileRows||[]).forEach(p=>{ if(p.username) profilesMap[p.id] = p.username; });
     allRestos = {};
     (restos||[]).forEach(row=>{
       allRestos[row.id] = {
@@ -1184,7 +1248,7 @@ async function deleteResto(id){
 
 /* ================= MARKERS ================= */
 function makeIcon(type, visited){
-  const t = TYPES[type] || TYPES['Lainnya'];
+  const t = TYPES[type] || DEFAULT_TYPE_META;
   return L.divIcon({
     className:'',
     html:`<div class="pin-wrap"><div class="resto-pin" style="background:${t.color}"><span>${t.emoji}</span></div>${visited ? '<div class="visited-badge">✓</div>' : ''}</div>`,
@@ -1226,7 +1290,7 @@ function renderSearchSuggestions(){
     .slice(0, 6);
   if(matches.length === 0){ box.classList.add('hidden'); box.innerHTML=''; return; }
   box.innerHTML = matches.map(r=>{
-    const t = TYPES[r.type] || TYPES['Lainnya'];
+    const t = TYPES[r.type] || DEFAULT_TYPE_META;
     return `<div class="suggest-item" data-id="${r.id}">${t.emoji} ${escapeHtml(r.name)} <span class="stype">${escapeHtml(r.type)}</span></div>`;
   }).join('');
   box.querySelectorAll('.suggest-item').forEach(el=>{
@@ -1351,7 +1415,9 @@ function testimoniListHtml(r, showAll){
   let html = visible.map(t=>{
     const dateStr = t.at ? new Date(t.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
     const mine = t.userId && t.userId === myUserId;
-    return `<div class="testi-item${mine ? ' testi-mine' : ''}">${escapeHtml(t.text)}${dateStr ? `<span class="testi-date">${dateStr}${mine ? ' · testimoni Anda' : ''}</span>` : ''}</div>`;
+    const authorName = mine ? 'Anda' : (t.userId && profilesMap[t.userId]) ? profilesMap[t.userId] : (t.legacy ? null : 'Pengguna');
+    const authorHtml = authorName ? `<b>${escapeHtml(authorName)}</b>${dateStr ? ' · ' : ''}` : '';
+    return `<div class="testi-item${mine ? ' testi-mine' : ''}">${escapeHtml(t.text)}${(authorHtml || dateStr) ? `<span class="testi-date">${authorHtml}${dateStr}</span>` : ''}</div>`;
   }).join('');
   if(!showAll && sorted.length > 2){
     html += `<div class="testi-more" id="testiShowMoreBtn">Lihat semua ${sorted.length} testimoni</div>`;
@@ -1362,7 +1428,7 @@ function testimoniListHtml(r, showAll){
 function openDetail(id, showAllTesti){
   const r = allRestos[id];
   if(!r) return;
-  const t = TYPES[r.type] || TYPES['Lainnya'];
+  const t = TYPES[r.type] || DEFAULT_TYPE_META;
   const imgs = (r.menuImages||[]).filter(Boolean);
   const favs = (r.favoriteMenu||[]).filter(Boolean);
   const today = currentDayName();
@@ -1838,9 +1904,33 @@ document.getElementById('userBadge').onclick = ()=>{
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
 document.getElementById('loginGoogleBtn').onclick = signInWithGoogle;
 document.getElementById('loginCancelBtn').onclick = ()=> document.getElementById('loginOverlay').classList.add('hidden');
+document.getElementById('profileSaveBtn').onclick = saveProfile;
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=> navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+  window.addEventListener('load', async ()=>{
+    try{
+      const reg = await navigator.serviceWorker.register('service-worker.js');
+      reg.update(); // paksa cek versi baru begitu app dibuka, tidak nunggu jadwal 24 jam browser
+
+      // Cek ulang tiap kali app dibuka lagi dari background (umum terjadi di PWA HP
+      // yang "dilanjutkan" bukan benar-benar ditutup)
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.visibilityState === 'visible') reg.update();
+      });
+
+      // Sambil app terbuka lama, cek ulang tiap 1 jam
+      setInterval(()=> reg.update(), 60 * 60 * 1000);
+    }catch(e){ /* abaikan kalau gagal daftar SW */ }
+  });
+
+  // Begitu versi baru selesai dipasang & ambil alih -> reload otomatis,
+  // supaya user langsung dapat versi terbaru TANPA perlu uninstall/install ulang.
+  let swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(swRefreshing) return;
+    swRefreshing = true;
+    window.location.reload();
+  });
 }
 
 /* ================= START ================= */
