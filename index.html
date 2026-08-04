@@ -46,8 +46,10 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   display:flex;align-items:center;gap:12px;
   box-shadow:var(--shadow);
 }
-#logo{flex-shrink:0;display:flex;align-items:center;}
-#logo img{width:34px;height:34px;border-radius:9px;display:block;}
+#logo{flex-shrink:0;display:flex;align-items:center;background:none;border:none;padding:0;cursor:pointer;}
+#logo img{width:34px;height:34px;border-radius:9px;display:block;transition:transform 0.5s ease;}
+#logo.spinning img{animation:logoSpin 0.7s linear infinite;}
+@keyframes logoSpin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 #searchWrap{flex:1;min-width:0;position:relative;display:flex;align-items:center;}
 #searchSuggestions{
   position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:1002;
@@ -76,6 +78,73 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #loginDesc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;text-align:center;}
 #loginEmailInput{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);font-size:14px;margin-bottom:10px;font-family:'Work Sans',sans-serif;}
 #loginStatus, #profileStatus{font-size:12.5px;text-align:center;margin-top:10px;min-height:16px;color:var(--teal-dark);}
+
+/* ---------- AVATAR BADGE DI HEADER ---------- */
+#userBadge{
+  flex-shrink:0;background:rgba(255,255,255,0.14);border:2px solid rgba(255,255,255,0.25);color:var(--paper);
+  border-radius:50%;width:36px;height:36px;padding:0;cursor:pointer;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+}
+#userBadge.active{border-color:var(--amber);}
+#userBadge img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+
+/* ---------- PANEL AKUN ---------- */
+#accountOverlay, #guideOverlay{
+  position:fixed;inset:0;z-index:4000;background:rgba(20,25,24,0.6);
+  display:flex;align-items:flex-end;justify-content:center;padding:0;
+}
+#accountOverlay.hidden, #guideOverlay.hidden{display:none;}
+#accountPanel, #guidePanel{
+  position:relative;background:var(--card);width:100%;max-width:420px;max-height:82vh;overflow-y:auto;
+  border-radius:18px 18px 0 0;padding:24px 20px 26px 20px;
+}
+#accountHeader{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line);}
+#accountAvatarWrap{position:relative;width:64px;height:64px;flex-shrink:0;cursor:pointer;}
+#accountAvatarWrap img{width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;}
+#accountAvatarInitial{
+  width:64px;height:64px;border-radius:50%;background:var(--paper);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:28px;
+}
+#accountAvatarEditBadge{
+  position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;
+  background:var(--amber);border:2px solid var(--card);display:flex;align-items:center;justify-content:center;font-size:11px;
+}
+#accountNameEmail{min-width:0;flex:1;}
+#accountUsername{font-family:'Fraunces',serif;font-weight:700;font-size:18px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#accountEmail{font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.account-menu-item{
+  display:block;width:100%;text-align:left;background:none;border:none;border-radius:10px;
+  padding:13px 10px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;font-family:'Work Sans',sans-serif;
+}
+.account-menu-item:hover{background:var(--paper);}
+.account-menu-item.danger{color:var(--red);margin-top:6px;border-top:1px solid var(--line);border-radius:0;padding-top:16px;}
+
+/* ---------- PANEL PANDUAN ---------- */
+#guidePanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 14px 0;}
+#guideContent{font-size:13.5px;line-height:1.7;color:#333;}
+#guideContent h3{font-size:14px;margin:16px 0 6px 0;color:var(--teal-dark);}
+#guideContent h3:first-child{margin-top:0;}
+#guideContent ul{margin:4px 0 0 0;padding-left:20px;}
+
+/* ---------- POPUP RESTO BARU ---------- */
+#newRestoOverlay{
+  position:fixed;inset:0;z-index:4500;background:rgba(20,25,24,0.6);
+  display:flex;align-items:flex-end;justify-content:center;
+}
+#newRestoOverlay.hidden{display:none;}
+#newRestoPanel{
+  position:relative;background:var(--card);width:100%;max-width:420px;max-height:78vh;overflow-y:auto;
+  border-radius:18px 18px 0 0;padding:24px 20px 26px 20px;
+}
+#newRestoPanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 6px 0;}
+#newRestoIntro{font-size:12.5px;color:var(--muted);margin:0 0 12px 0;}
+.new-resto-item{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px 10px;border-radius:10px;
+  border:1px solid var(--line);margin-bottom:8px;cursor:pointer;background:var(--paper);
+}
+.new-resto-item:hover{border-color:var(--amber);}
+.new-resto-sub{width:100%;font-size:11.5px;color:var(--muted);padding-left:24px;}
+
 #googleHint{font-size:11px;text-align:center;color:var(--muted);margin-top:6px;}
 #loginDivider{text-align:center;color:var(--muted);font-size:11.5px;margin:14px 0;position:relative;}
 #loginDivider::before, #loginDivider::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:var(--line);}
@@ -202,6 +271,19 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   display:flex;align-items:center;justify-content:center;border:2px solid #fff;z-index:2;
 }
 
+/* ---------- BADGE & EFEK BERPENDAR UNTUK PIN RESTO BARU ---------- */
+.pin-wrap.pin-new .resto-pin{ animation: pinGlowPulse 1.6s ease-in-out infinite; }
+@keyframes pinGlowPulse{
+  0%, 100% { box-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 0 rgba(232,163,61,0.7); }
+  50% { box-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 8px rgba(232,163,61,0); }
+}
+.new-badge{
+  position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  background:var(--amber);color:var(--ink);font-size:8.5px;font-weight:900;
+  padding:1px 5px;border-radius:6px;white-space:nowrap;border:1px solid #fff;z-index:3;
+  letter-spacing:0.3px;
+}
+
 /* ---------- FAB ---------- */
 #fab{
   position:absolute;bottom:calc(26px + env(safe-area-inset-bottom));right:20px;z-index:999;
@@ -245,6 +327,10 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .detail-row{display:flex;gap:8px;margin:6px 0;font-size:13.5px;align-items:flex-start;}
 .detail-row .label{color:var(--muted);min-width:78px;font-weight:600;}
 .detail-price{font-family:'Space Mono',monospace;background:var(--paper);padding:2px 8px;border-radius:4px;border:1px dashed var(--line);}
+.phone-call-btn{
+  background:var(--teal-dark);color:#fff;text-decoration:none;padding:3px 10px;border-radius:12px;
+  font-size:11px;font-weight:700;white-space:nowrap;
+}
 .menu-imgs{display:flex;gap:8px;overflow-x:auto;margin-top:8px;padding-bottom:4px;}
 .menu-imgs img{width:110px;height:110px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 auto;background:#eee;}
 .detail-desc{font-size:13.5px;line-height:1.55;margin-top:6px;color:#333;}
@@ -443,13 +529,53 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <div id="profileStatus"></div>
     </div>
   </div>
+
+  <div id="accountOverlay" class="hidden">
+    <div id="accountPanel">
+      <button class="closeBtn" id="closeAccountBtn">✕</button>
+      <div id="accountHeader">
+        <div id="accountAvatarWrap">
+          <img id="accountAvatarImg" src="" alt="" class="hidden">
+          <span id="accountAvatarInitial">👤</span>
+          <input type="file" id="avatarInput" accept="image/*" class="hidden">
+          <div id="accountAvatarEditBadge">📷</div>
+        </div>
+        <div id="accountNameEmail">
+          <div id="accountUsername">-</div>
+          <div id="accountEmail">-</div>
+        </div>
+      </div>
+      <button class="account-menu-item" id="openGuideBtn">📖 Panduan Penggunaan Aplikasi</button>
+      <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil (username/gender/usia)</button>
+      <button class="account-menu-item danger" id="logoutBtn">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div id="guideOverlay" class="hidden">
+    <div id="guidePanel">
+      <button class="closeBtn" id="closeGuideBtn">✕</button>
+      <h2>📖 Panduan Penggunaan GastronoMap</h2>
+      <div id="guideContent"></div>
+    </div>
+  </div>
+
+  <div id="newRestoOverlay" class="hidden">
+    <div id="newRestoPanel">
+      <button class="closeBtn" id="closeNewRestoBtn">✕</button>
+      <h2>✨ Ada Resto Baru!</h2>
+      <p id="newRestoIntro">Resto berikut baru ditambahkan, tap untuk langsung lihat:</p>
+      <div id="newRestoList"></div>
+      <button class="btn btn-secondary" id="dismissNewRestoBtn" style="width:100%;margin-top:14px;">Tutup</button>
+    </div>
+  </div>
+
   <div id="header">
-    <div id="logo"><img src="icons/icon-192.png" alt="GastronoMap"></div>
+    <button id="logo" title="Tap untuk muat ulang data terbaru"><img src="icons/icon-192.png" alt="GastronoMap"></button>
     <div id="searchWrap">
       <input id="searchInput" type="text" placeholder="Eksplorasi rasa bersama GastronoMap">
       <div id="searchSuggestions" class="hidden"></div>
     </div>
-    <button id="userBadge" title="Akun">Login</button>
+    <button id="userBadge" title="Akun"><img id="userBadgeAvatar" src="" alt="" class="hidden"><span id="userBadgeInitial">👤</span></button>
   </div>
   <div id="filters"></div>
   <div id="filterOverlay" class="hidden">
@@ -526,6 +652,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <input type="text" id="f_address" placeholder="Ketik nama resto/jalan, pilih dari sugesti...">
         <div id="locSuggestions" class="hidden"></div>
       </div>
+
+      <div class="field">
+        <label>No. Telepon/HP</label>
+        <input type="tel" id="f_phone" placeholder="mis. 081234567890 atau 021-5551234">
+      </div>
+
       <button type="button" id="useMyLocationBtn" class="btn btn-primary" style="width:100%;margin-top:8px;">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
       <button type="button" id="searchGmapsBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:12.5px;padding:8px;">🔍 Cari di Google Maps (tab baru)</button>
 
@@ -634,9 +766,10 @@ function refreshMyGpsLocation(){
 }
 let timeFilter = null; // {day:"Senin", time:"18:00"} or null = tidak difilter
 let myUserId = null, myEmail = null, isAdmin = false;
-let myUsername = null, myGender = null, myAge = null;
+let myUsername = null, myGender = null, myAge = null, myAvatarUrl = null;
 let profilesMap = {}; // { userId: username } -- dipakai untuk menampilkan nama penulis testimoni
 let visitedIds = new Set(); // ID resto yang sudah ditandai dikunjungi OLEH USER INI (personal, tidak memengaruhi orang lain)
+let seenRestoIds = new Set(); // ID resto baru yang sudah DILIHAT oleh user ini (untuk badge notifikasi resto baru)
 let visitFilter = null; // null | 'visited' | 'unvisited'
 
 /* ================= SUPABASE CLIENT ================= */
@@ -661,24 +794,49 @@ async function applySession(session){
   if(session && session.user){
     myUserId = session.user.id;
     myEmail = session.user.email;
-    const { data: profile } = await sb.from('profiles').select('role, username, gender, age').eq('id', myUserId).single();
+    const { data: profile } = await sb.from('profiles').select('role, username, gender, age, avatar_url').eq('id', myUserId).single();
     isAdmin = !!(profile && profile.role === 'admin');
     myUsername = profile ? (profile.username || null) : null;
     myGender = profile ? (profile.gender || null) : null;
     myAge = profile ? (profile.age || null) : null;
+    myAvatarUrl = profile ? (profile.avatar_url || null) : null;
     if(!myUsername) setTimeout(openProfileCompletionModal, 400); // beri jeda dikit supaya tidak "nabrak" transisi login
   }else{
     myUserId = null; myEmail = null; isAdmin = false;
-    myUsername = null; myGender = null; myAge = null;
+    myUsername = null; myGender = null; myAge = null; myAvatarUrl = null;
   }
   updateUserBadge();
   await loadVisited();
 }
 
 async function loadVisited(){
-  if(!myUserId){ visitedIds = new Set(); return; }
-  const { data } = await sb.from('visited').select('resto_id').eq('user_id', myUserId);
-  visitedIds = new Set((data||[]).map(v=>v.resto_id));
+  if(!myUserId){ visitedIds = new Set(); seenRestoIds = new Set(); return; }
+  const [{ data: visitedData }, { data: seenData }] = await Promise.all([
+    sb.from('visited').select('resto_id').eq('user_id', myUserId),
+    sb.from('seen_restos').select('resto_id').eq('user_id', myUserId)
+  ]);
+  visitedIds = new Set((visitedData||[]).map(v=>v.resto_id));
+  seenRestoIds = new Set((seenData||[]).map(v=>v.resto_id));
+}
+
+const NEW_RESTO_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // resto dianggap "baru" selama 7 hari sejak ditambahkan
+
+function isNewForMe(r){
+  if(!myUserId) return false; // fitur ini butuh login (personal per user)
+  if(seenRestoIds.has(r.id)) return false;
+  if(!r.createdAt) return false;
+  return (Date.now() - r.createdAt) < NEW_RESTO_WINDOW_MS;
+}
+
+function getNewRestosForMe(){
+  return Object.values(allRestos).filter(isNewForMe);
+}
+
+async function markRestoSeen(restoId){
+  if(!myUserId || seenRestoIds.has(restoId)) return;
+  seenRestoIds.add(restoId);
+  try{ await sb.from('seen_restos').upsert({resto_id: restoId, user_id: myUserId}); }catch(e){}
+  renderMarkers();
 }
 
 function requireLogin(){
@@ -702,12 +860,22 @@ async function toggleVisited(restoId){
 function updateUserBadge(){
   const btn = document.getElementById('userBadge');
   if(!btn) return;
+  const img = document.getElementById('userBadgeAvatar');
+  const initial = document.getElementById('userBadgeInitial');
   if(myUserId){
-    btn.textContent = (isAdmin ? '🔑 ' : '👤 ') + (myUsername || 'Lengkapi Profil');
+    btn.title = myUsername || 'Lengkapi Profil';
     btn.classList.toggle('active', isAdmin);
+    if(myAvatarUrl){
+      img.src = myAvatarUrl; img.classList.remove('hidden'); initial.classList.add('hidden');
+    }else{
+      img.classList.add('hidden'); initial.classList.remove('hidden');
+      initial.textContent = isAdmin ? '🔑' : '👤';
+    }
   }else{
-    btn.textContent = 'Login';
+    btn.title = 'Login';
     btn.classList.remove('active');
+    img.classList.add('hidden'); initial.classList.remove('hidden');
+    initial.textContent = '👤';
   }
 }
 
@@ -732,12 +900,14 @@ async function signOut(){
   }
 }
 
-function openProfileCompletionModal(){
-  if(!myUserId || myUsername) return; // sudah punya username, tidak perlu dipaksa lagi
-  document.getElementById('profileUsernameInput').value = '';
-  document.getElementById('profileGenderInput').value = '';
-  document.getElementById('profileAgeInput').value = '';
+function openProfileCompletionModal(forceEdit){
+  if(!myUserId) return;
+  if(myUsername && !forceEdit) return; // sudah punya username & bukan mode edit, tidak perlu dipaksa lagi
+  document.getElementById('profileUsernameInput').value = myUsername || '';
+  document.getElementById('profileGenderInput').value = myGender || '';
+  document.getElementById('profileAgeInput').value = myAge || '';
   document.getElementById('profileStatus').textContent = '';
+  document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('profileOverlay').classList.remove('hidden');
 }
 
@@ -758,6 +928,96 @@ async function saveProfile(){
   updateUserBadge();
   document.getElementById('profileOverlay').classList.add('hidden');
   showToast('Profil tersimpan, terima kasih!');
+}
+
+/* ================= PANEL AKUN (avatar, panduan, logout) ================= */
+function openAccountPanel(){
+  if(!myUserId){ document.getElementById('loginOverlay').classList.remove('hidden'); return; }
+  document.getElementById('accountUsername').textContent = myUsername || '(belum ada username)';
+  document.getElementById('accountEmail').textContent = myEmail || '';
+  const img = document.getElementById('accountAvatarImg');
+  const initial = document.getElementById('accountAvatarInitial');
+  if(myAvatarUrl){
+    img.src = myAvatarUrl; img.classList.remove('hidden'); initial.classList.add('hidden');
+  }else{
+    img.classList.add('hidden'); initial.classList.remove('hidden');
+  }
+  document.getElementById('accountOverlay').classList.remove('hidden');
+}
+
+async function uploadAvatar(file){
+  if(!requireLogin()) return;
+  showToast('Mengunggah foto profil...');
+  try{
+    const blob = await compressImage(file, 400, 0.8); // avatar cukup kecil, hemat storage
+    const path = `avatars/${myUserId}_${Date.now()}.jpg`;
+    const { error: upErr } = await sb.storage.from('visit-photos').upload(path, blob, { contentType: 'image/jpeg' });
+    if(upErr) throw upErr;
+    const url = sb.storage.from('visit-photos').getPublicUrl(path).data.publicUrl;
+    const { error: updErr } = await sb.from('profiles').update({ avatar_url: url }).eq('id', myUserId);
+    if(updErr) throw updErr;
+    myAvatarUrl = url;
+    updateUserBadge();
+    openAccountPanel(); // refresh tampilan avatar di panel
+    showToast('Foto profil diperbarui');
+  }catch(e){
+    showToast('Gagal unggah foto: ' + e.message);
+  }
+}
+
+const GUIDE_HTML = `
+  <h3>🗺️ Cari & Lihat Resto</h3>
+  <ul>
+    <li>Ketik nama resto/alamat di kotak cari, atau langsung jelajahi peta.</li>
+    <li>Tap pin untuk lihat detail: jam buka, harga, foto menu, rating, testimoni.</li>
+    <li>Tombol 🔧 Filter untuk saring berdasarkan tipe, harga, jam buka, ketersediaan online, atau status kunjungan.</li>
+  </ul>
+  <h3>➕ Tambah Resto</h3>
+  <ul>
+    <li>Tekan tombol (+) di pojok kanan bawah.</li>
+    <li>Isi lokasi lewat salah satu cara: ketik alamat & pilih sugesti, tekan "Saya Sedang di Sini", cari di Google Maps lalu tempel koordinatnya, atau tap langsung di peta.</li>
+    <li>Pin bisa digeser kalau posisinya kurang pas sebelum disimpan.</li>
+  </ul>
+  <h3>⭐ Rating & Testimoni</h3>
+  <ul>
+    <li>Tiap orang hanya bisa memberi 1 rating & 1 testimoni per resto, tapi bisa diedit ulang kapan saja.</li>
+    <li>Menu Favorit dan Referensi (link Reels/video) boleh ditambah berkali-kali.</li>
+  </ul>
+  <h3>✅ Tandai Kunjungan</h3>
+  <ul>
+    <li>Buka detail resto, tekan "Tandai Dikunjungi" -- ini personal, hanya Anda yang lihat statusnya.</li>
+  </ul>
+  <h3>🔑 Untuk Admin</h3>
+  <ul>
+    <li>Admin bisa Edit dan Hapus resto lewat panel detail (tombol khusus muncul otomatis kalau akun Anda berstatus admin).</li>
+  </ul>
+`;
+
+function openGuidePanel(){
+  document.getElementById('guideContent').innerHTML = GUIDE_HTML;
+  document.getElementById('accountOverlay').classList.add('hidden');
+  document.getElementById('guideOverlay').classList.remove('hidden');
+}
+
+function showNewRestoPopupIfNeeded(){
+  if(!myUserId) return; // fitur personal, hanya untuk yang login
+  const newOnes = getNewRestosForMe();
+  if(newOnes.length === 0) return;
+  const list = document.getElementById('newRestoList');
+  list.innerHTML = newOnes.map(r=>{
+    const t = TYPES[r.type] || DEFAULT_TYPE_META;
+    return `<div class="new-resto-item" data-id="${escapeAttr(r.id)}">${t.emoji} <b>${escapeHtml(r.name)}</b><span class="new-resto-sub">${escapeHtml(r.address || r.type)}</span></div>`;
+  }).join('');
+  document.getElementById('newRestoIntro').textContent =
+    `${newOnes.length} resto baru ditambahkan dalam 7 hari terakhir. Tap untuk langsung lihat:`;
+  list.querySelectorAll('.new-resto-item').forEach(el=>{
+    el.onclick = ()=>{
+      const r = allRestos[el.dataset.id];
+      document.getElementById('newRestoOverlay').classList.add('hidden');
+      if(r){ map.setView([r.lat, r.lng], 17); openDetail(r.id); }
+    };
+  });
+  document.getElementById('newRestoOverlay').classList.remove('hidden');
 }
 
 function emptyHours(){
@@ -1169,6 +1429,15 @@ function addFavRow(value=''){
 }
 
 /* ================= STORAGE (Supabase) ================= */
+async function refreshAllData(){
+  const logo = document.getElementById('logo');
+  logo.classList.add('spinning');
+  await loadAllRestos();
+  await loadVisited();
+  logo.classList.remove('spinning');
+  showToast('Data diperbarui');
+}
+
 async function loadAllRestos(){
   try{
     const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}, {data: profileRows}] = await Promise.all([
@@ -1185,10 +1454,10 @@ async function loadAllRestos(){
     allRestos = {};
     (restos||[]).forEach(row=>{
       allRestos[row.id] = {
-        id: row.id, name: row.name, address: row.address, type: row.type,
+        id: row.id, name: row.name, address: row.address, phone: row.phone, type: row.type,
         priceRange: row.price_range, hoursByDay: row.hours_by_day,
         menuImages: row.menu_images || [], onlinePlatforms: row.online_platforms || [],
-        lat: row.lat, lng: row.lng,
+        lat: row.lat, lng: row.lng, createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
         ratings: [], testimonials: [], favoriteMenu: [], references: [], photos: []
       };
     });
@@ -1222,7 +1491,7 @@ async function loadAllRestos(){
 /* Simpan hanya field INTI resto (dipakai form admin/tambah). Return ID resto. */
 async function upsertRestoCore(data){
   const row = {
-    name: data.name, address: data.address, type: data.type,
+    name: data.name, address: data.address, phone: data.phone, type: data.type,
     price_range: data.priceRange, hours_by_day: data.hoursByDay,
     menu_images: data.menuImages, online_platforms: data.onlinePlatforms,
     lat: data.lat, lng: data.lng, updated_at: new Date().toISOString()
@@ -1247,11 +1516,11 @@ async function deleteResto(id){
 }
 
 /* ================= MARKERS ================= */
-function makeIcon(type, visited){
+function makeIcon(type, visited, isNew){
   const t = TYPES[type] || DEFAULT_TYPE_META;
   return L.divIcon({
     className:'',
-    html:`<div class="pin-wrap"><div class="resto-pin" style="background:${t.color}"><span>${t.emoji}</span></div>${visited ? '<div class="visited-badge">✓</div>' : ''}</div>`,
+    html:`<div class="pin-wrap${isNew ? ' pin-new' : ''}"><div class="resto-pin" style="background:${t.color}"><span>${t.emoji}</span></div>${visited ? '<div class="visited-badge">✓</div>' : ''}${isNew ? '<div class="new-badge">BARU</div>' : ''}</div>`,
     iconSize:[34,34], iconAnchor:[17,34], popupAnchor:[0,-30]
   });
 }
@@ -1274,7 +1543,7 @@ function renderMarkers(){
     const isVisited = visitedIds.has(r.id);
     if(visitFilter === 'visited' && !isVisited) return;
     if(visitFilter === 'unvisited' && isVisited) return;
-    const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited)});
+    const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r))});
     m.on('click', ()=> openDetail(r.id));
     m.addTo(markersLayer);
   });
@@ -1428,6 +1697,7 @@ function testimoniListHtml(r, showAll){
 function openDetail(id, showAllTesti){
   const r = allRestos[id];
   if(!r) return;
+  if(isNewForMe(r)) markRestoSeen(id); // hilangkan badge "baru" begitu resto ini dilihat
   const t = TYPES[r.type] || DEFAULT_TYPE_META;
   const imgs = (r.menuImages||[]).filter(Boolean);
   const favs = (r.favoriteMenu||[]).filter(Boolean);
@@ -1475,6 +1745,7 @@ function openDetail(id, showAllTesti){
     </div>
     <h3 class="detail-name">${escapeHtml(r.name)} ${openNowBadge}</h3>
     ${r.address ? `<div style="font-size:12.5px;color:var(--muted);margin:-2px 0 8px 0;">📍 ${escapeHtml(r.address)}</div>` : ''}
+    ${r.phone ? `<div style="font-size:12.5px;color:var(--muted);margin:-2px 0 8px 0;display:flex;align-items:center;gap:6px;">📞 ${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲 Telepon</a></div>` : ''}
     ${ratingSummaryHtml}
     ${platformsHtml}
     <div class="detail-row"><span class="label">Harga</span><span class="detail-price">${escapeHtml(r.priceRange||'-')}</span></div>
@@ -1674,6 +1945,7 @@ function openForm(existing){
   pickedLatLng = existing ? L.latLng(existing.lat, existing.lng) : null;
   document.getElementById('formTitle').textContent = existing ? 'Edit Resto' : 'Tambah Resto';
   document.getElementById('f_address').value = existing ? (existing.address || '') : '';
+  document.getElementById('f_phone').value = existing ? (existing.phone || '') : '';
   document.getElementById('locSuggestions').classList.add('hidden');
   document.getElementById('f_name').value = existing ? existing.name : '';
   document.getElementById('f_type').value = existing ? existing.type : 'Indonesian';
@@ -1770,6 +2042,7 @@ async function handleSave(){
     id: editingId || null,
     name,
     address: document.getElementById('f_address').value.trim(),
+    phone: document.getElementById('f_phone').value.trim(),
     type: document.getElementById('f_type').value,
     priceRange: document.getElementById('f_price').value,
     hoursByDay: readDayHoursFromForm(),
@@ -1898,9 +2171,27 @@ document.getElementById('locateBtn').onclick = ()=>{
     map.setView([pos.coords.latitude, pos.coords.longitude], 15);
   }, ()=> showToast('Tidak bisa mengambil lokasi'));
 };
-document.getElementById('userBadge').onclick = ()=>{
-  if(myUserId) signOut(); else document.getElementById('loginOverlay').classList.remove('hidden');
+document.getElementById('logo').onclick = refreshAllData;
+document.getElementById('closeAccountBtn').onclick = ()=> document.getElementById('accountOverlay').classList.add('hidden');
+document.getElementById('accountOverlay').onclick = (e)=>{ if(e.target.id === 'accountOverlay') document.getElementById('accountOverlay').classList.add('hidden'); };
+document.getElementById('accountAvatarWrap').onclick = ()=> document.getElementById('avatarInput').click();
+document.getElementById('avatarInput').onchange = (e)=>{
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(file) uploadAvatar(file);
 };
+document.getElementById('editProfileAgainBtn').onclick = ()=> openProfileCompletionModal(true);
+document.getElementById('logoutBtn').onclick = ()=>{
+  document.getElementById('accountOverlay').classList.add('hidden');
+  signOut();
+};
+document.getElementById('openGuideBtn').onclick = openGuidePanel;
+document.getElementById('closeGuideBtn').onclick = ()=> document.getElementById('guideOverlay').classList.add('hidden');
+document.getElementById('guideOverlay').onclick = (e)=>{ if(e.target.id === 'guideOverlay') document.getElementById('guideOverlay').classList.add('hidden'); };
+document.getElementById('closeNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
+document.getElementById('dismissNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
+document.getElementById('newRestoOverlay').onclick = (e)=>{ if(e.target.id === 'newRestoOverlay') document.getElementById('newRestoOverlay').classList.add('hidden'); };
+document.getElementById('userBadge').onclick = openAccountPanel;
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
 document.getElementById('loginGoogleBtn').onclick = signInWithGoogle;
 document.getElementById('loginCancelBtn').onclick = ()=> document.getElementById('loginOverlay').classList.add('hidden');
@@ -1942,6 +2233,7 @@ refreshMyGpsLocation();
 (async ()=>{
   await initIdentity();
   await loadAllRestos();
+  setTimeout(showNewRestoPopupIfNeeded, 700); // beri jeda dikit supaya tidak "nabrak" modal lengkapi profil
 })();
 </script>
 </body>
