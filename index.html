@@ -16,6 +16,8 @@
 <link rel="icon" href="icons/icon-192.png">
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <style>
@@ -271,6 +273,15 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 .resto-pin span{transform:rotate(45deg);font-size:16px;}
 .pin-wrap{position:relative;width:34px;height:34px;}
+
+/* ---------- BADGE CLUSTER (gabungan banyak pin berdekatan) ---------- */
+.cluster-badge{
+  background:var(--teal-dark);color:#fff;border:3px solid rgba(255,255,255,0.85);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'Work Sans',sans-serif;font-weight:800;font-size:14px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.35);
+}
+.marker-cluster{background:transparent !important;}
 .visited-badge{
   position:absolute;top:-4px;right:-4px;width:16px;height:16px;border-radius:50%;
   background:var(--teal-dark);color:#fff;font-size:10px;font-weight:900;
@@ -374,7 +385,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #formModal h2{font-family:'Fraunces',serif;font-size:21px;margin:0 0 14px 0;}
 .field{margin-bottom:13px;}
 .field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;letter-spacing:0.2px;text-transform:uppercase;}
-.field input[type=text], .field input[type=url], .field select, .field textarea{
+.field input[type=text], .field input[type=url], .field input[type=tel], .field input[type=number], .field input[type=email], .field input[type=time], .field select, .field textarea{
   width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--line);
   font-family:'Work Sans',sans-serif;font-size:14px;background:var(--paper);outline:none;
 }
@@ -400,7 +411,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .day-row input[type=time]:disabled{opacity:0.35;}
 .day-row .sep{color:var(--muted);font-size:12px;}
 
-.hidden{display:none;}
+.hidden{display:none !important;}
 
 /* ---------- RATING BINTANG ---------- */
 .star-picker{display:flex;gap:2px;cursor:pointer;}
@@ -739,6 +750,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <script>
 /* ================= CONFIG: TIPE RESTO ================= */
 const TYPES = {
@@ -1116,7 +1128,20 @@ function initMap(){
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
   L.control.zoom({position:'bottomleft'}).addTo(map);
-  markersLayer = L.layerGroup().addTo(map);
+  markersLayer = L.markerClusterGroup({
+    maxClusterRadius: 55,          // pin dalam radius ini (piksel) digabung jadi 1 cluster
+    spiderfyOnMaxZoom: true,       // di zoom maksimal, pin yang masih numpuk dipisah otomatis (efek "spider")
+    showCoverageOnHover: false,    // tidak perlu highlight area cakupan saat hover, biar ringan
+    disableClusteringAtZoom: 18,   // di zoom sangat dekat, tampilkan semua pin satu-satu
+    iconCreateFunction: function(cluster){
+      const count = cluster.getChildCount();
+      const size = count < 10 ? 36 : count < 50 ? 42 : 48;
+      return L.divIcon({
+        html: `<div class="cluster-badge" style="width:${size}px;height:${size}px;">${count}</div>`,
+        className: '', iconSize: [size, size]
+      });
+    }
+  }).addTo(map);
 
   map.on('click', (e) => {
     const modalOpen = !document.getElementById('modalOverlay').classList.contains('hidden');
@@ -1556,6 +1581,7 @@ function matchesSearch(r, q){
 function renderMarkers(){
   markersLayer.clearLayers();
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const markersToAdd = [];
   Object.values(allRestos).forEach(r=>{
     if(activeTypeFilters.size > 0 && !activeTypeFilters.has(r.type)) return;
     if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(p))) return;
@@ -1567,8 +1593,9 @@ function renderMarkers(){
     if(visitFilter === 'unvisited' && isVisited) return;
     const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r))});
     m.on('click', ()=> openDetail(r.id));
-    m.addTo(markersLayer);
+    markersToAdd.push(m);
   });
+  markersLayer.addLayers(markersToAdd); // tambah semua sekaligus (jauh lebih cepat daripada satu-satu untuk ratusan pin)
 }
 
 /* ================= SUGGESTION PENCARIAN ================= */
