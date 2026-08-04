@@ -72,10 +72,10 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   display:flex;align-items:center;justify-content:center;padding:20px;
 }
 #loginOverlay.hidden, #profileOverlay.hidden{display:none;}
-#loginBox{background:var(--card);border-radius:16px;padding:26px 22px;max-width:360px;width:100%;box-shadow:var(--shadow);}
-#loginLogo{font-family:'Fraunces',serif;font-weight:700;font-size:22px;text-align:center;margin-bottom:10px;color:var(--amber-dark);}
-#loginLogo span{color:var(--ink);}
-#loginDesc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;text-align:center;}
+#loginBox, .popup-box{background:var(--card);border-radius:16px;padding:26px 22px;max-width:360px;width:100%;box-shadow:var(--shadow);}
+#loginLogo, .popup-box-title{font-family:'Fraunces',serif;font-weight:700;font-size:22px;text-align:center;margin-bottom:10px;color:var(--amber-dark);}
+#loginLogo span, .popup-box-title span{color:var(--ink);}
+#loginDesc, .popup-box-desc{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;text-align:center;}
 #loginEmailInput{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);font-size:14px;margin-bottom:10px;font-family:'Work Sans',sans-serif;}
 #loginStatus, #profileStatus{font-size:12.5px;text-align:center;margin-top:10px;min-height:16px;color:var(--teal-dark);}
 
@@ -89,21 +89,31 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #userBadge img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
 
 /* ---------- PANEL AKUN ---------- */
-#accountOverlay, #guideOverlay{
+#accountOverlay{
+  position:fixed;inset:0;z-index:4000;background:rgba(20,25,24,0.15);
+}
+#accountOverlay.hidden{display:none;}
+#accountPanel{
+  position:absolute;top:58px;right:12px;width:280px;max-width:88vw;max-height:75vh;overflow-y:auto;
+  background:var(--card);border-radius:14px;box-shadow:var(--shadow);
+  padding:18px 16px 14px 16px;
+}
+#guideOverlay{
   position:fixed;inset:0;z-index:4000;background:rgba(20,25,24,0.6);
   display:flex;align-items:flex-end;justify-content:center;padding:0;
 }
-#accountOverlay.hidden, #guideOverlay.hidden{display:none;}
-#accountPanel, #guidePanel{
+#guideOverlay.hidden{display:none;}
+#guidePanel{
   position:relative;background:var(--card);width:100%;max-width:420px;max-height:82vh;overflow-y:auto;
   border-radius:18px 18px 0 0;padding:24px 20px 26px 20px;
 }
 #accountHeader{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--line);}
 #accountAvatarWrap{position:relative;width:64px;height:64px;flex-shrink:0;cursor:pointer;}
-#accountAvatarWrap img{width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;}
+#accountAvatarWrap img{position:absolute;top:0;left:0;width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;}
 #accountAvatarInitial{
+  position:absolute;top:0;left:0;
   width:64px;height:64px;border-radius:50%;background:var(--paper);border:1px solid var(--line);
-  display:flex;align-items:center;justify-content:center;font-size:28px;
+  display:flex;align-items:center;justify-content:center;font-size:28px;box-sizing:border-box;
 }
 #accountAvatarEditBadge{
   position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;border-radius:50%;
@@ -172,16 +182,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 .quick-photo-row{display:flex;gap:8px;}
 .quick-photo-row button{flex:1;font-size:12.5px;padding:9px;}
-#userBadge{
-  flex-shrink:0;background:rgba(255,255,255,0.12);border:none;color:var(--paper);
-  border-radius:14px;padding:7px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;
-}
 
 /* ---------- MOBILE: layar sempit (<420px) ---------- */
 @media(max-width:420px){
   #header{padding:10px 10px;gap:8px;}
   #logo{font-size:16px;}
-  #userBadge{padding:7px 8px;font-size:10.5px;max-width:70px;}
+  #userBadge{width:32px;height:32px;font-size:14px;}
   #searchInput{font-size:13px;padding:8px 12px;}
   #filters{top:54px;padding:6px 10px;}
   #openFilterBtn{font-size:11.5px;padding:6px 11px;}
@@ -278,10 +284,9 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   50% { box-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 8px rgba(232,163,61,0); }
 }
 .new-badge{
-  position:absolute;top:-13px;left:50%;transform:translateX(-50%);
-  background:var(--amber);color:var(--ink);font-size:8.5px;font-weight:900;
-  padding:1px 5px;border-radius:6px;white-space:nowrap;border:1px solid #fff;z-index:3;
-  letter-spacing:0.3px;
+  position:absolute;top:-4px;left:-4px;width:16px;height:16px;border-radius:50%;
+  background:var(--red);color:#fff;font-size:11px;font-weight:900;
+  display:flex;align-items:center;justify-content:center;border:2px solid #fff;z-index:3;
 }
 
 /* ---------- FAB ---------- */
@@ -505,9 +510,9 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     </div>
   </div>
   <div id="profileOverlay" class="hidden">
-    <div id="loginBox">
-      <div id="loginLogo"><span>Lengkapi</span> Profil</div>
-      <p id="loginDesc">Sekali saja -- supaya testimoni & rating Anda tercatat atas nama sendiri, bukan anonim.</p>
+    <div id="profileBox" class="popup-box">
+      <div class="popup-box-title"><span>Lengkapi</span> Profil</div>
+      <p class="popup-box-desc">Sekali saja -- supaya testimoni & rating Anda tercatat atas nama sendiri, bukan anonim.</p>
       <div class="field" style="text-align:left;">
         <label>Username</label>
         <input type="text" id="profileUsernameInput" placeholder="mis. rendra_bp" maxlength="24">
@@ -546,7 +551,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         </div>
       </div>
       <button class="account-menu-item" id="openGuideBtn">📖 Panduan Penggunaan Aplikasi</button>
-      <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil </button>
+      <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil (username/gender/usia)</button>
       <button class="account-menu-item danger" id="logoutBtn">🚪 Logout</button>
     </div>
   </div>
@@ -999,17 +1004,33 @@ function openGuidePanel(){
   document.getElementById('guideOverlay').classList.remove('hidden');
 }
 
+/* Popup notifikasi resto baru hanya perlu ditampilkan SEKALI per resto -- setelah
+   ditampilkan, dicatat di localStorage supaya tidak muncul lagi tiap buka app,
+   walau resto itu masih dalam status "baru" (badge di pin tetap ada sampai diklik). */
+function getPoppedNewIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem('gm_popped_new_ids') || '[]')); }
+  catch(e){ return new Set(); }
+}
+function addPoppedNewIds(ids){
+  const cur = getPoppedNewIds();
+  ids.forEach(id => cur.add(id));
+  try{ localStorage.setItem('gm_popped_new_ids', JSON.stringify([...cur])); }catch(e){}
+}
+
 function showNewRestoPopupIfNeeded(){
   if(!myUserId) return; // fitur personal, hanya untuk yang login
   const newOnes = getNewRestosForMe();
   if(newOnes.length === 0) return;
+  const popped = getPoppedNewIds();
+  const toAnnounce = newOnes.filter(r => !popped.has(r.id));
+  if(toAnnounce.length === 0) return; // semua sudah pernah diberitahukan sebelumnya, tidak perlu popup lagi
   const list = document.getElementById('newRestoList');
-  list.innerHTML = newOnes.map(r=>{
+  list.innerHTML = toAnnounce.map(r=>{
     const t = TYPES[r.type] || DEFAULT_TYPE_META;
     return `<div class="new-resto-item" data-id="${escapeAttr(r.id)}">${t.emoji} <b>${escapeHtml(r.name)}</b><span class="new-resto-sub">${escapeHtml(r.address || r.type)}</span></div>`;
   }).join('');
   document.getElementById('newRestoIntro').textContent =
-    `${newOnes.length} resto baru ditambahkan dalam 7 hari terakhir. Tap untuk langsung lihat:`;
+    `${toAnnounce.length} resto baru ditambahkan. Tap untuk langsung lihat:`;
   list.querySelectorAll('.new-resto-item').forEach(el=>{
     el.onclick = ()=>{
       const r = allRestos[el.dataset.id];
@@ -1018,6 +1039,7 @@ function showNewRestoPopupIfNeeded(){
     };
   });
   document.getElementById('newRestoOverlay').classList.remove('hidden');
+  addPoppedNewIds(toAnnounce.map(r=>r.id)); // tandai sudah diberitahukan, popup tidak akan muncul lagi untuk ini
 }
 
 function emptyHours(){
@@ -1520,7 +1542,7 @@ function makeIcon(type, visited, isNew){
   const t = TYPES[type] || DEFAULT_TYPE_META;
   return L.divIcon({
     className:'',
-    html:`<div class="pin-wrap${isNew ? ' pin-new' : ''}"><div class="resto-pin" style="background:${t.color}"><span>${t.emoji}</span></div>${visited ? '<div class="visited-badge">✓</div>' : ''}${isNew ? '<div class="new-badge">BARU</div>' : ''}</div>`,
+    html:`<div class="pin-wrap${isNew ? ' pin-new' : ''}"><div class="resto-pin" style="background:${t.color}"><span>${t.emoji}</span></div>${visited ? '<div class="visited-badge">✓</div>' : ''}${isNew ? '<div class="new-badge">!</div>' : ''}</div>`,
     iconSize:[34,34], iconAnchor:[17,34], popupAnchor:[0,-30]
   });
 }
@@ -1744,10 +1766,10 @@ function openDetail(id, showAllTesti){
       <button id="visitToggleBtn" class="visit-toggle-btn ${isVisited ? 'is-visited' : ''}">${isVisited ? '✅ Sudah Dikunjungi' : '🆕 Tandai Dikunjungi'}</button>
     </div>
     <h3 class="detail-name">${escapeHtml(r.name)} ${openNowBadge}</h3>
-    ${r.address ? `<div style="font-size:12.5px;color:var(--muted);margin:-2px 0 8px 0;">📍 ${escapeHtml(r.address)}</div>` : ''}
-    ${r.phone ? `<div style="font-size:12.5px;color:var(--muted);margin:-2px 0 8px 0;display:flex;align-items:center;gap:6px;">📞 ${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲 Telepon</a></div>` : ''}
     ${ratingSummaryHtml}
     ${platformsHtml}
+    ${r.address ? `<div class="detail-row"><span class="label">Alamat</span><span>${escapeHtml(r.address)}</span></div>` : ''}
+    ${r.phone ? `<div class="detail-row"><span class="label">Telepon</span><span style="display:flex;align-items:center;gap:8px;">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲 Telepon</a></span></div>` : ''}
     <div class="detail-row"><span class="label">Harga</span><span class="detail-price">${escapeHtml(r.priceRange||'-')}</span></div>
     <div class="detail-row"><span class="label">Jam Buka</span><div class="hours-schedule">${scheduleHtml}</div></div>
     ${imgs.length ? `<div class="menu-imgs">${imgs.map(u=>`<img src="${escapeAttr(u)}" onerror="this.style.opacity=0.2">`).join('')}</div>` : ''}
