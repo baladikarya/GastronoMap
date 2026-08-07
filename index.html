@@ -1335,9 +1335,9 @@ function platformIconHtml(fileKey, fallbackEmoji, size){
 
 /* ================= FILTER CHIPS ================= */
 const PLATFORM_FILTER_META = {
-  GrabFood:   {emoji:'🥡', color:'#00B14F', file:'grabfood'},
-  GoFood:     {emoji:'🛵', color:'#00AA13', file:'gofood'},
-  ShopeeFood: {emoji:'🛍️', color:'#EE4D2D', file:'shopeefood'}
+  GrabFood:   {icon:'icons/icons-platforms/grabfood.png', color:'#00B14F', file:'grabfood'},
+  GoFood:     {icon:'icons/icons-platforms/gofood.png, color:'#00AA13', file:'gofood'},
+  ShopeeFood: {icon:'icons/icons-platforms/shopeefood.png', color:'#EE4D2D', file:'shopeefood'}
 };
 const PRICE_RANGES = ['< Rp 25rb', 'Rp 25rb - 50rb', 'Rp 50rb - 100rb', 'Rp 100rb - 250rb', '> Rp 250rb'];
 
@@ -1675,11 +1675,11 @@ function renderSearchSuggestions(){
 
 /* ================= REFERENSI (Reels/Video) ================= */
 const REF_PLATFORM_META = {
-  youtube:  {label:'YouTube',   color:'#FF0000', bg:'#FF0000', icon:'▶️', file:'youtube'},
-  instagram:{label:'Instagram', color:'#C13584', bg:'linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7)', icon:'📷', file:'instagram'},
-  tiktok:   {label:'TikTok',    color:'#111111', bg:'#111111', icon:'🎵', file:'tiktok'},
-  facebook: {label:'Facebook',  color:'#1877F2', bg:'#1877F2', icon:'👍', file:'facebook'},
-  other:    {label:'Link',      color:'#555555', bg:'#555555', icon:'🔗', file:'other'}
+  youtube:  {label:'YouTube',   color:'#FF0000', bg:'#FF0000', icon:'icons/icons-platforms/youtube.png', file:'youtube'},
+  instagram:{label:'Instagram', color:'#C13584', bg:'linear-gradient(135deg,#f9ce34,#ee2a7b,#6228d7)', icon:'icons/icons-platforms/instagram.png', file:'instagram'},
+  tiktok:   {label:'TikTok',    color:'#111111', bg:'#111111', icon:'icons/icons-platforms/tiktok.png', file:'tiktok'},
+  facebook: {label:'Facebook',  color:'#1877F2', bg:'#1877F2', icon:'icons/icons-platforms/facebook.png', file:'facebook'},
+  other:    {label:'Link',      color:'#555555', bg:'#555555', icon:'icons/icons-platforms/oher.png', file:'other'}
 };
 function detectPlatform(url){
   try{
