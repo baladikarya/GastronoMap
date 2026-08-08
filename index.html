@@ -1945,11 +1945,7 @@ function openDetail(id, showAllTesti){
     <div class="field" style="margin-top:14px;" id="ratingSection">
       <label>Beri Rating</label>
       ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
-      <div class="rating-crit-row" style="align-items:flex-start;margin-bottom:10px;">
-        <span class="crit-label" style="font-size:12.5px;">Rating Keseluruhan (wajib)</span>
-        <div class="star-picker star-picker-big" data-crit="overall">${[1,2,3,4,5].map(v=>`<span data-v="${v}">★</span>`).join('')}</div>
-      </div>
-      <span class="crit-label" style="font-size:11px;">Detail kriteria (opsional)</span>
+      <span class="crit-label" style="font-size:11px;">Rating keseluruhan otomatis dihitung dari rata-rata kriteria di bawah</span>
       <div id="ratingForm">${RATING_CRITERIA.map(c=>`
         <div class="rating-crit-row">
           <span class="crit-label">${c.label}</span>
@@ -2092,14 +2088,17 @@ function openDetail(id, showAllTesti){
   });
   document.getElementById('submitRatingBtn').onclick = async ()=>{
     if(!requireLogin()) return;
-    if(!ratingDraft.overall){
-      showToast('Isi Rating Keseluruhan dulu (wajib)');
+    const belumDiisi = RATING_CRITERIA.filter(c => !ratingDraft[c.key]);
+    if(belumDiisi.length > 0){
+      showToast('Isi rating untuk: ' + belumDiisi.map(c=>c.label).join(', '));
       return;
     }
-    const row = {resto_id: id, user_id: myUserId, overall: ratingDraft.overall};
-    RATING_CRITERIA.forEach(c=>{
-      row[c.key] = ratingDraft[c.key] > 0 ? ratingDraft[c.key] : null; // kriteria detail opsional
-    });
+    // Rating keseluruhan = rata-rata dari 5 kriteria (harga, porsi, rasa, suasana, pelayanan),
+    // dihitung otomatis di sini per-user, lalu dirata-rata lagi antar semua user di computeRatingSummary().
+    const critValues = RATING_CRITERIA.map(c => ratingDraft[c.key]);
+    const overall = critValues.reduce((a,b)=>a+b,0) / critValues.length;
+    const row = {resto_id: id, user_id: myUserId, overall};
+    RATING_CRITERIA.forEach(c=>{ row[c.key] = ratingDraft[c.key]; });
     const { error } = await sb.from('ratings').upsert(row);
     if(error){ showToast('Gagal: ' + error.message); return; }
     showToast(myRatingEntry ? 'Rating Anda diperbarui' : 'Terima kasih atas rating-nya!');
