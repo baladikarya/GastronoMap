@@ -190,16 +190,37 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .quick-photo-row{display:flex;gap:8px;}
 .quick-photo-row button{flex:1;font-size:12.5px;padding:9px;}
 
-/* ---------- FOTO KUNJUNGAN, DIKELOMPOKKAN PER USER (geser satu-satu) ---------- */
-.photo-user-group{margin-bottom:12px;}
-.photo-user-label{font-size:11.5px;font-weight:700;color:var(--muted);margin-bottom:5px;display:flex;align-items:center;gap:5px;}
-.photo-user-label .count-tag{font-weight:400;color:var(--muted);}
+/* ---------- FOTO KUNJUNGAN, CAROUSEL TUNGGAL (geser kanan-kiri) ---------- */
 .photo-carousel{
   display:flex;overflow-x:auto;gap:8px;scroll-snap-type:x mandatory;
   border-radius:10px;-webkit-overflow-scrolling:touch;
 }
 .photo-carousel .photo-card{
-  width:100%;flex:0 0 82%;scroll-snap-align:start;aspect-ratio:4/3;height:auto;
+  width:100%;flex:0 0 82%;scroll-snap-align:start;aspect-ratio:4/3;height:auto;cursor:pointer;
+}
+
+/* ---------- LIGHTBOX FOTO KUNJUNGAN (mode ukuran penuh, bisa digeser) ---------- */
+.photo-lightbox-overlay{
+  position:fixed;inset:0;z-index:5000;background:rgba(10,12,12,0.94);
+  display:flex;flex-direction:column;
+}
+.photo-lightbox-close{
+  position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;z-index:5001;
+  width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.15);
+  color:#fff;border:none;font-size:18px;cursor:pointer;line-height:1;
+}
+.photo-lightbox-track{
+  flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;min-height:0;
+}
+.photo-lightbox-slide{
+  flex:0 0 100%;scroll-snap-align:center;display:flex;align-items:center;
+  justify-content:center;padding:20px;box-sizing:border-box;min-width:0;
+}
+.photo-lightbox-slide img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;}
+.photo-lightbox-caption{
+  text-align:center;color:#fff;font-size:13px;
+  padding:12px 16px calc(16px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.3);
 }
 
 /* ---------- MOBILE: layar sempit (<420px) ---------- */
@@ -829,6 +850,7 @@ let profilesMap = {}; // { userId: username } -- dipakai untuk menampilkan nama 
 let visitedIds = new Set(); // ID resto yang sudah ditandai dikunjungi OLEH USER INI (personal, tidak memengaruhi orang lain)
 let seenRestoIds = new Set(); // ID resto baru yang sudah DILIHAT oleh user ini (untuk badge notifikasi resto baru)
 let visitFilter = null; // null | 'visited' | 'unvisited'
+let currentDetailPhotos = []; // foto kunjungan resto yang sedang dibuka, terurut terbaru duluan (dipakai carousel + lightbox)
 
 /* ================= SUPABASE CLIENT ================= */
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -1735,39 +1757,75 @@ function buildRefCardHtml(ref){
 function photoPublicUrl(path){
   return sb.storage.from('visit-photos').getPublicUrl(path).data.publicUrl;
 }
-function buildPhotoCard(photo){
+function buildPhotoCard(photo, idx){
   const url = photoPublicUrl(photo.storagePath);
   const canDelete = photo.userId === myUserId || isAdmin;
-  return `<div class="photo-card">
-    <a href="${url}" target="_blank" rel="noopener"><img src="${url}" loading="lazy" alt="Foto kunjungan"></a>
+  return `<div class="photo-card" data-idx="${idx}">
+    <img src="${url}" loading="lazy" alt="Foto kunjungan">
     ${canDelete ? `<button class="photo-del-btn" data-path="${escapeAttr(photo.storagePath)}" data-id="${photo.id}" title="Hapus foto">✕</button>` : ''}
   </div>`;
 }
 
-/* Kelompokkan foto kunjungan per user yang mengunggah, tiap kelompok jadi
-   carousel geser sendiri -- supaya tidak berjejer panjang jadi satu baris raksasa. */
-function buildPhotosByUserHtml(photos){
-  if(!photos || photos.length === 0){
+/* Satu carousel tunggal berisi semua foto kunjungan (terbaru duluan), tanpa
+   label nama/jumlah foto -- nama pengunggah & tanggal baru muncul sebagai
+   keterangan saat foto dibuka dalam mode ukuran penuh (lihat openPhotoLightbox). */
+function buildPhotosCarouselHtml(photos){
+  currentDetailPhotos = (photos || []).slice().sort((a,b)=> (b.at||0) - (a.at||0));
+  if(currentDetailPhotos.length === 0){
     return '<span style="color:var(--muted);font-size:12.5px;">Belum ada foto. Unggah foto hasil kunjungan Anda!</span>';
   }
-  const groups = {}; // userId -> {photos:[], at: waktu_terbaru}
-  photos.forEach(p=>{
-    const uid = p.userId || 'unknown';
-    if(!groups[uid]) groups[uid] = { photos: [], at: 0 };
-    groups[uid].photos.push(p);
-    groups[uid].at = Math.max(groups[uid].at, p.at || 0);
+  return `<div class="photo-carousel">${currentDetailPhotos.map((p, idx)=>buildPhotoCard(p, idx)).join('')}</div>`;
+}
+
+/* ---- Lightbox (mode ukuran penuh) foto kunjungan, bisa digeser kanan-kiri ---- */
+function photoLightboxKeyHandler(e){
+  const track = document.getElementById('photoLightboxTrack');
+  if(!track) return;
+  if(e.key === 'Escape') closePhotoLightbox();
+  else if(e.key === 'ArrowRight') track.scrollBy({left: track.clientWidth, behavior:'smooth'});
+  else if(e.key === 'ArrowLeft') track.scrollBy({left: -track.clientWidth, behavior:'smooth'});
+}
+function closePhotoLightbox(){
+  const overlay = document.getElementById('photoLightboxOverlay');
+  if(overlay) overlay.remove();
+  document.removeEventListener('keydown', photoLightboxKeyHandler);
+}
+function openPhotoLightbox(startIdx){
+  if(!currentDetailPhotos.length) return;
+  closePhotoLightbox();
+  const overlay = document.createElement('div');
+  overlay.id = 'photoLightboxOverlay';
+  overlay.className = 'photo-lightbox-overlay';
+  overlay.innerHTML = `
+    <button type="button" class="photo-lightbox-close" title="Tutup">✕</button>
+    <div class="photo-lightbox-track" id="photoLightboxTrack">
+      ${currentDetailPhotos.map(p=>`<div class="photo-lightbox-slide"><img src="${photoPublicUrl(p.storagePath)}" alt="Foto kunjungan"></div>`).join('')}
+    </div>
+    <div class="photo-lightbox-caption" id="photoLightboxCaption"></div>
+  `;
+  document.body.appendChild(overlay);
+  const track = overlay.querySelector('#photoLightboxTrack');
+  overlay.querySelector('.photo-lightbox-close').onclick = closePhotoLightbox;
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closePhotoLightbox(); });
+
+  const updateCaption = ()=>{
+    const i = Math.max(0, Math.min(currentDetailPhotos.length - 1, Math.round(track.scrollLeft / track.clientWidth)));
+    const p = currentDetailPhotos[i];
+    const isMine = p.userId === myUserId;
+    const name = isMine ? 'Anda' : (profilesMap[p.userId] || 'Pengguna');
+    const dateStr = p.at ? new Date(p.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
+    document.getElementById('photoLightboxCaption').innerHTML = `<b>${escapeHtml(name)}</b>${dateStr ? ' · ' + dateStr : ''}`;
+  };
+  let scrollTimer = null;
+  track.addEventListener('scroll', ()=>{
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(updateCaption, 60);
   });
-  const sortedUserIds = Object.keys(groups).sort((a,b)=> groups[b].at - groups[a].at); // terbaru duluan
-  return sortedUserIds.map(uid=>{
-    const g = groups[uid];
-    const isMine = uid === myUserId;
-    const name = isMine ? 'Anda' : (profilesMap[uid] || 'Pengguna');
-    const countLabel = g.photos.length > 1 ? `<span class="count-tag">· ${g.photos.length} foto, geser untuk lihat semua</span>` : '';
-    return `<div class="photo-user-group">
-      <div class="photo-user-label">👤 <b>${escapeHtml(name)}</b> ${countLabel}</div>
-      <div class="photo-carousel">${g.photos.map(buildPhotoCard).join('')}</div>
-    </div>`;
-  }).join('');
+  requestAnimationFrame(()=>{
+    track.scrollLeft = startIdx * track.clientWidth;
+    updateCaption();
+  });
+  document.addEventListener('keydown', photoLightboxKeyHandler);
 }
 /* Kompres foto di browser (maks 1600px, kualitas 75%) supaya hemat storage & upload cepat */
 function compressImage(file, maxDim=1600, quality=0.75){
@@ -1926,7 +1984,7 @@ function openDetail(id, showAllTesti){
     ${imgs.length ? `<div class="menu-imgs">${imgs.map(u=>`<img src="${escapeAttr(u)}" onerror="this.style.opacity=0.2">`).join('')}</div>` : ''}
     <div class="field" style="margin-top:14px;">
       <label>Foto Kunjungan</label>
-      <div class="photo-grid" id="photoGrid">${buildPhotosByUserHtml(r.photos)}</div>
+      <div class="photo-grid" id="photoGrid">${buildPhotosCarouselHtml(r.photos)}</div>
       <input type="file" id="photoCameraInput" accept="image/*" capture="environment" class="hidden">
       <input type="file" id="photoGalleryInput" accept="image/*" class="hidden">
       <div class="quick-photo-row">
@@ -2025,8 +2083,12 @@ function openDetail(id, showAllTesti){
   };
   document.getElementById('photoCameraInput').onchange = handlePhotoPick;
   document.getElementById('photoGalleryInput').onchange = handlePhotoPick;
+  document.querySelectorAll('#photoGrid .photo-card').forEach(card=>{
+    card.onclick = ()=> openPhotoLightbox(Number(card.dataset.idx));
+  });
   document.querySelectorAll('.photo-del-btn').forEach(btn=>{
-    btn.onclick = async ()=>{
+    btn.onclick = async (e)=>{
+      e.stopPropagation();
       if(!confirm('Hapus foto ini?')) return;
       const ok = await deleteVisitPhoto(btn.dataset.id, btn.dataset.path);
       if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
