@@ -451,12 +451,17 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .platform-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:14px;font-size:11.5px;font-weight:700;color:#fff;text-decoration:none;cursor:pointer;}
 .platform-chip:active{opacity:0.85;}
 .payment-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:14px;font-size:11.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--ink);}
-.platform-picker{display:flex;gap:8px;flex-wrap:wrap;}
+.platform-picker{display:flex;flex-direction:column;gap:8px;}
+.platform-url-row{display:flex;flex-direction:column;gap:5px;}
 .platform-toggle{
   display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:14px;font-size:12.5px;font-weight:700;
-  border:1.5px solid var(--line);cursor:pointer;background:var(--card);color:var(--muted);user-select:none;
+  border:1.5px solid var(--line);cursor:pointer;background:var(--card);color:var(--muted);user-select:none;width:fit-content;
 }
 .platform-toggle.active{color:#fff;border-color:transparent;background:var(--pcolor, var(--teal));}
+.platform-url-input{
+  width:100%;padding:7px 10px;border-radius:7px;border:1px solid var(--line);
+  font-family:'Work Sans',sans-serif;font-size:12.5px;background:var(--paper);
+}
 
 /* ---------- TESTIMONI ---------- */
 .testi-list{display:flex;flex-direction:column;gap:8px;margin-top:8px;}
@@ -469,6 +474,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 /* ---------- REFERENSI (REELS/VIDEO) ---------- */
 .ref-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;}
 .ref-card{width:52px;text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.ref-card-wrap{position:relative;width:52px;}
+.ref-del-btn{
+  position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
+  background:var(--red);color:#fff;border:2px solid #fff;font-size:10px;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;z-index:2;
+}
 .ref-thumb{
   width:38px;height:38px;border-radius:10px;background-size:cover;background-position:center;
   background-color:#eee;display:flex;align-items:center;justify-content:center;position:relative;
@@ -746,10 +757,11 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <button type="button" id="addFavBtn">+ Tambah menu favorit</button>
       </div>
 
-      <div class="field">
+      <div class="field" id="refFieldWrap">
         <label>Referensi (link Reels IG/YouTube/TikTok)</label>
         <div id="refUrlList"></div>
         <button type="button" id="addRefUrlBtn">+ Tambah link referensi</button>
+        <div id="refFieldEditNote" class="hidden" style="font-size:11.5px;color:var(--muted);margin-top:4px;">Untuk resto yang sudah ada, tambah/hapus referensi lewat panel detail (tombol ✕ pada tiap link), bukan dari sini.</div>
       </div>
 
       <div class="field">
@@ -1421,11 +1433,20 @@ function initPlatformPicker(){
   const wrap = document.getElementById('platformPicker');
   wrap.innerHTML = Object.keys(PLATFORM_FILTER_META).map(p=>{
     const meta = PLATFORM_FILTER_META[p];
-    return `<div class="platform-toggle" data-platform="${p}" style="--pcolor:${meta.color}">${platformIconHtml(meta.file, meta.emoji, 16)} ${p}</div>`;
+    return `<div class="platform-url-row" data-platform="${p}">
+      <div class="platform-toggle" data-platform="${p}" style="--pcolor:${meta.color}">${platformIconHtml(meta.file, meta.emoji, 16)} ${p}</div>
+      <input type="url" class="platform-url-input" data-platform="${p}" placeholder="Link langsung ke resto di ${p} (opsional)">
+    </div>`;
   }).join('');
-  document.querySelectorAll('#platformPicker .platform-toggle').forEach(el=>{
-    el.onclick = ()=> el.classList.toggle('active');
+  wrap.querySelectorAll('.platform-toggle').forEach(el=>{
+    el.onclick = ()=>{
+      el.classList.toggle('active');
+      const input = wrap.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
+      input.classList.toggle('hidden', !el.classList.contains('active'));
+      if(!el.classList.contains('active')) input.value = '';
+    };
   });
+  wrap.querySelectorAll('.platform-url-input').forEach(el=> el.classList.add('hidden')); // sembunyi sampai toggle diaktifkan
   document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>{
     el.onclick = ()=> el.classList.toggle('active');
   });
@@ -1570,7 +1591,7 @@ async function loadAllRestos(){
     });
     (refRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
-      r.references.push({url: row.url, platform: row.platform, userId: row.user_id, at: new Date(row.created_at).getTime()});
+      r.references.push({id: row.id, url: row.url, platform: row.platform, userId: row.user_id, at: new Date(row.created_at).getTime()});
     });
     (photoRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
@@ -1633,7 +1654,7 @@ function renderMarkers(){
   const markersToAdd = [];
   Object.values(allRestos).forEach(r=>{
     if(activeTypeFilters.size > 0 && !activeTypeFilters.has(r.type)) return;
-    if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(p))) return;
+    if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(typeof p === 'string' ? p : p.platform))) return;
     if(activePriceFilters.size > 0 && !activePriceFilters.has(r.priceRange)) return;
     if(!matchesSearch(r, q)) return;
     if(timeFilter && !isOpenAt(r.hoursByDay, timeFilter.day, timeFilter.time)) return;
@@ -1698,7 +1719,11 @@ function getYoutubeId(url){
 }
 function buildRefCardHtml(ref){
   const plat = REF_PLATFORM_META[ref.platform] || REF_PLATFORM_META.other;
-  return `<a class="ref-card" href="${escapeAttr(ref.url)}" target="_blank" rel="noopener" title="${plat.label}">${platformIconHtml(plat.file, plat.icon, 40)}</a>`;
+  const canDelete = isAdmin || (ref.userId && ref.userId === myUserId);
+  return `<div class="ref-card-wrap">
+    <a class="ref-card" href="${escapeAttr(ref.url)}" target="_blank" rel="noopener" title="${plat.label}">${platformIconHtml(plat.file, plat.icon, 40)}</a>
+    ${canDelete ? `<button type="button" class="ref-del-btn" data-id="${escapeAttr(ref.id)}" title="Hapus referensi">✕</button>` : ''}
+  </div>`;
 }
 
 /* ================= FOTO KUNJUNGAN ================= */
@@ -1791,6 +1816,16 @@ async function deleteVisitPhoto(photoId, storagePath){
   }
 }
 
+async function deleteReference(refId){
+  try{
+    await sb.from('references_link').delete().eq('id', refId);
+    return true;
+  }catch(e){
+    showToast('Gagal menghapus referensi: ' + e.message);
+    return false;
+  }
+}
+
 /* ================= DETAIL PANEL ================= */
 function testimoniListHtml(r, showAll){
   const items = [];
@@ -1850,9 +1885,14 @@ function openDetail(id, showAllTesti){
   const platforms = (r.onlinePlatforms||[]);
   const platformsHtml = platforms.length
     ? `<div class="badge-row">${platforms.map(p=>{
-        const meta = PLATFORM_FILTER_META[p] || {emoji:'🔗', color:'#555', file:'other'};
-        const q = encodeURIComponent(`${r.name} ${p}`);
-        return `<a href="https://www.google.com/search?q=${q}" target="_blank" rel="noopener" class="platform-chip" style="background:${meta.color}">${platformIconHtml(meta.file, meta.emoji, 16)} ${p}</a>`;
+        // Kompatibel data lama (string saja) maupun baru ({platform,url})
+        const name = typeof p === 'string' ? p : p.platform;
+        const url = typeof p === 'string' ? '' : (p.url || '');
+        const meta = PLATFORM_FILTER_META[name] || {emoji:'🔗', color:'#555', file:'other'};
+        const inner = `${platformIconHtml(meta.file, meta.emoji, 16)} ${name}`;
+        return url
+          ? `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="platform-chip" style="background:${meta.color}">${inner}</a>`
+          : `<span class="platform-chip" style="background:${meta.color};opacity:0.75;" title="Link belum ditambahkan admin">${inner}</span>`;
       }).join('')}</div>`
     : '';
   const payments = (r.paymentMethods||[]);
@@ -1991,6 +2031,14 @@ function openDetail(id, showAllTesti){
       if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
     };
   });
+  document.querySelectorAll('.ref-del-btn').forEach(btn=>{
+    btn.onclick = async (e)=>{
+      e.preventDefault();
+      if(!confirm('Hapus referensi ini?')) return;
+      const ok = await deleteReference(btn.dataset.id);
+      if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); showToast('Referensi dihapus'); }
+    };
+  });
   document.getElementById('quickRefBtn').onclick = async ()=>{
     if(!requireLogin()) return;
     const inp = document.getElementById('quickRefInput');
@@ -2079,8 +2127,18 @@ function openForm(existing){
   document.getElementById('f_type').value = existing ? existing.type : 'Indonesian';
   document.getElementById('f_price').value = existing ? existing.priceRange : '< Rp 25rb';
   const existingPlatforms = existing && existing.onlinePlatforms ? existing.onlinePlatforms : [];
+  // Kompatibel dengan data lama (array nama saja) maupun baru (array {platform,url})
+  const platformUrlMap = {};
+  existingPlatforms.forEach(p=>{
+    if(typeof p === 'string') platformUrlMap[p] = '';
+    else platformUrlMap[p.platform] = p.url || '';
+  });
   document.querySelectorAll('#platformPicker .platform-toggle').forEach(el=>{
-    el.classList.toggle('active', existingPlatforms.includes(el.dataset.platform));
+    const active = el.dataset.platform in platformUrlMap;
+    el.classList.toggle('active', active);
+    const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
+    input.value = platformUrlMap[el.dataset.platform] || '';
+    input.classList.toggle('hidden', !active);
   });
   const existingPayments = existing && existing.paymentMethods ? existing.paymentMethods : [];
   document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>{
@@ -2105,8 +2163,21 @@ function openForm(existing){
 
   const refList = document.getElementById('refUrlList');
   refList.innerHTML = '';
-  const refs = existing && existing.references && existing.references.length ? existing.references.map(r=>r.url) : [''];
-  refs.forEach(u => addRefUrlRow(u));
+  const addRefBtn = document.getElementById('addRefUrlBtn');
+  const editNote = document.getElementById('refFieldEditNote');
+  if(existing){
+    // Mode edit: referensi dikelola dari panel detail saja (tombol hapus di sana benar-benar berfungsi).
+    // Tampilkan sebagai daftar baca-saja supaya admin tidak salah kira bisa hapus dari sini.
+    (existing.references || []).forEach(r => addRefUrlRow(r.url));
+    refList.querySelectorAll('.ref-url-row input').forEach(inp => inp.disabled = true);
+    refList.querySelectorAll('.ref-url-row button').forEach(btn => btn.classList.add('hidden'));
+    addRefBtn.classList.add('hidden');
+    editNote.classList.remove('hidden');
+  }else{
+    addRefUrlRow('');
+    addRefBtn.classList.remove('hidden');
+    editNote.classList.add('hidden');
+  }
 
   document.getElementById('modalOverlay').classList.remove('hidden');
 }
@@ -2169,7 +2240,10 @@ async function handleSave(){
   const imgUrls = formMenuImages;
   const favMenus = Array.from(document.querySelectorAll('.fav-row input')).map(i=>i.value.trim()).filter(Boolean);
   const refUrlsRaw = Array.from(document.querySelectorAll('.ref-url-row input')).map(i=>i.value.trim()).filter(Boolean);
-  const platforms = Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>el.dataset.platform);
+  const platforms = Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>{
+    const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
+    return { platform: el.dataset.platform, url: (input && input.value.trim()) || '' };
+  });
   const paymentMethods = Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(el=>el.dataset.payment);
   const data = {
     id: editingId || null,
