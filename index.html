@@ -440,6 +440,9 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #ratingForm .rating-crit-row .crit-label{font-size:10.5px;text-align:center;}
 .rating-crit-row .crit-label{color:var(--muted);font-weight:600;}
 .stars-display{color:var(--amber);letter-spacing:1px;font-size:15px;}
+.star-rating-wrap{position:relative;display:inline-block;line-height:1;white-space:nowrap;}
+.star-rating-bg{color:var(--line);}
+.star-rating-fg{position:absolute;top:0;left:0;overflow:hidden;white-space:nowrap;color:var(--amber);}
 .rating-summary{display:flex;align-items:center;gap:8px;margin:4px 0 2px 0;font-size:13.5px;flex-wrap:wrap;}
 .rating-count{color:var(--muted);font-size:12px;}
 .rating-breakdown{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:4px;}
@@ -1152,10 +1155,12 @@ function computeRatingSummary(ratings){
 }
 
 function renderStars(value){
-  const rounded = Math.round(value);
-  let html = '';
-  for(let i=1;i<=5;i++) html += i <= rounded ? '★' : '☆';
-  return html;
+  // Mengikuti nilai desimal secara presisi (mis. 2.5 -> 2 bintang penuh + setengah + 2 kosong),
+  // dengan cara menumpuk teks bintang kosong (background) & bintang penuh (foreground, dipotong
+  // sesuai persentase) di atasnya -- bukan sekadar dibulatkan ke bintang terdekat.
+  const v = Math.max(0, Math.min(5, (typeof value === 'number' && !isNaN(value)) ? value : 0));
+  const pct = (v / 5 * 100).toFixed(1);
+  return `<span class="star-rating-wrap"><span class="star-rating-bg">☆☆☆☆☆</span><span class="star-rating-fg" style="width:${pct}%">★★★★★</span></span>`;
 }
 
 /* ================= INIT MAP ================= */
