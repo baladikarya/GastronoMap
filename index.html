@@ -618,8 +618,9 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
           <div id="accountEmail">-</div>
         </div>
       </div>
-      <button class="account-menu-item" id="openGuideBtn">📖 Panduan Penggunaan Aplikasi</button>
       <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil (username/gender/usia)</button>
+      <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
+      <button class="account-menu-item" id="openGuideBtn">📖 Panduan Penggunaan Aplikasi</button>
       <button class="account-menu-item danger" id="logoutBtn">🚪 Logout</button>
     </div>
   </div>
@@ -1023,7 +1024,16 @@ function openAccountPanel(){
   }else{
     img.classList.add('hidden'); initial.classList.remove('hidden');
   }
+  updateNewRestoMenuBadge();
   document.getElementById('accountOverlay').classList.remove('hidden');
+}
+
+/* Badge jumlah resto baru (belum dilihat) di tombol menu "List Resto Baru" pada panel akun */
+function updateNewRestoMenuBadge(){
+  const btn = document.getElementById('openNewRestoListBtn');
+  if(!btn) return;
+  const count = myUserId ? getNewRestosForMe().length : 0;
+  btn.textContent = count > 0 ? `🆕 List Resto Baru (${count})` : '🆕 List Resto Baru';
 }
 
 async function uploadAvatar(file){
@@ -1093,20 +1103,19 @@ function addPoppedNewIds(ids){
   try{ localStorage.setItem('gm_popped_new_ids', JSON.stringify([...cur])); }catch(e){}
 }
 
-function showNewRestoPopupIfNeeded(){
-  if(!myUserId) return; // fitur personal, hanya untuk yang login
-  const newOnes = getNewRestosForMe();
-  if(newOnes.length === 0) return;
-  const popped = getPoppedNewIds();
-  const toAnnounce = newOnes.filter(r => !popped.has(r.id));
-  if(toAnnounce.length === 0) return; // semua sudah pernah diberitahukan sebelumnya, tidak perlu popup lagi
+/* Render isi daftar resto baru ke dalam #newRestoList (dipakai baik oleh popup otomatis
+   maupun oleh panel "List Resto Baru" yang dibuka manual dari menu profil). */
+function renderNewRestoListItems(items, introText){
+  document.getElementById('newRestoIntro').textContent = introText;
   const list = document.getElementById('newRestoList');
-  list.innerHTML = toAnnounce.map(r=>{
+  if(items.length === 0){
+    list.innerHTML = `<p style="font-size:12.5px;color:var(--muted);text-align:center;padding:14px 0;margin:0;">Belum ada resto baru saat ini. Coba cek lagi nanti ya 🙂</p>`;
+    return;
+  }
+  list.innerHTML = items.map(r=>{
     const t = TYPES[r.type] || DEFAULT_TYPE_META;
     return `<div class="new-resto-item" data-id="${escapeAttr(r.id)}">${t.emoji} <b>${escapeHtml(r.name)}</b><span class="new-resto-sub">${escapeHtml(r.address || r.type)}</span></div>`;
   }).join('');
-  document.getElementById('newRestoIntro').textContent =
-    `${toAnnounce.length} resto baru ditambahkan. Tap untuk langsung lihat:`;
   list.querySelectorAll('.new-resto-item').forEach(el=>{
     el.onclick = ()=>{
       const r = allRestos[el.dataset.id];
@@ -1114,8 +1123,36 @@ function showNewRestoPopupIfNeeded(){
       if(r){ map.setView([r.lat, r.lng], 17); openDetail(r.id); }
     };
   });
+}
+
+function showNewRestoPopupIfNeeded(){
+  if(!myUserId) return; // fitur personal, hanya untuk yang login
+  const newOnes = getNewRestosForMe();
+  if(newOnes.length === 0) return;
+  const popped = getPoppedNewIds();
+  const toAnnounce = newOnes.filter(r => !popped.has(r.id));
+  if(toAnnounce.length === 0) return; // semua sudah pernah diberitahukan sebelumnya, tidak perlu popup lagi
+  renderNewRestoListItems(toAnnounce, `${toAnnounce.length} resto baru ditambahkan. Tap untuk langsung lihat:`);
   document.getElementById('newRestoOverlay').classList.remove('hidden');
-  addPoppedNewIds(toAnnounce.map(r=>r.id)); // tandai sudah diberitahukan, popup tidak akan muncul lagi untuk ini
+  addPoppedNewIds(toAnnounce.map(r=>r.id)); // tandai sudah diberitahukan, popup otomatis tidak akan muncul lagi untuk ini
+  // Catatan: walau popup otomatis tidak muncul lagi, resto tsb tetap terlihat di menu
+  // "List Resto Baru" pada panel profil selama masih dalam masa NEW_RESTO_WINDOW_MS
+  // dan belum dibuka detailnya (lihat getNewRestosForMe / isNewForMe).
+}
+
+/* Dipanggil dari menu "List Resto Baru" di panel profil -- menampilkan SEMUA resto yang
+   masih berstatus "baru" untuk user ini, terlepas dari apakah popup otomatisnya sudah
+   pernah tampil atau belum. Ini yang memastikan user yang mengabaikan popup tetap bisa
+   melihat kembali daftarnya kapan saja. */
+function openNewRestoListPanel(){
+  if(!requireLogin()) return;
+  document.getElementById('accountOverlay').classList.add('hidden');
+  const newOnes = getNewRestosForMe();
+  const introText = newOnes.length > 0
+    ? `${newOnes.length} resto baru ditambahkan dalam 7 hari terakhir. Tap untuk langsung lihat:`
+    : 'Belum ada resto baru saat ini.';
+  renderNewRestoListItems(newOnes, introText);
+  document.getElementById('newRestoOverlay').classList.remove('hidden');
 }
 
 function emptyHours(){
@@ -2472,6 +2509,7 @@ document.getElementById('logoutBtn').onclick = ()=>{
   document.getElementById('accountOverlay').classList.add('hidden');
   signOut();
 };
+document.getElementById('openNewRestoListBtn').onclick = openNewRestoListPanel;
 document.getElementById('openGuideBtn').onclick = openGuidePanel;
 document.getElementById('closeGuideBtn').onclick = ()=> document.getElementById('guideOverlay').classList.add('hidden');
 document.getElementById('guideOverlay').onclick = (e)=>{ if(e.target.id === 'guideOverlay') document.getElementById('guideOverlay').classList.add('hidden'); };
