@@ -756,17 +756,17 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <div id="locSuggestions" class="hidden"></div>
       </div>
 
-      <div class="field">
-        <label>No. Telepon/HP</label>
-        <input type="tel" id="f_phone" placeholder="mis. 081234567890 atau 021-5551234">
-      </div>
-
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
         <button type="button" id="adjustPinLinkBtn" class="btn btn-secondary hidden" style="flex:0 0 auto;" title="Lihat & sesuaikan pin di peta">🗺️</button>
       </div>
 
       <div id="pinStatusCaption">💡 Anda juga bisa tap langsung di peta untuk pilih lokasi.</div>
+
+      <div class="field">
+        <label>No. Telepon/HP</label>
+        <input type="tel" id="f_phone" placeholder="mis. 081234567890 atau 021-5551234">
+      </div>
 
       <div class="field-row">
         <div class="field"><label>Tipe</label>
@@ -1336,7 +1336,7 @@ async function searchLocation(query){
       map.setView([f.lat, f.lng], 17);
       // Pin ditaruh otomatis di titik sugesti, tapi TETAP draggable & TETAP butuh submit form
       // untuk benar-benar tersimpan -- lihat catatan ToS di atas fungsi ini.
-      placeDraggableMarker(f.lat, f.lng, 'sugesti alamat', 'auto');
+      placeDraggableMarker(f.lat, f.lng, 'sugesti alamat', 'auto', { skipReverseGeocode: true });
       enterPinPeek();
       document.getElementById('f_address').value = f.addr || f.name;
       box.classList.add('hidden');
@@ -1386,6 +1386,41 @@ async function fetchCandidates_GooglePlacesUIKit(query, bias){
   return [];
 }
 
+/* ================= REVERSE GEOCODE (alamat dari posisi pin) =================
+   Dipakai setiap kali pin ditaruh/digeser secara manual (tap peta, GPS, atau drag),
+   supaya field Alamat SELALU mengikuti posisi pin yang terakhir -- bukan malah pin yang
+   mengikuti alamat lama. Sama seperti pencarian alamat, ini cuma SARAN yang mengisi field
+   editable; belum tersimpan ke Supabase sampai form di-submit. Provider-agnostic seperti
+   fetchCandidates_* di atas -- swap ke Google tinggal ganti LOCATION_SEARCH_PROVIDER. */
+async function reverseGeocodeAddress(lat, lng){
+  if(LOCATION_SEARCH_PROVIDER === 'google_places_ui_kit'){
+    return await reverseGeocode_GooglePlacesUIKit(lat, lng);
+  }
+  return await reverseGeocode_OSM(lat, lng);
+}
+
+async function reverseGeocode_OSM(lat, lng){
+  try{
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&zoom=18`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data && data.display_name){
+      // Potong jadi ~4 komponen pertama (kira-kira setara level kecamatan) biar tidak
+      // sepanjang alamat lengkap Nominatim yang suka sampai kode pos & negara.
+      return data.display_name.split(',').map(s=>s.trim()).slice(0,4).join(', ');
+    }
+  }catch(e){ /* gagal senyap -- field alamat dibiarkan seperti sebelumnya */ }
+  return null;
+}
+
+/* TODO: isi saat API key & Edge Function proxy siap -- panggil Geocoding API reverse lewat
+   proxy tersebut. Ingat batas caching 30 hari utk lat/lng (lihat catatan di searchLocation di
+   atas) -- ini tidak relevan di sini karena hasilnya cuma prefill field editable, tidak
+   pernah disimpan mentah ke Supabase. */
+async function reverseGeocode_GooglePlacesUIKit(lat, lng){
+  return null;
+}
+
 /* ================= BANTUAN ALAMAT (buka OSM di tab baru, tanpa fetch) ================= */
 /* state: 'auto' (baru dipilih dari sugesti/GPS/koordinat, belum disentuh) atau
    'manual' (sudah digeser tangan sendiri oleh user) -- dua kondisi ini sengaja dibedakan
@@ -1420,15 +1455,21 @@ function exitPinPeek(){
 /* Menaruh pin SEMENTARA yang bisa digeser (draggable) di peta -- dipakai oleh
    semua cara pilih lokasi (tap peta, sugesti alamat, koordinat, GPS) supaya
    user selalu bisa lihat dulu & koreksi posisinya sebelum lanjut isi data.
-   Pin ini TIDAK langsung tersimpan -- baru jadi data resmi saat form di-submit. */
-function placeDraggableMarker(lat, lng, sourceLabel, initialState){
+   Pin ini TIDAK langsung tersimpan -- baru jadi data resmi saat form di-submit.
+   opts.skipReverseGeocode: pakai saat alamat sudah pasti akurat dari sumbernya sendiri
+   (mis. hasil klik sugesti pencarian) sehingga tidak perlu reverse-geocode ulang. */
+async function placeDraggableMarker(lat, lng, sourceLabel, initialState, opts){
+  opts = opts || {};
   pickedLatLng = L.latLng(lat, lng);
   if(tempMarker) map.removeLayer(tempMarker);
   tempMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
-  tempMarker.on('dragend', ()=>{
+  tempMarker.on('dragend', async ()=>{
     const pos = tempMarker.getLatLng();
     pickedLatLng = pos;
     setPinStatus(`Posisi disesuaikan manual: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`, 'manual');
+    // Pin yang menentukan, alamat yang mengikuti -- bukan sebaliknya.
+    const suggested = await reverseGeocodeAddress(pos.lat, pos.lng);
+    if(suggested) document.getElementById('f_address').value = suggested;
   });
   tempMarker.on('click', ()=>{
     showToast('📍 Lokasi ini yang akan dipakai. Geser pin kalau kurang pas, lalu lanjutkan isi data resto.');
@@ -1436,6 +1477,10 @@ function placeDraggableMarker(lat, lng, sourceLabel, initialState){
   const state = initialState || 'auto';
   const label = state === 'manual' ? 'Lokasi dipilih' : 'Pin otomatis ditempatkan';
   setPinStatus(`${label}${sourceLabel ? ' (' + sourceLabel + ')' : ''}: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Geser kalau kurang pas.`, state);
+  if(!opts.skipReverseGeocode){
+    const suggested = await reverseGeocodeAddress(lat, lng);
+    if(suggested) document.getElementById('f_address').value = suggested;
+  }
   return tempMarker;
 }
 
