@@ -434,8 +434,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .field-row .field{flex:1;}
 #pinStatusCaption{
   font-size:11.5px;color:var(--muted);margin:6px 0 14px 0;line-height:1.5;
+  padding:8px 10px;border-radius:8px;background:var(--paper);border:1px solid var(--line);
+  display:flex;align-items:center;gap:7px;transition:background 0.15s ease, border-color 0.15s ease;
 }
-#pinStatusCaption.has-location{color:var(--teal-dark);font-weight:600;}
+#pinStatusCaption .pin-status-icon{flex-shrink:0;font-size:13px;line-height:1;}
+#pinStatusCaption.has-location{color:var(--teal-dark);font-weight:600;background:#EAF4F1;border-color:var(--teal);}
+#pinStatusCaption.pin-manual{color:var(--amber-dark);background:#FBF1E1;border-color:var(--amber);}
 .img-url-row{display:flex;gap:6px;margin-bottom:6px;}
 .img-url-row input{flex:1;}
 .img-url-row button{border:none;background:var(--paper);border-radius:6px;padding:0 10px;cursor:pointer;color:var(--red);font-weight:700;}
@@ -1249,7 +1253,7 @@ function initMap(){
   map.on('click', (e) => {
     const modalOpen = !document.getElementById('modalOverlay').classList.contains('hidden');
     if(modalOpen){
-      placeDraggableMarker(e.latlng.lat, e.latlng.lng, 'tap peta');
+      placeDraggableMarker(e.latlng.lat, e.latlng.lng, 'tap peta', 'manual');
     }
   });
 
@@ -1258,17 +1262,72 @@ function initMap(){
   }, ()=>{}, {timeout:4000});
 }
 
-/* ================= AUTOCOMPLETE LOKASI (Photon - geocoder gratis berbasis OSM) =================
+/* ================= AUTOCOMPLETE LOKASI =================
    Fitur ini HANYA berfungsi di versi PWA yang sudah di-hosting (bukan di dalam Claude.ai),
-   karena butuh memanggil server pencarian lokasi secara langsung. */
+   karena butuh memanggil server pencarian lokasi secara langsung.
+
+   ARSITEKTUR PROVIDER-AGNOSTIC — baca ini sebelum ganti ke Google Places UI Kit:
+   `searchLocation()` di bawah cuma mengurus UI (render sugesti, klik, dsb). Sumber datanya
+   dipisah ke fungsi provider terpisah (lihat LOCATION_SEARCH_PROVIDER). Supaya nanti tinggal
+   tambah fungsi provider baru (mis. fetchCandidates_GooglePlacesUIKit) dan ganti nilai
+   LOCATION_SEARCH_PROVIDER — TIDAK perlu ubah kode UI, auto-pin, atau drag-pin di bawahnya.
+
+   PENTING soal ToS kalau nanti pakai Google Places UI Kit:
+   - Hasil pencarian (lat/lng, alamat) dari provider HANYA boleh dipakai untuk pan peta +
+     prefill field alamat (yang tetap editable) — TIDAK pernah dikirim langsung ke Supabase.
+   - Koordinat yang benar-benar tersimpan HARUS selalu dibaca dari posisi pin di peta
+     (tempMarker.getLatLng()) via placeDraggableMarker(), bukan dari field provider.
+     Pola ini SUDAH diterapkan di alur saat ini — jangan diubah saat swap provider. */
+const LOCATION_SEARCH_PROVIDER = 'osm'; // ganti ke 'google_places_ui_kit' kalau API key sudah siap
+
 let locSearchDebounce = null;
 async function searchLocation(query){
   const box = document.getElementById('locSuggestions');
   if(!query || query.length < 3){ box.classList.add('hidden'); return; }
-  let feats = [];
   // Prioritaskan lokasi GPS asli user (kalau ada) supaya sugesti condong ke sekitar
   // posisi dia sekarang, baru fallback ke pusat tampilan peta kalau GPS tidak tersedia.
   const bias = myGpsLatLng || map.getCenter();
+
+  box.innerHTML = '<div class="loc-sugg-item" style="color:var(--muted);">Mencari…</div>';
+  box.classList.remove('hidden');
+
+  let feats = [];
+  if(LOCATION_SEARCH_PROVIDER === 'google_places_ui_kit'){
+    // TODO: implementasikan fetchCandidates_GooglePlacesUIKit(query, bias) saat API key siap.
+    // Wajib tetap kembalikan array {name, sub, lat, lng, addr} dengan bentuk sama seperti OSM,
+    // supaya kode render sugesti & placeDraggableMarker di bawah tidak perlu diubah sama sekali.
+    feats = await fetchCandidates_GooglePlacesUIKit(query, bias);
+  } else {
+    feats = await fetchCandidates_OSM(query, bias);
+  }
+
+  if(feats.length === 0){
+    box.innerHTML = '<div class="loc-sugg-item" style="color:var(--muted);">Tidak ditemukan, coba kata lain atau pilih manual di peta</div>';
+    box.classList.remove('hidden');
+    return;
+  }
+  box.innerHTML = feats.map((f, idx)=>
+    `<div class="loc-sugg-item" data-idx="${idx}"><b>${escapeHtml(f.name)}</b><span class="loc-sugg-sub">${escapeHtml(f.sub)}</span></div>`
+  ).join('');
+  box.classList.remove('hidden');
+  box.querySelectorAll('.loc-sugg-item').forEach(el=>{
+    el.onclick = ()=>{
+      const idx = Number(el.dataset.idx);
+      if(isNaN(idx)) return;
+      const f = feats[idx];
+      map.setView([f.lat, f.lng], 17);
+      // Pin ditaruh otomatis di titik sugesti, tapi TETAP draggable & TETAP butuh submit form
+      // untuk benar-benar tersimpan -- lihat catatan ToS di atas fungsi ini.
+      placeDraggableMarker(f.lat, f.lng, 'sugesti alamat', 'auto');
+      document.getElementById('f_address').value = f.addr || f.name;
+      box.classList.add('hidden');
+    };
+  });
+}
+
+/* ---- Provider: OSM (Photon, fallback Nominatim) -- gratis, tanpa API key ---- */
+async function fetchCandidates_OSM(query, bias){
+  let feats = [];
   try{
     const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&lang=id&limit=6&lat=${bias.lat}&lon=${bias.lng}&location_bias_scale=0.9&zoom=15`;
     const res = await fetch(url);
@@ -1294,56 +1353,54 @@ async function searchLocation(query){
         lat: parseFloat(item.lat), lng: parseFloat(item.lon),
         addr: item.display_name
       }));
-    }catch(e){ /* biarkan feats tetap kosong, tangani di bawah */ }
+    }catch(e){ /* biarkan feats tetap kosong, tangani di pemanggil */ }
   }
+  return feats;
+}
 
-  if(feats.length === 0){
-    box.innerHTML = '<div class="loc-sugg-item" style="color:var(--muted);">Tidak ditemukan, coba kata lain atau pilih manual di peta</div>';
-    box.classList.remove('hidden');
-    return;
-  }
-  box.innerHTML = feats.map((f, idx)=>
-    `<div class="loc-sugg-item" data-idx="${idx}"><b>${escapeHtml(f.name)}</b><span class="loc-sugg-sub">${escapeHtml(f.sub)}</span></div>`
-  ).join('');
-  box.classList.remove('hidden');
-  box.querySelectorAll('.loc-sugg-item').forEach(el=>{
-    el.onclick = ()=>{
-      const idx = Number(el.dataset.idx);
-      if(isNaN(idx)) return;
-      const f = feats[idx];
-      map.setView([f.lat, f.lng], 17);
-      placeDraggableMarker(f.lat, f.lng, 'sugesti alamat');
-      if(f.addr) document.getElementById('f_address').value = f.addr;
-      else document.getElementById('f_address').value = f.name;
-      box.classList.add('hidden');
-    };
-  });
+/* ---- Provider: Google Places UI Kit -- placeholder, isi saat API key & proxy siap ----
+   Ingat: Places UI Kit boleh digabung basemap non-Google (Leaflet/OSM) sesuai Service
+   Specific Terms pasal 15.1 -- tapi tetap idealnya panggilan lewat Supabase Edge Function
+   proxy supaya API key tidak terekspos di static hosting GitHub Pages. */
+async function fetchCandidates_GooglePlacesUIKit(query, bias){
+  showToast('Provider Google Places UI Kit belum dikonfigurasi');
+  return [];
 }
 
 /* ================= BANTUAN ALAMAT (buka OSM di tab baru, tanpa fetch) ================= */
-function setPinStatus(text){
+/* state: 'auto' (baru dipilih dari sugesti/GPS/koordinat, belum disentuh) atau
+   'manual' (sudah digeser tangan sendiri oleh user) -- dua kondisi ini sengaja dibedakan
+   secara visual, supaya kalau nanti provider pencarian diganti ke Google Places UI Kit,
+   selalu jelas mana koordinat yang murni hasil aksi user vs yang masih titik awal sugesti. */
+function setPinStatus(text, state){
   const el = document.getElementById('pinStatusCaption');
   if(!el) return;
-  el.textContent = text;
-  el.classList.add('has-location');
+  const icon = state === 'manual' ? '✋' : (state === 'auto' ? '📍' : '💡');
+  el.innerHTML = `<span class="pin-status-icon">${icon}</span><span>${escapeHtml(text)}</span>`;
+  el.classList.remove('has-location', 'pin-manual');
+  if(state === 'manual') el.classList.add('has-location', 'pin-manual');
+  else if(state === 'auto') el.classList.add('has-location');
 }
 
 /* Menaruh pin SEMENTARA yang bisa digeser (draggable) di peta -- dipakai oleh
    semua cara pilih lokasi (tap peta, sugesti alamat, koordinat, GPS) supaya
-   user selalu bisa lihat dulu & koreksi posisinya sebelum lanjut isi data. */
-function placeDraggableMarker(lat, lng, sourceLabel){
+   user selalu bisa lihat dulu & koreksi posisinya sebelum lanjut isi data.
+   Pin ini TIDAK langsung tersimpan -- baru jadi data resmi saat form di-submit. */
+function placeDraggableMarker(lat, lng, sourceLabel, initialState){
   pickedLatLng = L.latLng(lat, lng);
   if(tempMarker) map.removeLayer(tempMarker);
   tempMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
   tempMarker.on('dragend', ()=>{
     const pos = tempMarker.getLatLng();
     pickedLatLng = pos;
-    setPinStatus(`Lokasi (digeser manual): ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`);
+    setPinStatus(`Posisi disesuaikan manual: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`, 'manual');
   });
   tempMarker.on('click', ()=>{
     showToast('📍 Lokasi ini yang akan dipakai. Geser pin kalau kurang pas, lalu lanjutkan isi data resto.');
   });
-  setPinStatus(`Lokasi dipilih${sourceLabel ? ' (' + sourceLabel + ')' : ''}: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Bisa digeser kalau kurang pas.`);
+  const state = initialState || 'auto';
+  const label = state === 'manual' ? 'Lokasi dipilih' : 'Pin otomatis ditempatkan';
+  setPinStatus(`${label}${sourceLabel ? ' (' + sourceLabel + ')' : ''}: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Geser kalau kurang pas.`, state);
   return tempMarker;
 }
 
@@ -1367,7 +1424,7 @@ function applyPastedCoords(){
   const lat = parseFloat(match[1]), lng = parseFloat(match[2]);
   if(lat < -90 || lat > 90 || lng < -180 || lng > 180){ showToast('Angka koordinat di luar jangkauan wajar'); return; }
   map.setView([lat, lng], 17);
-  placeDraggableMarker(lat, lng, 'dari koordinat');
+  placeDraggableMarker(lat, lng, 'dari koordinat', 'manual');
   showToast('Pin ditaruh persis di koordinat itu, geser kalau perlu');
 }
 
@@ -2248,12 +2305,11 @@ function openForm(existing){
   document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>{
     el.classList.toggle('active', existingPayments.includes(el.dataset.payment));
   });
-  const captionEl = document.getElementById('pinStatusCaption');
-  captionEl.classList.remove('has-location');
-  captionEl.textContent = pickedLatLng
-    ? `Lokasi dipilih: ${pickedLatLng.lat.toFixed(5)}, ${pickedLatLng.lng.toFixed(5)}`
-    : '💡 Anda juga bisa tap langsung di peta untuk pilih lokasi.';
-  if(pickedLatLng) captionEl.classList.add('has-location');
+  if(pickedLatLng){
+    setPinStatus(`Lokasi tersimpan: ${pickedLatLng.lat.toFixed(5)}, ${pickedLatLng.lng.toFixed(5)}. Geser kalau perlu diperbaiki.`, 'auto');
+  } else {
+    setPinStatus('Anda juga bisa tap langsung di peta untuk pilih lokasi.', null);
+  }
 
   renderDayHoursRows(existing && existing.hoursByDay ? existing.hoursByDay : emptyHours());
 
