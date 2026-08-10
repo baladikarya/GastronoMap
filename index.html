@@ -761,19 +761,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <input type="tel" id="f_phone" placeholder="mis. 081234567890 atau 021-5551234">
       </div>
 
-      <button type="button" id="useMyLocationBtn" class="btn btn-primary" style="width:100%;margin-top:8px;">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
-      <button type="button" id="searchGmapsBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;font-size:12.5px;padding:8px;">🔍 Cari di Google Maps (tab baru)</button>
-
-      <div class="field" style="margin-top:8px;">
-        <label>Koordinat dari Google Maps (opsional, paling presisi)</label>
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="coordPasteInput" placeholder="-6.1754, 106.8272" style="flex:1;">
-          <button type="button" id="coordApplyBtn" class="btn btn-secondary" style="flex:0 0 auto;">Pakai</button>
-        </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
+        <button type="button" id="adjustPinLinkBtn" class="btn btn-secondary hidden" style="flex:0 0 auto;" title="Lihat & sesuaikan pin di peta">🗺️</button>
       </div>
 
       <div id="pinStatusCaption">💡 Anda juga bisa tap langsung di peta untuk pilih lokasi.</div>
-      <button type="button" id="adjustPinLinkBtn" class="hidden" style="background:none;border:none;padding:2px 0 10px;color:var(--teal-dark);font-size:12px;font-weight:600;text-decoration:underline;cursor:pointer;">📍 Lihat &amp; sesuaikan pin di peta</button>
 
       <div class="field-row">
         <div class="field"><label>Tipe</label>
@@ -1444,31 +1437,6 @@ function placeDraggableMarker(lat, lng, sourceLabel, initialState){
   const label = state === 'manual' ? 'Lokasi dipilih' : 'Pin otomatis ditempatkan';
   setPinStatus(`${label}${sourceLabel ? ' (' + sourceLabel + ')' : ''}: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Geser kalau kurang pas.`, state);
   return tempMarker;
-}
-
-/* Buka Google Maps di tab baru untuk bantu cari nama/alamat resto secara manual
-   (tab terpisah tidak bisa "mengirim balik" data ke sini secara otomatis --
-   ini batasan keamanan dasar semua browser, bukan keterbatasan kode). */
-function openGoogleMapsHelper(){
-  const q = document.getElementById('f_name').value.trim() || document.getElementById('f_address').value.trim();
-  const url = q
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
-    : `https://www.google.com/maps`;
-  window.open(url, '_blank');
-}
-
-/* Terima paste koordinat "lat, lng" dari Google Maps -> taruh pin PERSIS di titik itu,
-   tanpa perlu OSM mengenali alamatnya sama sekali (jadi presisinya sama seperti di Google Maps). */
-function applyPastedCoords(){
-  const raw = document.getElementById('coordPasteInput').value.trim();
-  const match = raw.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
-  if(!match){ showToast('Format koordinat tidak dikenali. Contoh: -6.1754, 106.8272'); return; }
-  const lat = parseFloat(match[1]), lng = parseFloat(match[2]);
-  if(lat < -90 || lat > 90 || lng < -180 || lng > 180){ showToast('Angka koordinat di luar jangkauan wajar'); return; }
-  map.setView([lat, lng], 17);
-  placeDraggableMarker(lat, lng, 'dari koordinat', 'manual');
-  enterPinPeek();
-  showToast('Pin ditaruh persis di koordinat itu, geser kalau perlu');
 }
 
 /* Ambil lokasi HP user SEKARANG dengan akurasi tinggi, langsung taruh pin di situ
@@ -2525,8 +2493,6 @@ document.getElementById('f_address').oninput = (e)=>{
 document.getElementById('f_address').addEventListener('blur', ()=>{
   setTimeout(()=> document.getElementById('locSuggestions').classList.add('hidden'), 200);
 });
-document.getElementById('searchGmapsBtn').onclick = openGoogleMapsHelper;
-document.getElementById('coordApplyBtn').onclick = applyPastedCoords;
 document.getElementById('useMyLocationBtn').onclick = useMyLocationNow;
 document.getElementById('menuPhotoCameraBtn').onclick = ()=>{ if(requireLogin()) document.getElementById('menuPhotoCameraInput').click(); };
 document.getElementById('menuPhotoGalleryBtn').onclick = ()=>{ if(requireLogin()) document.getElementById('menuPhotoGalleryInput').click(); };
