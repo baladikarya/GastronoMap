@@ -422,6 +422,22 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   #formModal{border-radius:16px;max-height:82vh;}
 }
 #formModal h2{font-family:'Fraunces',serif;font-size:21px;margin:0 0 14px 0;}
+
+/* ---------- PANEL "PASTIKAN PIN" (form disembunyikan sementara agar peta terlihat penuh) ---------- */
+#pinPeekBar{
+  position:absolute;left:0;right:0;bottom:0;z-index:2001;
+  background:var(--card);box-shadow:0 -8px 24px rgba(30,42,40,0.18);
+  border-radius:18px 18px 0 0;padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+  display:flex;align-items:center;gap:12px;
+}
+#pinPeekBar.hidden{display:none;}
+#pinPeekBar .pin-peek-text{flex:1;min-width:0;}
+#pinPeekBar .pin-peek-title{font-weight:700;font-size:14px;margin:0 0 2px;}
+#pinPeekBar .pin-peek-sub{font-size:11.5px;color:var(--muted);margin:0;line-height:1.4;}
+#pinPeekBar button{flex-shrink:0;}
+@media(min-width:760px){
+  #pinPeekBar{max-width:480px;left:50%;transform:translateX(-50%);border-radius:16px;bottom:16px;}
+}
 .field{margin-bottom:13px;}
 .field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:4px;letter-spacing:0.2px;text-transform:uppercase;}
 .field input[type=text], .field input[type=url], .field input[type=tel], .field input[type=number], .field input[type=email], .field input[type=time], .field select, .field textarea{
@@ -721,6 +737,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     <div id="detailContent"></div>
   </div>
 
+  <div id="pinPeekBar" class="hidden">
+    <div class="pin-peek-text">
+      <p class="pin-peek-title">📍 Pastikan posisi pin</p>
+      <p class="pin-peek-sub">Geser pin di peta kalau kurang pas, lalu lanjutkan isi data.</p>
+    </div>
+    <button type="button" class="btn btn-primary" id="pinPeekConfirmBtn">Lanjutkan ✓</button>
+  </div>
+
   <div id="modalOverlay" class="hidden">
     <div id="formModal">
       <h2 id="formTitle">Tambah Resto</h2>
@@ -749,6 +773,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       </div>
 
       <div id="pinStatusCaption">💡 Anda juga bisa tap langsung di peta untuk pilih lokasi.</div>
+      <button type="button" id="adjustPinLinkBtn" class="hidden" style="background:none;border:none;padding:2px 0 10px;color:var(--teal-dark);font-size:12px;font-weight:600;text-decoration:underline;cursor:pointer;">📍 Lihat &amp; sesuaikan pin di peta</button>
 
       <div class="field-row">
         <div class="field"><label>Tipe</label>
@@ -838,6 +863,7 @@ const DEFAULT_TYPE_META = {emoji:"📍", color:"#555555"}; // fallback untuk tip
 const DAYS = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
 
 let map, markersLayer, allRestos = {}, activeTypeFilters = new Set(), pickedLatLng = null, editingId = null, tempMarker = null;
+let pickingLocationMode = false; // true selama alur tambah/edit resto aktif (form terbuka ATAU sedang di mode "pastikan pin")
 let formMenuImages = []; // foto menu yang sudah diunggah untuk resto yang sedang diisi di form
 let myGpsLatLng = null; // lokasi HP user saat ini, dipakai supaya sugesti alamat prioritas ke sekitar sini
 
@@ -1251,8 +1277,7 @@ function initMap(){
   }).addTo(map);
 
   map.on('click', (e) => {
-    const modalOpen = !document.getElementById('modalOverlay').classList.contains('hidden');
-    if(modalOpen){
+    if(pickingLocationMode){
       placeDraggableMarker(e.latlng.lat, e.latlng.lng, 'tap peta', 'manual');
     }
   });
@@ -1319,6 +1344,7 @@ async function searchLocation(query){
       // Pin ditaruh otomatis di titik sugesti, tapi TETAP draggable & TETAP butuh submit form
       // untuk benar-benar tersimpan -- lihat catatan ToS di atas fungsi ini.
       placeDraggableMarker(f.lat, f.lng, 'sugesti alamat', 'auto');
+      enterPinPeek();
       document.getElementById('f_address').value = f.addr || f.name;
       box.classList.add('hidden');
     };
@@ -1380,6 +1406,22 @@ function setPinStatus(text, state){
   el.classList.remove('has-location', 'pin-manual');
   if(state === 'manual') el.classList.add('has-location', 'pin-manual');
   else if(state === 'auto') el.classList.add('has-location');
+  document.getElementById('adjustPinLinkBtn').classList.toggle('hidden', !state);
+}
+
+/* ================= MODE "PASTIKAN PIN" =================
+   Form modal biasanya menutupi sebagian besar peta, jadi kalau pin baru ditaruh (dari
+   sugesti alamat, GPS, atau paste koordinat) user tidak selalu bisa lihat/geser pin-nya.
+   Untuk itu, form disembunyikan SEMENTARA (bukan ditutup -- semua isian tetap tersimpan di
+   form) supaya peta terlihat penuh, lalu user tegas menekan "Lanjutkan" untuk kembali ke form. */
+function enterPinPeek(){
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('pinPeekBar').classList.remove('hidden');
+  setTimeout(()=> map.invalidateSize(), 50);
+}
+function exitPinPeek(){
+  document.getElementById('pinPeekBar').classList.add('hidden');
+  document.getElementById('modalOverlay').classList.remove('hidden');
 }
 
 /* Menaruh pin SEMENTARA yang bisa digeser (draggable) di peta -- dipakai oleh
@@ -1425,6 +1467,7 @@ function applyPastedCoords(){
   if(lat < -90 || lat > 90 || lng < -180 || lng > 180){ showToast('Angka koordinat di luar jangkauan wajar'); return; }
   map.setView([lat, lng], 17);
   placeDraggableMarker(lat, lng, 'dari koordinat', 'manual');
+  enterPinPeek();
   showToast('Pin ditaruh persis di koordinat itu, geser kalau perlu');
 }
 
@@ -1441,6 +1484,7 @@ function useMyLocationNow(){
       const { latitude: lat, longitude: lng, accuracy } = pos.coords;
       map.setView([lat, lng], 18);
       placeDraggableMarker(lat, lng, `GPS HP, akurasi ±${Math.round(accuracy)}m`);
+      enterPinPeek();
       showToast(accuracy > 50 ? 'Lokasi ditaruh, tapi akurasi GPS agak rendah -- cek & geser pin kalau perlu' : 'Pin ditaruh di lokasi Anda -- geser kalau kurang pas, lalu lanjut isi data');
       btn.textContent = originalText;
       btn.disabled = false;
@@ -2278,6 +2322,7 @@ function openForm(existing){
     return;
   }
   if(!existing && !requireLogin()) return;
+  pickingLocationMode = true;
   editingId = existing ? existing.id : null;
   pickedLatLng = existing ? L.latLng(existing.lat, existing.lng) : null;
   document.getElementById('formTitle').textContent = existing ? 'Edit Resto' : 'Tambah Resto';
@@ -2388,7 +2433,9 @@ function addRefUrlRow(value=''){
 }
 
 function closeForm(){
+  pickingLocationMode = false;
   document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('pinPeekBar').classList.add('hidden');
   if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
 }
 
@@ -2461,6 +2508,11 @@ document.getElementById('closeDetail').onclick = closeDetail;
 document.getElementById('cancelForm').onclick = closeForm;
 document.getElementById('modalOverlay').onclick = (e)=>{
   if(e.target.id === 'modalOverlay') closeForm();
+};
+document.getElementById('pinPeekConfirmBtn').onclick = exitPinPeek;
+document.getElementById('adjustPinLinkBtn').onclick = ()=>{
+  if(pickedLatLng) map.setView([pickedLatLng.lat, pickedLatLng.lng], map.getZoom() < 16 ? 17 : map.getZoom());
+  enterPinPeek();
 };
 document.getElementById('saveForm').onclick = handleSave;
 document.getElementById('addRefUrlBtn').onclick = ()=> addRefUrlRow('');
