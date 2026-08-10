@@ -168,12 +168,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #loginDivider::before{left:0;} #loginDivider::after{right:0;}
 
 /* ---------- AUTOCOMPLETE LOKASI (form tambah/edit) ---------- */
-#locSuggestions{
+.loc-suggestions-box{
   position:absolute;left:0;right:0;top:100%;z-index:50;background:var(--card);
   border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
   max-height:220px;overflow-y:auto;margin-top:2px;
 }
-#locSuggestions.hidden{display:none;}
+.loc-suggestions-box.hidden{display:none;}
 .loc-sugg-item{padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--line);}
 .loc-sugg-item:last-child{border-bottom:none;}
 .loc-sugg-item:hover{background:var(--paper);}
@@ -748,16 +748,20 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   <div id="modalOverlay" class="hidden">
     <div id="formModal">
       <h2 id="formTitle">Tambah Resto</h2>
-      <div class="field"><label>Nama Resto</label><input type="text" id="f_name" placeholder="mis. Bakmi Pak Slamet"></div>
+      <div class="field" style="position:relative;">
+        <label>Nama Resto</label>
+        <input type="text" id="f_name" placeholder="mis. Bakmi Pak Slamet, atau cari nama resto di peta">
+        <div id="nameSuggestions" class="loc-suggestions-box hidden"></div>
+      </div>
 
       <div class="field" style="position:relative;">
         <label>Alamat</label>
         <input type="text" id="f_address" placeholder="Ketik nama resto/jalan, pilih dari sugesti...">
-        <div id="locSuggestions" class="hidden"></div>
+        <div id="locSuggestions" class="loc-suggestions-box hidden"></div>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:8px;">
-        <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Saya Sedang di Sini </button>
+        <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
         <button type="button" id="adjustPinLinkBtn" class="btn btn-secondary hidden" style="flex:0 0 auto;" title="Lihat & sesuaikan pin di peta">🗺️</button>
       </div>
 
@@ -1299,11 +1303,14 @@ function initMap(){
 const LOCATION_SEARCH_PROVIDER = 'osm'; // ganti ke 'google_places_ui_kit' kalau API key sudah siap
 
 let locSearchDebounce = null;
-async function searchLocation(query){
-  const box = document.getElementById('locSuggestions');
+/* Dipakai baik oleh field Nama Resto maupun Alamat -- keduanya cari ke provider yang sama.
+   `box` adalah kotak sugesti milik field yang sedang diketik user (nameSuggestions/locSuggestions),
+   supaya sugesti selalu muncul tepat di bawah field yang aktif, bukan menempel di field lain. */
+async function searchLocation(query, box){
   if(!query || query.length < 3){ box.classList.add('hidden'); return; }
   // Prioritaskan lokasi GPS asli user (kalau ada) supaya sugesti condong ke sekitar
-  // posisi dia sekarang, baru fallback ke pusat tampilan peta kalau GPS tidak tersedia.
+  // posisi dia sekarang, baru fallback ke pusat tampilan peta kalau GPS tidak tersedia --
+  // ini juga yang membuat hasil terurut dari yang PALING DEKAT dengan posisi user.
   const bias = myGpsLatLng || map.getCenter();
 
   box.innerHTML = '<div class="loc-sugg-item" style="color:var(--muted);">Mencari…</div>';
@@ -1338,7 +1345,10 @@ async function searchLocation(query){
       // untuk benar-benar tersimpan -- lihat catatan ToS di atas fungsi ini.
       placeDraggableMarker(f.lat, f.lng, 'sugesti alamat', 'auto', { skipReverseGeocode: true });
       enterPinPeek();
-      document.getElementById('f_address').value = f.addr || f.name;
+      // Nama resto & alamat diisi dari dua komponen sugesti yang sama -- baik dicari dari
+      // field Nama Resto maupun field Alamat, hasilnya konsisten mengisi keduanya.
+      document.getElementById('f_name').value = f.name;
+      document.getElementById('f_address').value = f.sub || f.name;
       box.classList.add('hidden');
     };
   });
@@ -1374,6 +1384,12 @@ async function fetchCandidates_OSM(query, bias){
       }));
     }catch(e){ /* biarkan feats tetap kosong, tangani di pemanggil */ }
   }
+
+  // Urutkan eksplisit dari yang PALING DEKAT ke posisi bias -- jangan cuma andalkan
+  // ranking bawaan provider, supaya hasilnya konsisten "terdekat dulu" apa pun sumbernya.
+  feats.forEach(f=>{ f._distDeg = Math.hypot(f.lat - bias.lat, f.lng - bias.lng); });
+  feats.sort((a,b)=> a._distDeg - b._distDeg);
+
   return feats;
 }
 
@@ -2342,6 +2358,7 @@ function openForm(existing){
   document.getElementById('f_address').value = existing ? (existing.address || '') : '';
   document.getElementById('f_phone').value = existing ? (existing.phone || '') : '';
   document.getElementById('locSuggestions').classList.add('hidden');
+  document.getElementById('nameSuggestions').classList.add('hidden');
   document.getElementById('f_name').value = existing ? existing.name : '';
   document.getElementById('f_type').value = existing ? existing.type : 'Indonesian';
   document.getElementById('f_price').value = existing ? existing.priceRange : '< Rp 25rb';
@@ -2530,10 +2547,19 @@ document.getElementById('adjustPinLinkBtn').onclick = ()=>{
 document.getElementById('saveForm').onclick = handleSave;
 document.getElementById('addRefUrlBtn').onclick = ()=> addRefUrlRow('');
 document.getElementById('addFavBtn').onclick = ()=> addFavRow('');
+let nameSearchDebounce = null;
+document.getElementById('f_name').addEventListener('input', (e)=>{
+  clearTimeout(nameSearchDebounce);
+  const val = e.target.value.trim();
+  nameSearchDebounce = setTimeout(()=> searchLocation(val, document.getElementById('nameSuggestions')), 400);
+});
+document.getElementById('f_name').addEventListener('blur', ()=>{
+  setTimeout(()=> document.getElementById('nameSuggestions').classList.add('hidden'), 200);
+});
 document.getElementById('f_address').oninput = (e)=>{
   clearTimeout(locSearchDebounce);
   const val = e.target.value.trim();
-  locSearchDebounce = setTimeout(()=> searchLocation(val), 400);
+  locSearchDebounce = setTimeout(()=> searchLocation(val, document.getElementById('locSuggestions')), 400);
 };
 document.getElementById('f_address').addEventListener('blur', ()=>{
   setTimeout(()=> document.getElementById('locSuggestions').classList.add('hidden'), 200);
