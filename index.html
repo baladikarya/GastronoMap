@@ -1300,7 +1300,7 @@ function initMap(){
    - Koordinat yang benar-benar tersimpan HARUS selalu dibaca dari posisi pin di peta
      (tempMarker.getLatLng()) via placeDraggableMarker(), bukan dari field provider.
      Pola ini SUDAH diterapkan di alur saat ini — jangan diubah saat swap provider. */
-const LOCATION_SEARCH_PROVIDER = 'osm'; // ganti ke 'google_places_ui_kit' kalau API key sudah siap
+const LOCATION_SEARCH_PROVIDER = 'google_places_ui_kit'; // sebelumnya 'osm' -- lihat fetchCandidates_GooglePlacesUIKit di bawah
 
 let locSearchDebounce = null;
 /* Dipakai baik oleh field Nama Resto maupun Alamat -- keduanya cari ke provider yang sama.
@@ -1318,9 +1318,9 @@ async function searchLocation(query, box){
 
   let feats = [];
   if(LOCATION_SEARCH_PROVIDER === 'google_places_ui_kit'){
-    // TODO: implementasikan fetchCandidates_GooglePlacesUIKit(query, bias) saat API key siap.
-    // Wajib tetap kembalikan array {name, sub, lat, lng, addr} dengan bentuk sama seperti OSM,
-    // supaya kode render sugesti & placeDraggableMarker di bawah tidak perlu diubah sama sekali.
+    // Provider aktif: Google Places UI Kit lewat Edge Function proxy (lihat fetchCandidates_GooglePlacesUIKit).
+    // Bentuk hasilnya {name, sub, lat, lng, placeId} -- lat/lng bisa null di sini, baru diisi
+    // lewat resolveGooglePlaceDetails() saat user benar-benar klik salah satu sugesti.
     feats = await fetchCandidates_GooglePlacesUIKit(query, bias);
   } else {
     feats = await fetchCandidates_OSM(query, bias);
@@ -1336,10 +1336,25 @@ async function searchLocation(query, box){
   ).join('');
   box.classList.remove('hidden');
   box.querySelectorAll('.loc-sugg-item').forEach(el=>{
-    el.onclick = ()=>{
+    el.onclick = async ()=>{
       const idx = Number(el.dataset.idx);
       if(isNaN(idx)) return;
-      const f = feats[idx];
+      let f = feats[idx];
+      box.classList.add('hidden');
+
+      // Beberapa provider (mis. Google Autocomplete) tidak balikin lat/lng langsung di hasil
+      // pencarian -- perlu 1x panggilan Details tambahan HANYA untuk item yang benar-benar
+      // diklik user (bukan semua hasil sekaligus, biar hemat kuota).
+      if(f.lat == null || f.lng == null){
+        showToast('Memuat lokasi…');
+        const details = await resolveGooglePlaceDetails(f.placeId);
+        if(details.lat == null){ showToast('Gagal memuat lokasi, coba lagi'); return; }
+        f = {
+          ...f, lat: details.lat, lng: details.lng,
+          sub: details.formattedAddress ? details.formattedAddress.split(',').slice(0,4).join(', ') : f.sub
+        };
+      }
+
       map.setView([f.lat, f.lng], 17);
       // Pin ditaruh otomatis di titik sugesti, tapi TETAP draggable & TETAP butuh submit form
       // untuk benar-benar tersimpan -- lihat catatan ToS di atas fungsi ini.
@@ -1349,7 +1364,6 @@ async function searchLocation(query, box){
       // field Nama Resto maupun field Alamat, hasilnya konsisten mengisi keduanya.
       document.getElementById('f_name').value = f.name;
       document.getElementById('f_address').value = f.sub || f.name;
-      box.classList.add('hidden');
     };
   });
 }
@@ -1393,13 +1407,74 @@ async function fetchCandidates_OSM(query, bias){
   return feats;
 }
 
-/* ---- Provider: Google Places UI Kit -- placeholder, isi saat API key & proxy siap ----
+/* ---- Provider: Google Places UI Kit (via Supabase Edge Function proxy) ----
    Ingat: Places UI Kit boleh digabung basemap non-Google (Leaflet/OSM) sesuai Service
-   Specific Terms pasal 15.1 -- tapi tetap idealnya panggilan lewat Supabase Edge Function
-   proxy supaya API key tidak terekspos di static hosting GitHub Pages. */
+   Specific Terms pasal 15.1. Panggilan SELALU lewat Edge Function proxy (bukan langsung ke
+   Google dari browser) supaya API key tidak pernah terekspos di static hosting GitHub Pages. */
+const PLACES_PROXY_URL = `${SUPABASE_URL}/functions/v1/places-search`;
+
+// Session token per sesi pencarian -- WAJIB supaya Google menagih per SESI (dari ketik
+// pertama sampai pilih hasil), bukan per keystroke. Token baru dibuat begitu user mulai
+// mengetik dari kosong, lalu "dipakai habis" pas resolveGooglePlaceDetails() dipanggil.
+let currentSessionToken = null;
+function getOrCreateSessionToken(){
+  if(!currentSessionToken) currentSessionToken = crypto.randomUUID();
+  return currentSessionToken;
+}
+function resetSessionToken(){
+  currentSessionToken = null;
+}
+
 async function fetchCandidates_GooglePlacesUIKit(query, bias){
-  showToast('Provider Google Places UI Kit belum dikonfigurasi');
-  return [];
+  try{
+    const res = await fetch(PLACES_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'autocomplete',
+        query, lat: bias.lat, lng: bias.lng,
+        sessionToken: getOrCreateSessionToken(),
+      }),
+    });
+    if(!res.ok) throw new Error(`proxy status ${res.status}`);
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    // Autocomplete (New) sengaja TIDAK balikin lat/lng di sini -- baru diambil lewat
+    // resolveGooglePlaceDetails() saat user benar-benar klik salah satu (hemat kuota,
+    // lihat penyesuaian di onclick handler searchLocation()).
+    return suggestions.map(s => ({
+      name: s.placePrediction?.structuredFormat?.mainText?.text || s.placePrediction?.text?.text || 'Lokasi',
+      sub: s.placePrediction?.structuredFormat?.secondaryText?.text || '',
+      placeId: s.placePrediction?.placeId,
+      lat: null, lng: null,
+    })).filter(f => f.placeId);
+  }catch(e){
+    console.error('Google Places autocomplete gagal:', e);
+    showToast('Pencarian Google gagal, coba lagi');
+    return [];
+  }
+}
+
+/* Dipanggil dari onclick sugesti di searchLocation() saat provider Google -- 1x panggilan
+   Place Details untuk dapat koordinat + alamat lengkap dari kandidat yang dipilih user. */
+async function resolveGooglePlaceDetails(placeId){
+  try{
+    const res = await fetch(PLACES_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'details', placeId, sessionToken: getOrCreateSessionToken() }),
+    });
+    const data = await res.json();
+    resetSessionToken(); // sesi selesai -- token berikutnya dibuat baru utk pencarian berikutnya
+    return {
+      lat: data.location?.latitude ?? null,
+      lng: data.location?.longitude ?? null,
+      formattedAddress: data.formattedAddress || null,
+    };
+  }catch(e){
+    console.error('Google Place Details gagal:', e);
+    return { lat: null, lng: null, formattedAddress: null };
+  }
 }
 
 /* ================= REVERSE GEOCODE (alamat dari posisi pin) =================
@@ -1429,19 +1504,30 @@ async function reverseGeocode_OSM(lat, lng){
   return null;
 }
 
-/* TODO: isi saat API key & Edge Function proxy siap -- panggil Geocoding API reverse lewat
-   proxy tersebut. Ingat batas caching 30 hari utk lat/lng (lihat catatan di searchLocation di
-   atas) -- ini tidak relevan di sini karena hasilnya cuma prefill field editable, tidak
-   pernah disimpan mentah ke Supabase. */
+/* Reverse geocode lewat Edge Function proxy (action:'reverse', pakai Geocoding API di sisi
+   server -- lihat places-search-edge-function.ts). Ini SARAN saja utk field editable, jadi
+   batas caching 30 hari dari ToS Google tidak relevan di sini -- tidak ada yang disimpan mentah. */
 async function reverseGeocode_GooglePlacesUIKit(lat, lng){
-  return null;
+  try{
+    const res = await fetch(PLACES_PROXY_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reverse', lat, lng }),
+    });
+    const data = await res.json();
+    return data.formattedAddress || null;
+  }catch(e){
+    console.error('Google reverse geocode gagal:', e);
+    return null;
+  }
 }
 
 /* ================= BANTUAN ALAMAT (buka OSM di tab baru, tanpa fetch) ================= */
 /* state: 'auto' (baru dipilih dari sugesti/GPS/koordinat, belum disentuh) atau
+
    'manual' (sudah digeser tangan sendiri oleh user) -- dua kondisi ini sengaja dibedakan
-   secara visual, supaya kalau nanti provider pencarian diganti ke Google Places UI Kit,
-   selalu jelas mana koordinat yang murni hasil aksi user vs yang masih titik awal sugesti. */
+   secara visual, supaya selalu jelas mana koordinat yang murni hasil aksi user vs yang
+   masih titik awal sugesti (relevan untuk kepatuhan ToS provider pencarian yang dipakai). */
 function setPinStatus(text, state){
   const el = document.getElementById('pinStatusCaption');
   if(!el) return;
