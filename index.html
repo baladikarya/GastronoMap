@@ -1442,12 +1442,17 @@ async function fetchCandidates_GooglePlacesUIKit(query, bias){
     // Autocomplete (New) sengaja TIDAK balikin lat/lng di sini -- baru diambil lewat
     // resolveGooglePlaceDetails() saat user benar-benar klik salah satu (hemat kuota,
     // lihat penyesuaian di onclick handler searchLocation()).
-    return suggestions.map(s => ({
+    const feats = suggestions.map(s => ({
       name: s.placePrediction?.structuredFormat?.mainText?.text || s.placePrediction?.text?.text || 'Lokasi',
       sub: s.placePrediction?.structuredFormat?.secondaryText?.text || '',
       placeId: s.placePrediction?.placeId,
+      distanceMeters: s.placePrediction?.distanceMeters ?? Infinity,
       lat: null, lng: null,
     })).filter(f => f.placeId);
+    // Urutkan terdekat dulu -- distanceMeters cuma ada kalau Edge Function mengirim
+    // parameter `origin` ke Google (lihat places-search-edge-function.ts).
+    feats.sort((a,b)=> a.distanceMeters - b.distanceMeters);
+    return feats;
   }catch(e){
     console.error('Google Places autocomplete gagal:', e);
     showToast('Pencarian Google gagal, coba lagi');
