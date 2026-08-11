@@ -2466,6 +2466,12 @@ function openForm(existing){
     const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
     input.value = platformUrlMap[el.dataset.platform] || '';
     input.classList.toggle('hidden', !active);
+    // Link aplikasi hanya boleh diisi/diubah admin. User biasa hanya bisa
+    // menyalakan/mematikan toggle ketersediaan platform, tidak bisa isi linknya.
+    input.disabled = !isAdmin;
+    input.placeholder = isAdmin
+      ? `Link langsung ke resto di ${el.dataset.platform} (opsional)`
+      : 'Hanya admin yang bisa mengisi link ini';
   });
   const existingPayments = existing && existing.paymentMethods ? existing.paymentMethods : [];
   document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>{
@@ -2570,7 +2576,10 @@ async function handleSave(){
   const refUrlsRaw = Array.from(document.querySelectorAll('.ref-url-row input')).map(i=>i.value.trim()).filter(Boolean);
   const platforms = Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>{
     const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
-    return { platform: el.dataset.platform, url: (input && input.value.trim()) || '' };
+    // Jaga-jaga di sisi client: link hanya diambil dari form kalau memang admin.
+    // Enforcement sebenarnya tetap di RLS Supabase (lihat migrasi restos-link-admin-only.sql).
+    const url = isAdmin ? ((input && input.value.trim()) || '') : '';
+    return { platform: el.dataset.platform, url };
   });
   const paymentMethods = Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(el=>el.dataset.payment);
   const data = {
