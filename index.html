@@ -1728,7 +1728,9 @@ function initPlatformPicker(){
     el.onclick = ()=>{
       el.classList.toggle('active');
       const input = wrap.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
-      input.classList.toggle('hidden', !el.classList.contains('active'));
+      // Kotak link hanya pernah muncul untuk admin. User biasa cukup lihat
+      // toggle-nya saja, tanpa kotak link (walau disabled) yang membingungkan.
+      input.classList.toggle('hidden', !el.classList.contains('active') || !isAdmin);
       if(!el.classList.contains('active')) input.value = '';
     };
   });
@@ -2465,13 +2467,11 @@ function openForm(existing){
     el.classList.toggle('active', active);
     const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
     input.value = platformUrlMap[el.dataset.platform] || '';
-    input.classList.toggle('hidden', !active);
-    // Link aplikasi hanya boleh diisi/diubah admin. User biasa hanya bisa
-    // menyalakan/mematikan toggle ketersediaan platform, tidak bisa isi linknya.
+    // Kotak link hanya boleh diisi/diubah admin, dan hanya dimunculkan untuk
+    // admin. User biasa cukup lihat toggle-nya saja, tanpa kotak link.
+    input.classList.toggle('hidden', !active || !isAdmin);
     input.disabled = !isAdmin;
-    input.placeholder = isAdmin
-      ? `Link langsung ke resto di ${el.dataset.platform} (opsional)`
-      : 'Hanya admin yang bisa mengisi link ini';
+    if(isAdmin) input.placeholder = `Link langsung ke resto di ${el.dataset.platform} (opsional)`;
   });
   const existingPayments = existing && existing.paymentMethods ? existing.paymentMethods : [];
   document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>{
