@@ -379,8 +379,19 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 .visit-toggle-btn.is-visited{background:#E4F3E0;border-color:#2E7D32;color:#2E7D32;}
 .detail-name{font-family:'Fraunces',serif;font-size:24px;font-weight:600;margin:0 0 4px 0;}
-.detail-row{display:flex;gap:8px;margin:6px 0;font-size:13.5px;align-items:flex-start;}
-.detail-row .label{color:var(--muted);min-width:98px;font-weight:600;text-align:right;flex:0 0 auto;}
+.detail-fields{
+  display:grid;grid-template-columns:auto auto auto auto auto;
+  row-gap:6px;column-gap:6px;font-size:13.5px;margin:8px 0;align-items:baseline;
+}
+.detail-fields .df-row{display:contents;}
+.detail-fields .df-label{grid-column:1;font-weight:700;color:var(--ink);white-space:nowrap;}
+.detail-fields .df-label .accent{color:var(--teal-dark);}
+.detail-fields .df-colon1{grid-column:2;color:var(--muted);}
+.detail-fields .df-value{grid-column:3/span 3;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.detail-fields .df-day{grid-column:3;color:var(--ink);font-weight:600;white-space:nowrap;}
+.detail-fields .df-colon2{grid-column:4;color:var(--muted);}
+.detail-fields .df-time{grid-column:5;color:var(--ink);}
+.detail-fields .df-today .df-day, .detail-fields .df-today .df-time{font-weight:700;color:var(--teal-dark);}
 .phone-call-btn{
   background:var(--teal-dark);color:#fff;text-decoration:none;padding:3px 10px;border-radius:12px;
   font-size:11px;font-weight:700;white-space:nowrap;
@@ -495,7 +506,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .rating-breakdown .crit-empty{color:var(--muted);font-size:11px;white-space:nowrap;}
 
 /* ---------- PLATFORM ONLINE ---------- */
-.badge-row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+.badge-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;margin:8px 0;}
 .platform-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:14px;font-size:11.5px;font-weight:700;color:#fff;text-decoration:none;cursor:pointer;}
 .platform-chip:active{opacity:0.85;}
 .platform-picker{display:flex;flex-direction:column;gap:8px;}
@@ -550,7 +561,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .quick-ref-row button{border:none;background:var(--teal);color:#fff;border-radius:8px;padding:0 12px;font-weight:700;cursor:pointer;font-size:13px;}
 .quick-testi-row{margin-top:10px;}
 .quick-testi-row textarea{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:13px;background:var(--paper);resize:vertical;min-height:50px;font-family:'Work Sans',sans-serif;}
-.quick-testi-row button{margin-top:6px;border:none;background:var(--teal);color:#fff;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;}
+.quick-testi-row button{margin-top:6px;border:none;background:var(--teal);color:#fff;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;font-size:13px;display:block;margin-left:auto;}
 .fav-row{display:flex;gap:6px;margin-bottom:6px;}
 .fav-row input{flex:1;}
 .fav-row button{border:none;background:var(--paper);border-radius:6px;padding:0 10px;cursor:pointer;color:var(--red);font-weight:700;}
@@ -560,13 +571,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .quick-fav-row{display:flex;gap:6px;margin-top:10px;}
 .quick-fav-row input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:13px;background:var(--paper);}
 .quick-fav-row button{border:none;background:var(--teal);color:#fff;border-radius:8px;padding:0 12px;font-weight:700;cursor:pointer;font-size:13px;}
-.hours-schedule{font-size:13px;line-height:1.9;display:grid;grid-template-columns:auto auto auto;column-gap:8px;}
-.hours-schedule > div{display:contents;}
-.hours-schedule .day-name{text-align:left;color:var(--ink);font-weight:600;}
-.hours-schedule .day-colon{text-align:center;color:var(--muted);}
-.hours-schedule .day-time{text-align:center;color:var(--ink);}
-.hours-schedule .today .day-name{font-weight:800;}
-.hours-schedule .today .day-time{font-weight:700;color:var(--teal-dark);}
 .open-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;margin-left:6px;}
 .open-badge.yes{background:#E4F3E0;color:#2E7D32;}
 .open-badge.no{background:#FBE4E1;color:var(--red);}
@@ -2291,14 +2295,15 @@ function openDetail(id, showAllTesti){
   const favs = (r.favoriteMenu||[]).filter(Boolean);
   const today = currentDayName();
 
-  let scheduleHtml = '<span style="color:var(--muted)">Jam buka belum diisi</span>';
+  let scheduleRowsHtml = '';
   let openNowBadge = '';
   if(r.hoursByDay){
-    scheduleHtml = DAYS.map(day=>{
+    scheduleRowsHtml = DAYS.map((day, i)=>{
       const d = r.hoursByDay[day];
       const isToday = day === today;
       const txt = d.closed ? 'Tutup' : `${d.open} – ${d.close}`;
-      return `<div class="${isToday ? 'today' : ''}"><span class="day-name">${day}</span><span class="day-colon">:</span><span class="day-time">${txt}</span></div>`;
+      const labelCells = i === 0 ? `<span class="df-label">JAM <span class="accent">BUKA</span></span><span class="df-colon1">:</span>` : '';
+      return `<div class="df-row ${isToday ? 'df-today' : ''}">${labelCells}<span class="df-day">${day}</span><span class="df-colon2">:</span><span class="df-time">${txt}</span></div>`;
     }).join('');
     const openNow = isOpenAt(r.hoursByDay, today, currentTimeStr());
     openNowBadge = `<span class="open-badge ${openNow ? 'yes' : 'no'}">${openNow ? 'Buka sekarang' : 'Tutup sekarang'}</span>`;
@@ -2325,7 +2330,7 @@ function openDetail(id, showAllTesti){
     : '';
   const payments = (r.paymentMethods||[]);
   const paymentsHtml = payments.length
-    ? `<div class="detail-row"><span class="label">METODE PEMBAYARAN :</span><span>${payments.map(p=> p === 'cash' ? 'Cash' : 'Cashless').join(', ')}</span></div>`
+    ? `<div style="font-size:13.5px;margin:2px 0 4px;color:var(--ink);">${payments.map(p=> p === 'cash' ? 'Cash' : 'Cashless').join(' & ')}</div>`
     : '';
 
   const myRatingEntry = (r.ratings||[]).find(x => x.userId === myUserId) || null;
@@ -2343,10 +2348,12 @@ function openDetail(id, showAllTesti){
     ${ratingSummaryHtml}
     <button class="btn btn-primary" id="directionBtn" style="width:100%;margin-top:10px;">🧭 Direction</button>
     ${platformsHtml}
-    ${r.address ? `<div class="detail-row"><span class="label">ALAMAT :</span><span>${escapeHtml(r.address)}</span></div>` : ''}
-    ${r.phone ? `<div class="detail-row"><span class="label">TELEPON :</span><span style="display:flex;align-items:center;gap:8px;">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲</a></span></div>` : ''}
-    <div class="detail-row"><span class="label">HARGA :</span><span>${escapeHtml(r.priceRange||'-')}</span></div>
-    <div class="detail-row"><span class="label">JAM OPERASIONAL</span><div class="hours-schedule">${scheduleHtml}</div></div>
+    <div class="detail-fields">
+      ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
+      ${r.phone ? `<div class="df-row"><span class="df-label">TELEPON</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲</a></span></div>` : ''}
+      <div class="df-row"><span class="df-label">HARGA</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.priceRange||'-')}</span></div>
+      ${r.hoursByDay ? scheduleRowsHtml : `<div class="df-row"><span class="df-label">JAM <span class="accent">BUKA</span></span><span class="df-colon1">:</span><span class="df-value" style="color:var(--muted);">Jam buka belum diisi</span></div>`}
+    </div>
     <div class="field" style="margin-top:14px;" id="ratingSection">
       <label>Rating Pengunjung</label>
       ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
