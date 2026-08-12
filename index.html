@@ -194,7 +194,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .photo-carousel{
   display:flex;overflow-x:auto;gap:8px;scroll-snap-type:x mandatory;
   border-radius:10px;-webkit-overflow-scrolling:touch;
-  height:180px;align-items:stretch;
+  height:180px;align-items:stretch;width:100%;
 }
 .photo-carousel .photo-card{
   width:auto;flex:0 0 82%;scroll-snap-align:start;height:100%;cursor:pointer;
@@ -485,9 +485,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .star-rating-fg{position:absolute;top:0;left:0;overflow:hidden;white-space:nowrap;color:var(--amber);}
 .rating-summary{display:flex;align-items:center;gap:8px;margin:4px 0 2px 0;font-size:13.5px;flex-wrap:wrap;}
 .rating-count{color:var(--muted);font-size:12px;}
-.rating-breakdown{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:4px;}
-.rating-breakdown .crit-item{display:flex;align-items:center;gap:3px;white-space:nowrap;}
-.rating-breakdown .stars-display{font-size:12px;}
+.rating-breakdown{
+  display:grid;grid-template-columns:78px auto 1fr;align-items:center;
+  row-gap:6px;column-gap:10px;font-size:12px;color:var(--muted);margin-top:6px;
+}
+.rating-breakdown .crit-item{display:contents;}
+.rating-breakdown .crit-name{font-weight:600;color:var(--ink);}
+.rating-breakdown .stars-display{font-size:12px;justify-self:start;}
+.rating-breakdown .crit-empty{grid-column:span 2;font-size:11px;justify-self:start;}
 
 /* ---------- PLATFORM ONLINE ---------- */
 .badge-row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
@@ -556,8 +561,11 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .quick-fav-row{display:flex;gap:6px;margin-top:10px;}
 .quick-fav-row input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:13px;background:var(--paper);}
 .quick-fav-row button{border:none;background:var(--teal);color:#fff;border-radius:8px;padding:0 12px;font-weight:700;cursor:pointer;font-size:13px;}
-.hours-schedule{font-size:13px;line-height:1.7;}
-.hours-schedule .today{font-weight:700;color:var(--teal-dark);}
+.hours-schedule{font-size:13px;line-height:1.8;display:grid;grid-template-columns:auto 1fr;column-gap:10px;}
+.hours-schedule > div{display:contents;}
+.hours-schedule .day-name{text-align:right;color:var(--muted);}
+.hours-schedule .day-time{text-align:left;}
+.hours-schedule .today .day-name, .hours-schedule .today .day-time{font-weight:700;color:var(--teal-dark);}
 .open-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;margin-left:6px;}
 .open-badge.yes{background:#E4F3E0;color:#2E7D32;}
 .open-badge.no{background:#FBE4E1;color:var(--red);}
@@ -2031,9 +2039,9 @@ function buildPhotoCard(photo, idx){
 function buildPhotosCarouselHtml(photos){
   currentDetailPhotos = (photos || []).slice().sort((a,b)=> (b.at||0) - (a.at||0));
   if(currentDetailPhotos.length === 0){
-    return '<span style="color:var(--muted);font-size:12.5px;">Belum ada foto. Unggah foto hasil kunjungan Anda!</span>';
+    return '<span id="photoGrid" style="color:var(--muted);font-size:12.5px;">Belum ada foto. Unggah foto hasil kunjungan Anda!</span>';
   }
-  return `<div class="photo-carousel">${currentDetailPhotos.map((p, idx)=>buildPhotoCard(p, idx)).join('')}</div>`;
+  return `<div class="photo-carousel" id="photoGrid">${currentDetailPhotos.map((p, idx)=>buildPhotoCard(p, idx)).join('')}</div>`;
 }
 
 /* ---- Lightbox (mode ukuran penuh) foto -- dipakai bersama untuk Foto Kunjungan & Foto Menu ---- */
@@ -2102,9 +2110,9 @@ let currentDetailMenuImages = [];
 function buildMenuPhotosCarouselHtml(imgs){
   currentDetailMenuImages = (imgs || []).filter(Boolean);
   if(currentDetailMenuImages.length === 0){
-    return '<span style="color:var(--muted);font-size:12.5px;">Belum ada foto menu.</span>';
+    return '<span id="menuPhotoDisplayGrid" style="color:var(--muted);font-size:12.5px;">Belum ada foto menu.</span>';
   }
-  return `<div class="photo-carousel">${currentDetailMenuImages.map((u, idx)=>`
+  return `<div class="photo-carousel" id="menuPhotoDisplayGrid">${currentDetailMenuImages.map((u, idx)=>`
     <div class="photo-card" data-idx="${idx}">
       <img src="${escapeAttr(u)}" loading="lazy" alt="Foto menu" onerror="this.style.opacity=0.2">
     </div>`).join('')}</div>`;
@@ -2211,7 +2219,7 @@ function openDetail(id, showAllTesti){
       const d = r.hoursByDay[day];
       const isToday = day === today;
       const txt = d.closed ? 'Tutup' : `${d.open} – ${d.close}`;
-      return `<div class="${isToday ? 'today' : ''}">${day}: ${txt}</div>`;
+      return `<div class="${isToday ? 'today' : ''}"><span class="day-name">${day}:</span><span class="day-time">${txt}</span></div>`;
     }).join('');
     const openNow = isOpenAt(r.hoursByDay, today, currentTimeStr());
     openNowBadge = `<span class="open-badge ${openNow ? 'yes' : 'no'}">${openNow ? 'Buka sekarang' : 'Tutup sekarang'}</span>`;
@@ -2223,8 +2231,8 @@ function openDetail(id, showAllTesti){
        <div class="rating-breakdown">${RATING_CRITERIA.map(c=>{
          const cd = summary.byCriteria[c.key];
          return cd.count > 0
-           ? `<span class="crit-item">${c.label} <span class="stars-display">${renderStars(cd.avg)}</span> <span class="rating-count">${cd.avg.toFixed(1)}</span></span>`
-           : `<span class="crit-item" style="opacity:0.5;">${c.label} <span style="font-size:11px;">belum dinilai</span></span>`;
+           ? `<span class="crit-item"><span class="crit-name">${c.label}</span><span class="stars-display">${renderStars(cd.avg)}</span><span class="rating-count">${cd.avg.toFixed(1)}</span></span>`
+           : `<span class="crit-item" style="opacity:0.5;"><span class="crit-name">${c.label}</span><span class="crit-empty">belum dinilai</span></span>`;
        }).join('')}</div>`
     : `<div class="rating-summary"><span style="color:var(--muted);font-size:12.5px;">Belum ada rating. Jadilah yang pertama menilai!</span></div>`;
 
@@ -2243,7 +2251,7 @@ function openDetail(id, showAllTesti){
     : '';
   const payments = (r.paymentMethods||[]);
   const paymentsHtml = payments.length
-    ? `<div class="badge-row">${payments.map(p=> p === 'cash' ? `<span class="payment-chip">💵 Cash</span>` : `<span class="payment-chip">💳 Cashless (QRIS/Debit/Kredit)</span>`).join('')}</div>`
+    ? `<div class="badge-row">${payments.map(p=> p === 'cash' ? `<span class="payment-chip">💵 Cash</span>` : `<span class="payment-chip">💳 Cashless</span>`).join('')}</div>`
     : '';
 
   const myRatingEntry = (r.ratings||[]).find(x => x.userId === myUserId) || null;
@@ -2258,16 +2266,16 @@ function openDetail(id, showAllTesti){
     </div>
     <h3 class="detail-name">${escapeHtml(r.name)} ${openNowBadge}</h3>
     ${ratingSummaryHtml}
+    <button class="btn btn-primary" id="directionBtn" style="width:100%;margin-top:10px;">🧭 Direction</button>
     ${platformsHtml}
     ${paymentsHtml}
     ${r.address ? `<div class="detail-row"><span class="label">Alamat</span><span>${escapeHtml(r.address)}</span></div>` : ''}
-    ${r.phone ? `<div class="detail-row"><span class="label">Telepon</span><span style="display:flex;align-items:center;gap:8px;">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲 Telepon</a></span></div>` : ''}
+    ${r.phone ? `<div class="detail-row"><span class="label">Telepon</span><span style="display:flex;align-items:center;gap:8px;">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲</a></span></div>` : ''}
     <div class="detail-row"><span class="label">Harga</span><span class="detail-price">${escapeHtml(r.priceRange||'-')}</span></div>
-    <div class="detail-row"><span class="label">Jam Buka</span><div class="hours-schedule">${scheduleHtml}</div></div>
+    <div class="detail-row"><span class="label">Jam Operasional</span><div class="hours-schedule">${scheduleHtml}</div></div>
     <div class="field" style="margin-top:14px;" id="ratingSection">
-      <label>Beri Rating</label>
+      <label>Rating Pengunjung</label>
       ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
-      <span class="crit-label" style="font-size:11px;">Rating keseluruhan otomatis dihitung dari rata-rata kriteria di bawah</span>
       <div id="ratingForm">${RATING_CRITERIA.map(c=>`
         <div class="rating-crit-row">
           <span class="crit-label">${c.label}</span>
@@ -2276,7 +2284,6 @@ function openDetail(id, showAllTesti){
       </div>
       <button class="btn btn-primary" id="submitRatingBtn" style="width:100%;margin-top:10px;">${myRatingEntry ? 'Update Rating Saya' : 'Kirim Rating'}</button>
     </div>
-    <button class="btn btn-primary" id="directionBtn" style="width:100%;margin-top:14px;">🧭 Direction</button>
     <div class="field" style="margin-top:14px;">
       <label>Menu Favorit / Rekomendasi</label>
       <div class="fav-chip-list" id="favChipList">${(()=>{
@@ -2292,11 +2299,11 @@ function openDetail(id, showAllTesti){
     </div>
     <div class="field" style="margin-top:14px;">
       <label>Daftar Menu</label>
-      <div class="photo-grid" id="menuPhotoDisplayGrid">${buildMenuPhotosCarouselHtml(imgs)}</div>
+      ${buildMenuPhotosCarouselHtml(imgs)}
     </div>
     <div class="field" style="margin-top:14px;">
       <label>Foto Kunjungan</label>
-      <div class="photo-grid" id="photoGrid">${buildPhotosCarouselHtml(r.photos)}</div>
+      ${buildPhotosCarouselHtml(r.photos)}
       <input type="file" id="photoCameraInput" accept="image/*" capture="environment" class="hidden">
       <input type="file" id="photoGalleryInput" accept="image/*" class="hidden">
       <div class="quick-photo-row">
