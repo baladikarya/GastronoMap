@@ -34,6 +34,7 @@
   --red:#C1443B;
   --line:#DCDCD2;
   --muted:#6B7570;
+  --info-blue:#3B6FBF;
   --shadow: 0 8px 24px rgba(30,42,40,0.14);
 }
 *{box-sizing:border-box;}
@@ -486,19 +487,21 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .rating-summary{display:flex;align-items:center;gap:8px;margin:4px 0 2px 0;font-size:13.5px;flex-wrap:wrap;}
 .rating-count{color:var(--muted);font-size:12px;}
 .rating-breakdown{
-  display:grid;grid-template-columns:78px auto 1fr;align-items:center;
-  row-gap:6px;column-gap:10px;font-size:12px;color:var(--muted);margin-top:6px;
+  display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;align-items:center;
+  row-gap:6px;column-gap:14px;font-size:12.5px;margin-top:6px;
 }
-.rating-breakdown .crit-item{display:contents;}
-.rating-breakdown .crit-name{font-weight:600;color:var(--ink);}
-.rating-breakdown .stars-display{font-size:12px;justify-self:start;}
-.rating-breakdown .crit-empty{grid-column:span 2;font-size:11px;justify-self:start;}
+.rating-breakdown .crit-item{display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.rating-breakdown .crit-name{font-weight:700;color:var(--ink);}
+.rating-breakdown .stars-display{font-size:12px;}
+.rating-breakdown .crit-empty{color:var(--muted);font-size:11px;}
 
 /* ---------- PLATFORM ONLINE ---------- */
 .badge-row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
 .platform-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:14px;font-size:11.5px;font-weight:700;color:#fff;text-decoration:none;cursor:pointer;}
 .platform-chip:active{opacity:0.85;}
-.payment-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:14px;font-size:11.5px;font-weight:700;background:var(--paper);border:1px solid var(--line);color:var(--ink);}
+.payment-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:14px;font-size:11.5px;font-weight:700;color:#fff;}
+.payment-chip.pay-cash{background:var(--teal);}
+.payment-chip.pay-cashless{background:var(--ink);}
 .platform-picker{display:flex;flex-direction:column;gap:8px;}
 .platform-url-row{display:flex;flex-direction:column;gap:5px;}
 .platform-toggle{
@@ -561,11 +564,13 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .quick-fav-row{display:flex;gap:6px;margin-top:10px;}
 .quick-fav-row input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--line);font-size:13px;background:var(--paper);}
 .quick-fav-row button{border:none;background:var(--teal);color:#fff;border-radius:8px;padding:0 12px;font-weight:700;cursor:pointer;font-size:13px;}
-.hours-schedule{font-size:13px;line-height:1.8;display:grid;grid-template-columns:auto 1fr;column-gap:10px;}
+.hours-schedule{font-size:13px;line-height:1.9;display:grid;grid-template-columns:auto auto auto;column-gap:8px;}
 .hours-schedule > div{display:contents;}
-.hours-schedule .day-name{text-align:right;color:var(--muted);}
-.hours-schedule .day-time{text-align:left;}
-.hours-schedule .today .day-name, .hours-schedule .today .day-time{font-weight:700;color:var(--teal-dark);}
+.hours-schedule .day-name{text-align:left;color:var(--info-blue);font-weight:600;}
+.hours-schedule .day-colon{text-align:center;color:var(--muted);}
+.hours-schedule .day-time{text-align:center;color:var(--ink);}
+.hours-schedule .today .day-name{font-weight:800;}
+.hours-schedule .today .day-time{font-weight:700;color:var(--teal-dark);}
 .open-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;margin-left:6px;}
 .open-badge.yes{background:#E4F3E0;color:#2E7D32;}
 .open-badge.no{background:#FBE4E1;color:var(--red);}
@@ -2219,16 +2224,17 @@ function openDetail(id, showAllTesti){
       const d = r.hoursByDay[day];
       const isToday = day === today;
       const txt = d.closed ? 'Tutup' : `${d.open} – ${d.close}`;
-      return `<div class="${isToday ? 'today' : ''}"><span class="day-name">${day}:</span><span class="day-time">${txt}</span></div>`;
+      return `<div class="${isToday ? 'today' : ''}"><span class="day-name">${day}</span><span class="day-colon">:</span><span class="day-time">${txt}</span></div>`;
     }).join('');
     const openNow = isOpenAt(r.hoursByDay, today, currentTimeStr());
     openNowBadge = `<span class="open-badge ${openNow ? 'yes' : 'no'}">${openNow ? 'Buka sekarang' : 'Tutup sekarang'}</span>`;
   }
 
   const summary = computeRatingSummary(r.ratings);
+  const ratingRows = Math.ceil(RATING_CRITERIA.length / 2);
   const ratingSummaryHtml = summary.overallCount > 0
     ? `<div class="rating-summary"><span class="stars-display">${renderStars(summary.overall)}</span> <b>${summary.overall.toFixed(1)}</b><span class="rating-count">(${summary.overallCount} rating)</span></div>
-       <div class="rating-breakdown">${RATING_CRITERIA.map(c=>{
+       <div class="rating-breakdown" style="grid-template-rows:repeat(${ratingRows}, auto);">${RATING_CRITERIA.map(c=>{
          const cd = summary.byCriteria[c.key];
          return cd.count > 0
            ? `<span class="crit-item"><span class="crit-name">${c.label}</span><span class="stars-display">${renderStars(cd.avg)}</span><span class="rating-count">${cd.avg.toFixed(1)}</span></span>`
@@ -2251,7 +2257,7 @@ function openDetail(id, showAllTesti){
     : '';
   const payments = (r.paymentMethods||[]);
   const paymentsHtml = payments.length
-    ? `<div class="badge-row">${payments.map(p=> p === 'cash' ? `<span class="payment-chip">💵 Cash</span>` : `<span class="payment-chip">💳 Cashless</span>`).join('')}</div>`
+    ? `<div class="badge-row">${payments.map(p=> p === 'cash' ? `<span class="payment-chip pay-cash">💵 Cash</span>` : `<span class="payment-chip pay-cashless">💳 Cashless</span>`).join('')}</div>`
     : '';
 
   const myRatingEntry = (r.ratings||[]).find(x => x.userId === myUserId) || null;
