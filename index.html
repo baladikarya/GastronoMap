@@ -386,8 +386,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   background:var(--teal-dark);color:#fff;text-decoration:none;padding:3px 10px;border-radius:12px;
   font-size:11px;font-weight:700;white-space:nowrap;
 }
-.menu-imgs{display:flex;gap:8px;overflow-x:auto;margin-top:8px;padding-bottom:4px;}
-.menu-imgs img{width:110px;height:110px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:0 0 auto;background:#eee;}
 .detail-desc{font-size:13.5px;line-height:1.55;margin-top:6px;color:#333;}
 .action-row{display:flex;gap:10px;margin-top:18px;}
 .btn{
@@ -2038,7 +2036,7 @@ function buildPhotosCarouselHtml(photos){
   return `<div class="photo-carousel">${currentDetailPhotos.map((p, idx)=>buildPhotoCard(p, idx)).join('')}</div>`;
 }
 
-/* ---- Lightbox (mode ukuran penuh) foto kunjungan, bisa digeser kanan-kiri ---- */
+/* ---- Lightbox (mode ukuran penuh) foto -- dipakai bersama untuk Foto Kunjungan & Foto Menu ---- */
 function photoLightboxKeyHandler(e){
   const track = document.getElementById('photoLightboxTrack');
   if(!track) return;
@@ -2051,8 +2049,10 @@ function closePhotoLightbox(){
   if(overlay) overlay.remove();
   document.removeEventListener('keydown', photoLightboxKeyHandler);
 }
-function openPhotoLightbox(startIdx){
-  if(!currentDetailPhotos.length) return;
+/* urls: array URL gambar yang ditampilkan sebagai carousel penuh, bisa digeser kanan-kiri.
+   captionFn(idx) opsional -- kalau diisi, keterangan di bawah foto mengikuti foto yang aktif. */
+function openPhotoLightbox(urls, startIdx, captionFn){
+  if(!urls || !urls.length) return;
   closePhotoLightbox();
   const overlay = document.createElement('div');
   overlay.id = 'photoLightboxOverlay';
@@ -2060,9 +2060,9 @@ function openPhotoLightbox(startIdx){
   overlay.innerHTML = `
     <button type="button" class="photo-lightbox-close" title="Tutup">✕</button>
     <div class="photo-lightbox-track" id="photoLightboxTrack">
-      ${currentDetailPhotos.map(p=>`<div class="photo-lightbox-slide"><img src="${photoPublicUrl(p.storagePath)}" alt="Foto kunjungan"></div>`).join('')}
+      ${urls.map(u=>`<div class="photo-lightbox-slide"><img src="${escapeAttr(u)}" alt="Foto"></div>`).join('')}
     </div>
-    <div class="photo-lightbox-caption" id="photoLightboxCaption"></div>
+    ${captionFn ? '<div class="photo-lightbox-caption" id="photoLightboxCaption"></div>' : ''}
   `;
   document.body.appendChild(overlay);
   const track = overlay.querySelector('#photoLightboxTrack');
@@ -2070,12 +2070,10 @@ function openPhotoLightbox(startIdx){
   overlay.addEventListener('click', (e)=>{ if(e.target === overlay) closePhotoLightbox(); });
 
   const updateCaption = ()=>{
-    const i = Math.max(0, Math.min(currentDetailPhotos.length - 1, Math.round(track.scrollLeft / track.clientWidth)));
-    const p = currentDetailPhotos[i];
-    const isMine = p.userId === myUserId;
-    const name = isMine ? 'Anda' : (profilesMap[p.userId] || 'Pengguna');
-    const dateStr = p.at ? new Date(p.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
-    document.getElementById('photoLightboxCaption').innerHTML = `<b>${escapeHtml(name)}</b>${dateStr ? ' · ' + dateStr : ''}`;
+    if(!captionFn) return;
+    const i = Math.max(0, Math.min(urls.length - 1, Math.round(track.scrollLeft / track.clientWidth)));
+    const capEl = document.getElementById('photoLightboxCaption');
+    if(capEl) capEl.innerHTML = captionFn(i);
   };
   let scrollTimer = null;
   track.addEventListener('scroll', ()=>{
@@ -2088,6 +2086,30 @@ function openPhotoLightbox(startIdx){
   });
   document.addEventListener('keydown', photoLightboxKeyHandler);
 }
+/* Keterangan nama pengunggah + tanggal untuk lightbox Foto Kunjungan */
+function visitPhotoCaption(idx){
+  const p = currentDetailPhotos[idx];
+  if(!p) return '';
+  const isMine = p.userId === myUserId;
+  const name = isMine ? 'Anda' : (profilesMap[p.userId] || 'Pengguna');
+  const dateStr = p.at ? new Date(p.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
+  return `<b>${escapeHtml(name)}</b>${dateStr ? ' · ' + dateStr : ''}`;
+}
+
+/* Foto Menu di halaman detail: tampilan carousel sama seperti Foto Kunjungan
+   (bisa dibuka/di-zoom mode penuh & digeser), ukuran foto sama, tanpa keterangan. */
+let currentDetailMenuImages = [];
+function buildMenuPhotosCarouselHtml(imgs){
+  currentDetailMenuImages = (imgs || []).filter(Boolean);
+  if(currentDetailMenuImages.length === 0){
+    return '<span style="color:var(--muted);font-size:12.5px;">Belum ada foto menu.</span>';
+  }
+  return `<div class="photo-carousel">${currentDetailMenuImages.map((u, idx)=>`
+    <div class="photo-card" data-idx="${idx}">
+      <img src="${escapeAttr(u)}" loading="lazy" alt="Foto menu" onerror="this.style.opacity=0.2">
+    </div>`).join('')}</div>`;
+}
+
 /* Kompres foto di browser (maks 1600px, kualitas 75%) supaya hemat storage & upload cepat */
 function compressImage(file, maxDim=1600, quality=0.75){
   return new Promise((resolve, reject)=>{
@@ -2242,17 +2264,19 @@ function openDetail(id, showAllTesti){
     ${r.phone ? `<div class="detail-row"><span class="label">Telepon</span><span style="display:flex;align-items:center;gap:8px;">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲 Telepon</a></span></div>` : ''}
     <div class="detail-row"><span class="label">Harga</span><span class="detail-price">${escapeHtml(r.priceRange||'-')}</span></div>
     <div class="detail-row"><span class="label">Jam Buka</span><div class="hours-schedule">${scheduleHtml}</div></div>
-    ${imgs.length ? `<div class="menu-imgs">${imgs.map(u=>`<img src="${escapeAttr(u)}" onerror="this.style.opacity=0.2">`).join('')}</div>` : ''}
-    <div class="field" style="margin-top:14px;">
-      <label>Foto Kunjungan</label>
-      <div class="photo-grid" id="photoGrid">${buildPhotosCarouselHtml(r.photos)}</div>
-      <input type="file" id="photoCameraInput" accept="image/*" capture="environment" class="hidden">
-      <input type="file" id="photoGalleryInput" accept="image/*" class="hidden">
-      <div class="quick-photo-row">
-        <button type="button" id="photoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-        <button type="button" id="photoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+    <div class="field" style="margin-top:14px;" id="ratingSection">
+      <label>Beri Rating</label>
+      ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
+      <span class="crit-label" style="font-size:11px;">Rating keseluruhan otomatis dihitung dari rata-rata kriteria di bawah</span>
+      <div id="ratingForm">${RATING_CRITERIA.map(c=>`
+        <div class="rating-crit-row">
+          <span class="crit-label">${c.label}</span>
+          <div class="star-picker" data-crit="${c.key}">${[1,2,3,4,5].map(v=>`<span data-v="${v}">★</span>`).join('')}</div>
+        </div>`).join('')}
       </div>
+      <button class="btn btn-primary" id="submitRatingBtn" style="width:100%;margin-top:10px;">${myRatingEntry ? 'Update Rating Saya' : 'Kirim Rating'}</button>
     </div>
+    <button class="btn btn-primary" id="directionBtn" style="width:100%;margin-top:14px;">🧭 Direction</button>
     <div class="field" style="margin-top:14px;">
       <label>Menu Favorit / Rekomendasi</label>
       <div class="fav-chip-list" id="favChipList">${(()=>{
@@ -2266,17 +2290,19 @@ function openDetail(id, showAllTesti){
         <button id="quickFavBtn">Tambah</button>
       </div>
     </div>
-    <div class="field" style="margin-top:14px;" id="ratingSection">
-      <label>Beri Rating</label>
-      ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
-      <span class="crit-label" style="font-size:11px;">Rating keseluruhan otomatis dihitung dari rata-rata kriteria di bawah</span>
-      <div id="ratingForm">${RATING_CRITERIA.map(c=>`
-        <div class="rating-crit-row">
-          <span class="crit-label">${c.label}</span>
-          <div class="star-picker" data-crit="${c.key}">${[1,2,3,4,5].map(v=>`<span data-v="${v}">★</span>`).join('')}</div>
-        </div>`).join('')}
+    <div class="field" style="margin-top:14px;">
+      <label>Daftar Menu</label>
+      <div class="photo-grid" id="menuPhotoDisplayGrid">${buildMenuPhotosCarouselHtml(imgs)}</div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label>Foto Kunjungan</label>
+      <div class="photo-grid" id="photoGrid">${buildPhotosCarouselHtml(r.photos)}</div>
+      <input type="file" id="photoCameraInput" accept="image/*" capture="environment" class="hidden">
+      <input type="file" id="photoGalleryInput" accept="image/*" class="hidden">
+      <div class="quick-photo-row">
+        <button type="button" id="photoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+        <button type="button" id="photoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
       </div>
-      <button class="btn btn-primary" id="submitRatingBtn" style="width:100%;margin-top:10px;">${myRatingEntry ? 'Update Rating Saya' : 'Kirim Rating'}</button>
     </div>
     <div class="field" style="margin-top:14px;">
       <label>Referensi (Reels/Video)</label>
@@ -2295,11 +2321,10 @@ function openDetail(id, showAllTesti){
         <button id="quickTestiBtn">${myTestiEntry ? 'Update Testimoni Saya' : 'Kirim Testimoni'}</button>
       </div>
     </div>
-    <div class="action-row">
-      <button class="btn btn-primary" id="directionBtn">🧭 Direction</button>
-      ${isAdmin ? '<button class="btn btn-secondary" id="editBtn">✏️ Edit</button>' : ''}
-      ${isAdmin ? '<button class="btn btn-danger" id="delBtn">🗑</button>' : ''}
-    </div>
+    ${isAdmin ? `<div class="action-row">
+      <button class="btn btn-secondary" id="editBtn">✏️ Edit</button>
+      <button class="btn btn-danger" id="delBtn">🗑</button>
+    </div>` : ''}
   `;
   if(myRatingEntry){
     setTimeout(()=>{
@@ -2345,7 +2370,10 @@ function openDetail(id, showAllTesti){
   document.getElementById('photoCameraInput').onchange = handlePhotoPick;
   document.getElementById('photoGalleryInput').onchange = handlePhotoPick;
   document.querySelectorAll('#photoGrid .photo-card').forEach(card=>{
-    card.onclick = ()=> openPhotoLightbox(Number(card.dataset.idx));
+    card.onclick = ()=> openPhotoLightbox(currentDetailPhotos.map(p=>photoPublicUrl(p.storagePath)), Number(card.dataset.idx), visitPhotoCaption);
+  });
+  document.querySelectorAll('#menuPhotoDisplayGrid .photo-card').forEach(card=>{
+    card.onclick = ()=> openPhotoLightbox(currentDetailMenuImages, Number(card.dataset.idx));
   });
   document.querySelectorAll('.photo-del-btn').forEach(btn=>{
     btn.onclick = async (e)=>{
