@@ -375,6 +375,10 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   position:absolute;top:10px;right:12px;background:none;border:none;
   font-size:20px;cursor:pointer;color:var(--muted);
 }
+.plain-close-btn{
+  position:absolute;top:12px;right:14px;background:none;border:none;
+  padding:2px;margin:0;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);
+}
 #detailContent{overflow-y:auto;padding:20px 20px 90px 20px;}
 .detail-type-tag{
   display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;
@@ -603,7 +607,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   <div id="profileOverlay" class="hidden">
     <div id="profileBox" class="popup-box">
       <div class="popup-box-title"><span>Lengkapi</span> Profil</div>
-      <p class="popup-box-desc">Sekali saja -- supaya testimoni & rating Anda tercatat atas nama sendiri, bukan anonim.</p>
       <div class="field" style="text-align:left;">
         <label>Username</label>
         <input type="text" id="profileUsernameInput" placeholder="mis. rendra_bp" maxlength="24">
@@ -629,7 +632,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
   <div id="accountOverlay" class="hidden">
     <div id="accountPanel">
-      <button class="closeBtn" id="closeAccountBtn">✕</button>
       <div id="accountHeader">
         <div id="accountAvatarWrap">
           <img id="accountAvatarImg" src="" alt="" class="hidden">
@@ -658,7 +660,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
   <div id="guideOverlay" class="hidden">
     <div id="guidePanel">
-      <button class="closeBtn" id="closeGuideBtn">✕</button>
+      <button class="plain-close-btn" id="closeGuideBtn">✕</button>
       <h2>📖 Panduan Penggunaan GastronoMap</h2>
       <div id="guideContent"></div>
     </div>
@@ -666,11 +668,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
   <div id="newRestoOverlay" class="hidden">
     <div id="newRestoPanel">
-      <button class="closeBtn" id="closeNewRestoBtn">✕</button>
-      <h2>✨ Ada Resto Baru!</h2>
-      <p id="newRestoIntro">Resto berikut baru ditambahkan, tap untuk langsung lihat:</p>
+      <button class="plain-close-btn" id="closeNewRestoBtn">✕</button>
+      <h2 id="newRestoTitle">✨ Ada Resto Baru!</h2>
+      <p id="newRestoIntro" class="hidden"></p>
       <div id="newRestoList"></div>
-      <button class="btn btn-secondary" id="dismissNewRestoBtn" style="width:100%;margin-top:14px;">Tutup</button>
+      <button class="btn btn-secondary" id="markAllSeenBtn" style="width:100%;margin-top:14px;">✅ Sudah Lihat Semua</button>
+      <button class="btn btn-secondary" id="dismissNewRestoBtn" style="width:100%;margin-top:8px;">Tutup</button>
     </div>
   </div>
 
@@ -1165,15 +1168,26 @@ function addPoppedNewIds(ids){
   try{ localStorage.setItem('gm_popped_new_ids', JSON.stringify([...cur])); }catch(e){}
 }
 
-/* Render isi daftar resto baru ke dalam #newRestoList (dipakai baik oleh popup otomatis
-   maupun oleh panel "List Resto Baru" yang dibuka manual dari menu profil). */
-function renderNewRestoListItems(items, introText){
-  document.getElementById('newRestoIntro').textContent = introText;
+/* Render isi panel resto baru: judul, teks intro, daftar item, dan tombol "Sudah Lihat Semua"
+   -- semua menyesuaikan otomatis apakah ada resto baru atau tidak. Dipakai baik oleh popup
+   otomatis maupun oleh panel "List Resto Baru" yang dibuka manual dari menu profil. */
+function renderNewRestoListItems(items){
+  const titleEl = document.getElementById('newRestoTitle');
+  const introEl = document.getElementById('newRestoIntro');
   const list = document.getElementById('newRestoList');
+  const markAllBtn = document.getElementById('markAllSeenBtn');
   if(items.length === 0){
-    list.innerHTML = `<p style="font-size:12.5px;color:var(--muted);text-align:center;padding:14px 0;margin:0;">Belum ada resto baru saat ini. Coba cek lagi nanti ya 🙂</p>`;
+    titleEl.textContent = '😌 Belum Ada Resto Baru';
+    introEl.classList.add('hidden');
+    introEl.textContent = '';
+    list.innerHTML = '';
+    markAllBtn.classList.add('hidden');
     return;
   }
+  titleEl.textContent = '✨ Ada Resto Baru!';
+  introEl.classList.remove('hidden');
+  introEl.textContent = `${items.length} resto baru ditambahkan. Tap untuk langsung lihat:`;
+  markAllBtn.classList.remove('hidden');
   list.innerHTML = items.map(r=>{
     const t = TYPES[r.type] || DEFAULT_TYPE_META;
     return `<div class="new-resto-item" data-id="${escapeAttr(r.id)}">${t.emoji} <b>${escapeHtml(r.name)}</b><span class="new-resto-sub">${escapeHtml(r.address || r.type)}</span></div>`;
@@ -1187,6 +1201,23 @@ function renderNewRestoListItems(items, introText){
   });
 }
 
+/* Tombol "Sudah Lihat Semua" -- menandai SEMUA resto baru saat ini sebagai sudah dilihat,
+   sama seperti membuka detailnya satu-satu, supaya notifikasi (popup & badge) tidak
+   muncul lagi untuk resto-resto tersebut. */
+async function markAllNewRestosSeen(){
+  const newOnes = getNewRestosForMe();
+  if(newOnes.length === 0) return;
+  const ids = newOnes.map(r=>r.id);
+  ids.forEach(id => seenRestoIds.add(id));
+  try{
+    await sb.from('seen_restos').upsert(ids.map(id => ({ resto_id: id, user_id: myUserId })));
+  }catch(e){}
+  renderMarkers();
+  updateNewRestoMenuBadge();
+  renderNewRestoListItems([]); // refresh panel ke tampilan "Belum Ada Resto Baru"
+  showToast('Semua resto baru ditandai sudah dilihat');
+}
+
 function showNewRestoPopupIfNeeded(){
   if(!myUserId) return; // fitur personal, hanya untuk yang login
   const newOnes = getNewRestosForMe();
@@ -1194,12 +1225,12 @@ function showNewRestoPopupIfNeeded(){
   const popped = getPoppedNewIds();
   const toAnnounce = newOnes.filter(r => !popped.has(r.id));
   if(toAnnounce.length === 0) return; // semua sudah pernah diberitahukan sebelumnya, tidak perlu popup lagi
-  renderNewRestoListItems(toAnnounce, `${toAnnounce.length} resto baru ditambahkan. Tap untuk langsung lihat:`);
+  renderNewRestoListItems(toAnnounce);
   document.getElementById('newRestoOverlay').classList.remove('hidden');
   addPoppedNewIds(toAnnounce.map(r=>r.id)); // tandai sudah diberitahukan, popup otomatis tidak akan muncul lagi untuk ini
   // Catatan: walau popup otomatis tidak muncul lagi, resto tsb tetap terlihat di menu
   // "List Resto Baru" pada panel profil selama masih dalam masa NEW_RESTO_WINDOW_MS
-  // dan belum dibuka detailnya (lihat getNewRestosForMe / isNewForMe).
+  // dan belum dibuka detailnya / ditandai lewat "Sudah Lihat Semua" (lihat getNewRestosForMe / isNewForMe).
 }
 
 /* Dipanggil dari menu "List Resto Baru" di panel profil -- menampilkan SEMUA resto yang
@@ -1209,11 +1240,7 @@ function showNewRestoPopupIfNeeded(){
 function openNewRestoListPanel(){
   if(!requireLogin()) return;
   document.getElementById('accountOverlay').classList.add('hidden');
-  const newOnes = getNewRestosForMe();
-  const introText = newOnes.length > 0
-    ? `${newOnes.length} resto baru ditambahkan dalam 7 hari terakhir. Tap untuk langsung lihat:`
-    : 'Belum ada resto baru saat ini.';
-  renderNewRestoListItems(newOnes, introText);
+  renderNewRestoListItems(getNewRestosForMe());
   document.getElementById('newRestoOverlay').classList.remove('hidden');
 }
 
@@ -2924,7 +2951,6 @@ document.getElementById('locateBtn').onclick = ()=>{
   }, ()=> showToast('Tidak bisa mengambil lokasi'));
 };
 document.getElementById('logo').onclick = refreshAllData;
-document.getElementById('closeAccountBtn').onclick = ()=> document.getElementById('accountOverlay').classList.add('hidden');
 document.getElementById('accountOverlay').onclick = (e)=>{ if(e.target.id === 'accountOverlay') document.getElementById('accountOverlay').classList.add('hidden'); };
 document.getElementById('accountAvatarWrap').onclick = ()=> document.getElementById('avatarInput').click();
 document.getElementById('avatarInput').onchange = (e)=>{
@@ -2947,6 +2973,7 @@ document.getElementById('openUsageGuideBtn').onclick = ()=> openGuidePanel('usag
 document.getElementById('closeGuideBtn').onclick = ()=> document.getElementById('guideOverlay').classList.add('hidden');
 document.getElementById('guideOverlay').onclick = (e)=>{ if(e.target.id === 'guideOverlay') document.getElementById('guideOverlay').classList.add('hidden'); };
 document.getElementById('closeNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
+document.getElementById('markAllSeenBtn').onclick = markAllNewRestosSeen;
 document.getElementById('dismissNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
 document.getElementById('newRestoOverlay').onclick = (e)=>{ if(e.target.id === 'newRestoOverlay') document.getElementById('newRestoOverlay').classList.add('hidden'); };
 document.getElementById('userBadge').onclick = openAccountPanel;
