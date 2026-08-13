@@ -135,6 +135,13 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 .account-menu-item:hover{background:var(--paper);}
 .account-menu-item.danger{color:var(--red);margin-top:6px;border-top:1px solid var(--line);border-radius:0;padding-top:16px;}
+.account-menu-dropdown{display:flex;align-items:center;justify-content:space-between;}
+.dropdown-arrow{font-size:11px;color:var(--muted);transition:transform .18s ease;}
+.dropdown-arrow.open{transform:rotate(180deg);}
+.account-submenu{padding-left:8px;overflow:hidden;}
+.account-submenu.hidden{display:none;}
+.account-submenu-item{font-size:13px;font-weight:500;padding:11px 10px 11px 18px;color:var(--muted);}
+.account-submenu-item:hover{color:var(--ink);}
 
 /* ---------- PANEL PANDUAN ---------- */
 #guidePanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 14px 0;}
@@ -634,9 +641,16 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
           <div id="accountEmail">-</div>
         </div>
       </div>
-      <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil (username/gender/usia)</button>
+      <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil</button>
       <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
-      <button class="account-menu-item" id="openGuideBtn">📖 Panduan Penggunaan Aplikasi</button>
+      <button class="account-menu-item account-menu-dropdown" id="guideMenuToggle" type="button">
+        <span>📖 Panduan</span>
+        <span id="guideMenuArrow" class="dropdown-arrow">▾</span>
+      </button>
+      <div id="guideSubmenu" class="account-submenu hidden">
+        <button class="account-menu-item account-submenu-item" id="openInstallGuideBtn">📲 Cara Install Aplikasi</button>
+        <button class="account-menu-item account-submenu-item" id="openUsageGuideBtn">📘 Panduan Penggunaan</button>
+      </div>
       <button class="account-menu-item danger" id="logoutBtn">🚪 Logout</button>
     </div>
   </div>
@@ -746,22 +760,22 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <h2 id="formTitle">Tambah Resto</h2>
       <div class="field" style="position:relative;">
         <label>Nama Resto</label>
-        <input type="text" id="f_name" placeholder="mis. Bakmi Pak Slamet, atau cari nama resto di peta">
+        <input type="text" id="f_name" placeholder="ex: Bakmie Pak Slamet">
         <div id="nameSuggestions" class="loc-suggestions-box hidden"></div>
       </div>
 
       <div class="field" style="position:relative;">
         <label>Alamat</label>
-        <input type="text" id="f_address" placeholder="Ketik nama resto/jalan, pilih dari sugesti...">
+        <input type="text" id="f_address" placeholder="Ketik alamat resto">
         <div id="locSuggestions" class="loc-suggestions-box hidden"></div>
       </div>
 
       <div style="display:flex;gap:8px;margin-top:8px;">
-        <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Saya Sedang di Sini (pakai lokasi HP)</button>
+        <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Saya berada di sini</button>
         <button type="button" id="adjustPinLinkBtn" class="btn btn-secondary hidden" style="flex:0 0 auto;" title="Lihat & sesuaikan pin di peta">🗺️</button>
       </div>
 
-      <div id="pinStatusCaption">💡 Anda juga bisa tap langsung di peta untuk pilih lokasi.</div>
+      <div id="pinStatusCaption" class="hidden"></div>
 
       <div class="field">
         <label>No. Telepon/HP</label>
@@ -1048,6 +1062,8 @@ function openAccountPanel(){
     img.classList.add('hidden'); initial.classList.remove('hidden');
   }
   updateNewRestoMenuBadge();
+  document.getElementById('guideSubmenu').classList.add('hidden');
+  document.getElementById('guideMenuArrow').classList.remove('open');
   document.getElementById('accountOverlay').classList.remove('hidden');
 }
 
@@ -1107,8 +1123,30 @@ const GUIDE_HTML = `
   </ul>
 `;
 
-function openGuidePanel(){
-  document.getElementById('guideContent').innerHTML = GUIDE_HTML;
+const INSTALL_GUIDE_HTML = `
+  <h3>🤖 Android (Chrome)</h3>
+  <ul>
+    <li>Buka GastronoMap lewat browser Chrome.</li>
+    <li>Tap ikon titik tiga (⋮) di pojok kanan atas.</li>
+    <li>Pilih "Tambahkan ke Layar Utama" atau "Install aplikasi".</li>
+    <li>Tap "Install" / "Tambahkan" untuk konfirmasi.</li>
+    <li>Ikon GastronoMap akan muncul di layar utama HP, bisa dibuka seperti aplikasi biasa.</li>
+  </ul>
+  <h3>🍎 iOS (Safari)</h3>
+  <ul>
+    <li>Wajib dibuka lewat browser Safari (bukan Chrome/lainnya).</li>
+    <li>Tap ikon Share/Bagikan (kotak dengan panah ke atas) di bagian bawah layar.</li>
+    <li>Scroll ke bawah, pilih "Tambah ke Layar Utama" (Add to Home Screen).</li>
+    <li>Tap "Tambah" di pojok kanan atas untuk konfirmasi.</li>
+    <li>Ikon GastronoMap akan muncul di layar utama HP, bisa dibuka seperti aplikasi biasa.</li>
+  </ul>
+`;
+
+function openGuidePanel(section){
+  const useInstall = section === 'install';
+  document.getElementById('guidePanel').querySelector('h2').textContent =
+    useInstall ? '📲 Cara Install Aplikasi' : '📖 Panduan Penggunaan GastronoMap';
+  document.getElementById('guideContent').innerHTML = useInstall ? INSTALL_GUIDE_HTML : GUIDE_HTML;
   document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('guideOverlay').classList.remove('hidden');
 }
@@ -1554,9 +1592,17 @@ async function reverseGeocode_GooglePlacesUIKit(lat, lng){
 function setPinStatus(text, state){
   const el = document.getElementById('pinStatusCaption');
   if(!el) return;
-  const icon = state === 'manual' ? '✋' : (state === 'auto' ? '📍' : '💡');
+  if(!state){
+    // Idle/hint default -- box ini sengaja disembunyikan total, bukan cuma diganti teks.
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    el.classList.remove('has-location', 'pin-manual');
+    document.getElementById('adjustPinLinkBtn').classList.toggle('hidden', !state);
+    return;
+  }
+  const icon = state === 'manual' ? '✋' : '📍';
   el.innerHTML = `<span class="pin-status-icon">${icon}</span><span>${escapeHtml(text)}</span>`;
-  el.classList.remove('has-location', 'pin-manual');
+  el.classList.remove('has-location', 'pin-manual', 'hidden');
   if(state === 'manual') el.classList.add('has-location', 'pin-manual');
   else if(state === 'auto') el.classList.add('has-location');
   document.getElementById('adjustPinLinkBtn').classList.toggle('hidden', !state);
@@ -2891,7 +2937,12 @@ document.getElementById('logoutBtn').onclick = ()=>{
   signOut();
 };
 document.getElementById('openNewRestoListBtn').onclick = openNewRestoListPanel;
-document.getElementById('openGuideBtn').onclick = openGuidePanel;
+document.getElementById('guideMenuToggle').onclick = ()=>{
+  document.getElementById('guideSubmenu').classList.toggle('hidden');
+  document.getElementById('guideMenuArrow').classList.toggle('open');
+};
+document.getElementById('openInstallGuideBtn').onclick = ()=> openGuidePanel('install');
+document.getElementById('openUsageGuideBtn').onclick = ()=> openGuidePanel('usage');
 document.getElementById('closeGuideBtn').onclick = ()=> document.getElementById('guideOverlay').classList.add('hidden');
 document.getElementById('guideOverlay').onclick = (e)=>{ if(e.target.id === 'guideOverlay') document.getElementById('guideOverlay').classList.add('hidden'); };
 document.getElementById('closeNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
