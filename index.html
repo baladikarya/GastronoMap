@@ -169,6 +169,19 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .new-resto-item:hover{border-color:var(--amber);}
 .new-resto-sub{width:100%;font-size:11.5px;color:var(--muted);padding-left:24px;}
 
+/* ---------- PANEL WISHLIST ---------- */
+#wishlistOverlay{
+  position:fixed;inset:0;z-index:4500;background:rgba(20,25,24,0.6);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#wishlistOverlay.hidden{display:none;}
+#wishlistPanel{
+  position:relative;background:var(--card);width:100%;max-width:420px;max-height:78vh;overflow-y:auto;
+  border-radius:16px;padding:24px 20px 26px 20px;
+}
+#wishlistPanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 6px 0;}
+#wishlistIntro{font-size:12.5px;color:var(--muted);margin:0 0 12px 0;}
+
 #googleHint{font-size:11px;text-align:center;color:var(--muted);margin-top:6px;}
 #loginDivider{text-align:center;color:var(--muted);font-size:11.5px;margin:14px 0;position:relative;}
 #loginDivider::before, #loginDivider::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:var(--line);}
@@ -389,6 +402,11 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   border-radius:14px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
 }
 .visit-toggle-btn.is-visited{background:#E4F3E0;border-color:#2E7D32;color:#2E7D32;}
+.wishlist-toggle-btn{
+  flex-shrink:0;border:1px solid var(--line);background:var(--paper);color:var(--muted);
+  border-radius:14px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+}
+.wishlist-toggle-btn.is-wishlisted{background:#FCE4EC;border-color:#C2185B;color:#C2185B;}
 .detail-name{font-family:'Fraunces',serif;font-size:24px;font-weight:600;margin:0 0 4px 0;}
 .detail-fields{
   display:grid;grid-template-columns:auto auto auto auto auto;
@@ -400,7 +418,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .detail-fields .df-value{grid-column:3/span 3;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .detail-fields .df-day{grid-column:3;color:var(--ink);font-weight:600;white-space:nowrap;}
 .detail-fields .df-colon2{grid-column:4;color:var(--muted);}
-.detail-fields .df-time{grid-column:5;color:var(--ink);}
+.detail-fields .df-time{grid-column:5;color:var(--ink);white-space:nowrap;}
 .detail-fields .df-today .df-day, .detail-fields .df-today .df-time{font-weight:700;color:var(--teal-dark);}
 .phone-call-btn{
   background:var(--teal-dark);color:#fff;text-decoration:none;padding:3px 10px;border-radius:12px;
@@ -646,6 +664,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       </div>
       <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil</button>
       <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
+      <button class="account-menu-item" id="openWishlistBtn">❤️ Wishlist</button>
       <button class="account-menu-item account-menu-dropdown" id="guideMenuToggle" type="button">
         <span>📖 Panduan</span>
         <span id="guideMenuArrow" class="dropdown-arrow">▾</span>
@@ -674,6 +693,15 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <div id="newRestoList"></div>
       <button class="btn btn-secondary" id="markAllSeenBtn" style="width:100%;margin-top:14px;">✅ Sudah Lihat Semua</button>
       <button class="btn btn-secondary" id="dismissNewRestoBtn" style="width:100%;margin-top:8px;">Tutup</button>
+    </div>
+  </div>
+
+  <div id="wishlistOverlay" class="hidden">
+    <div id="wishlistPanel">
+      <button class="plain-close-btn" id="closeWishlistBtn">✕</button>
+      <h2 id="wishlistTitle">❤️ Wishlist Saya</h2>
+      <p id="wishlistIntro" class="hidden"></p>
+      <div id="wishlistList"></div>
     </div>
   </div>
 
@@ -733,6 +761,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
           <option value="">Semua</option>
           <option value="unvisited">🆕 Belum Dikunjungi</option>
           <option value="visited">✅ Sudah Dikunjungi</option>
+        </select>
+      </div>
+
+      <div class="filter-section">
+        <label class="filter-section-label">❤️ Wishlist</label>
+        <select id="wishlistFilterSelect" style="width:100%;">
+          <option value="">Semua</option>
+          <option value="wishlist">❤️ Wishlist Saja</option>
         </select>
       </div>
 
@@ -891,8 +927,10 @@ let myUserId = null, myEmail = null, isAdmin = false;
 let myUsername = null, myGender = null, myAge = null, myAvatarUrl = null;
 let profilesMap = {}; // { userId: username } -- dipakai untuk menampilkan nama penulis testimoni
 let visitedIds = new Set(); // ID resto yang sudah ditandai dikunjungi OLEH USER INI (personal, tidak memengaruhi orang lain)
+let wishlistIds = new Set(); // ID resto yang di-wishlist OLEH USER INI (personal, tidak memengaruhi orang lain)
 let seenRestoIds = new Set(); // ID resto baru yang sudah DILIHAT oleh user ini (untuk badge notifikasi resto baru)
 let visitFilter = null; // null | 'visited' | 'unvisited'
+let wishlistFilter = null; // null | 'wishlist'
 let currentDetailPhotos = []; // foto kunjungan resto yang sedang dibuka, terurut terbaru duluan (dipakai carousel + lightbox)
 
 /* ================= SUPABASE CLIENT ================= */
@@ -933,12 +971,14 @@ async function applySession(session){
 }
 
 async function loadVisited(){
-  if(!myUserId){ visitedIds = new Set(); seenRestoIds = new Set(); return; }
-  const [{ data: visitedData }, { data: seenData }] = await Promise.all([
+  if(!myUserId){ visitedIds = new Set(); wishlistIds = new Set(); seenRestoIds = new Set(); return; }
+  const [{ data: visitedData }, { data: wishlistData }, { data: seenData }] = await Promise.all([
     sb.from('visited').select('resto_id').eq('user_id', myUserId),
+    sb.from('wishlist').select('resto_id').eq('user_id', myUserId),
     sb.from('seen_restos').select('resto_id').eq('user_id', myUserId)
   ]);
   visitedIds = new Set((visitedData||[]).map(v=>v.resto_id));
+  wishlistIds = new Set((wishlistData||[]).map(v=>v.resto_id));
   seenRestoIds = new Set((seenData||[]).map(v=>v.resto_id));
 }
 
@@ -977,6 +1017,19 @@ async function toggleVisited(restoId){
     visitedIds.add(restoId);
     await sb.from('visited').upsert({resto_id: restoId, user_id: myUserId});
   }
+  renderMarkers();
+}
+
+async function toggleWishlist(restoId){
+  if(!requireLogin()) return;
+  if(wishlistIds.has(restoId)){
+    wishlistIds.delete(restoId);
+    await sb.from('wishlist').delete().eq('resto_id', restoId).eq('user_id', myUserId);
+  }else{
+    wishlistIds.add(restoId);
+    await sb.from('wishlist').upsert({resto_id: restoId, user_id: myUserId});
+  }
+  updateWishlistMenuBadge();
   renderMarkers();
 }
 
@@ -1066,6 +1119,7 @@ function openAccountPanel(){
     img.classList.add('hidden'); initial.classList.remove('hidden');
   }
   updateNewRestoMenuBadge();
+  updateWishlistMenuBadge();
   document.getElementById('guideSubmenu').classList.add('hidden');
   document.getElementById('guideMenuArrow').classList.remove('open');
   document.getElementById('accountOverlay').classList.remove('hidden');
@@ -1077,6 +1131,14 @@ function updateNewRestoMenuBadge(){
   if(!btn) return;
   const count = myUserId ? getNewRestosForMe().length : 0;
   btn.textContent = count > 0 ? `🆕 List Resto Baru (${count})` : '🆕 List Resto Baru';
+}
+
+/* Badge jumlah resto di Wishlist pada tombol menu "Wishlist" di panel akun */
+function updateWishlistMenuBadge(){
+  const btn = document.getElementById('openWishlistBtn');
+  if(!btn) return;
+  const count = myUserId ? wishlistIds.size : 0;
+  btn.textContent = count > 0 ? `❤️ Wishlist (${count})` : '❤️ Wishlist';
 }
 
 async function uploadAvatar(file){
@@ -1242,6 +1304,46 @@ function openNewRestoListPanel(){
   document.getElementById('accountOverlay').classList.add('hidden');
   renderNewRestoListItems(getNewRestosForMe());
   document.getElementById('newRestoOverlay').classList.remove('hidden');
+}
+
+/* Render isi panel Wishlist: judul, teks intro, dan daftar resto yang di-wishlist user ini,
+   mengikuti pola yang sama seperti panel "List Resto Baru". */
+function renderWishlistItems(items){
+  const titleEl = document.getElementById('wishlistTitle');
+  const introEl = document.getElementById('wishlistIntro');
+  const list = document.getElementById('wishlistList');
+  if(items.length === 0){
+    titleEl.textContent = '💭 Wishlist Masih Kosong';
+    introEl.classList.add('hidden');
+    introEl.textContent = '';
+    list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Tap ❤️ Wishlist saat melihat detail resto untuk menambahkannya ke sini.</div>';
+    return;
+  }
+  titleEl.textContent = '❤️ Wishlist Saya';
+  introEl.classList.remove('hidden');
+  introEl.textContent = `${items.length} resto di wishlist Anda. Tap untuk langsung lihat:`;
+  list.innerHTML = items.map(r=>{
+    const t = TYPES[r.type] || DEFAULT_TYPE_META;
+    return `<div class="new-resto-item" data-id="${escapeAttr(r.id)}">${t.emoji} <b>${escapeHtml(r.name)}</b><span class="new-resto-sub">${escapeHtml(r.address || r.type)}</span></div>`;
+  }).join('');
+  list.querySelectorAll('.new-resto-item').forEach(el=>{
+    el.onclick = ()=>{
+      const r = allRestos[el.dataset.id];
+      document.getElementById('wishlistOverlay').classList.add('hidden');
+      if(r){ map.setView([r.lat, r.lng], 17); openDetail(r.id); }
+    };
+  });
+}
+
+function getWishlistedRestosForMe(){
+  return Array.from(wishlistIds).map(id => allRestos[id]).filter(Boolean);
+}
+
+function openWishlistPanel(){
+  if(!requireLogin()) return;
+  document.getElementById('accountOverlay').classList.add('hidden');
+  renderWishlistItems(getWishlistedRestosForMe());
+  document.getElementById('wishlistOverlay').classList.remove('hidden');
 }
 
 function emptyHours(){
@@ -1760,6 +1862,7 @@ function openFilterPanel(){
   document.getElementById('tf_day').value = timeFilter ? timeFilter.day : currentDayName();
   document.getElementById('tf_time').value = timeFilter ? timeFilter.time : currentTimeStr();
   document.getElementById('visitFilterSelect').value = visitFilter || '';
+  document.getElementById('wishlistFilterSelect').value = wishlistFilter || '';
   document.getElementById('filterOverlay').classList.remove('hidden');
 }
 
@@ -1792,7 +1895,7 @@ function renderPriceCheckList(){
 function updateFilterBtnLabel(){
   const btn = document.getElementById('openFilterBtn');
   if(!btn) return;
-  const count = activeTypeFilters.size + activePlatformFilters.size + activePriceFilters.size + (timeFilter ? 1 : 0) + (visitFilter ? 1 : 0);
+  const count = activeTypeFilters.size + activePlatformFilters.size + activePriceFilters.size + (timeFilter ? 1 : 0) + (visitFilter ? 1 : 0) + (wishlistFilter ? 1 : 0);
   btn.innerHTML = count > 0 ? `🔧 Filter <span class="filter-count-badge">${count}</span>` : '🔧 Filter';
   btn.classList.toggle('active', count > 0);
 }
@@ -2048,6 +2151,7 @@ function renderMarkers(){
     const isVisited = visitedIds.has(r.id);
     if(visitFilter === 'visited' && !isVisited) return;
     if(visitFilter === 'unvisited' && isVisited) return;
+    if(wishlistFilter === 'wishlist' && !wishlistIds.has(r.id)) return;
     const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r))});
     m.on('click', ()=> openDetail(r.id));
     markersToAdd.push(m);
@@ -2365,7 +2469,7 @@ function openDetail(id, showAllTesti){
       return `<div class="df-row ${isToday ? 'df-today' : ''}">${labelCells}<span class="df-day">${day}</span><span class="df-colon2">:</span><span class="df-time">${txt}</span></div>`;
     }).join('');
     const openNow = isOpenAt(r.hoursByDay, today, currentTimeStr());
-    openNowBadge = `<span class="open-badge ${openNow ? 'yes' : 'no'}">${openNow ? 'Buka sekarang' : 'Tutup sekarang'}</span>`;
+    openNowBadge = `<span class="open-badge ${openNow ? 'yes' : 'no'}">${openNow ? 'Sudah Buka' : 'Masih Tutup'}</span>`;
   }
 
   const summary = computeRatingSummary(r.ratings);
@@ -2396,11 +2500,15 @@ function openDetail(id, showAllTesti){
   const myTestiEntry = (r.testimonials||[]).find(x => x.userId === myUserId) || null;
 
   const isVisited = visitedIds.has(r.id);
+  const isWishlisted = wishlistIds.has(r.id);
 
   document.getElementById('detailContent').innerHTML = `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
       <span class="detail-type-tag" style="background:${t.color}">${t.emoji} ${r.type}</span>
-      <button id="visitToggleBtn" class="visit-toggle-btn ${isVisited ? 'is-visited' : ''}">${isVisited ? '✅ Sudah Dikunjungi' : '🆕 Belum Dikunjungi'}</button>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button id="wishlistToggleBtn" class="wishlist-toggle-btn ${isWishlisted ? 'is-wishlisted' : ''}">${isWishlisted ? '❤️ Di Wishlist' : '🤍 Wishlist'}</button>
+        <button id="visitToggleBtn" class="visit-toggle-btn ${isVisited ? 'is-visited' : ''}">${isVisited ? '✅ Sudah Dikunjungi' : '🆕 Belum Dikunjungi'}</button>
+      </div>
     </div>
     <h3 class="detail-name">${escapeHtml(r.name)} ${openNowBadge}</h3>
     ${paymentsHtml}
@@ -2490,6 +2598,10 @@ function openDetail(id, showAllTesti){
   }
   document.getElementById('visitToggleBtn').onclick = async ()=>{
     await toggleVisited(r.id);
+    openDetail(id, showAllTesti);
+  };
+  document.getElementById('wishlistToggleBtn').onclick = async ()=>{
+    await toggleWishlist(r.id);
     openDetail(id, showAllTesti);
   };
   document.getElementById('directionBtn').onclick = ()=>{
@@ -2921,6 +3033,7 @@ document.getElementById('filterApplyAllBtn').onclick = ()=>{
     timeFilter = null;
   }
   visitFilter = document.getElementById('visitFilterSelect').value || null;
+  wishlistFilter = document.getElementById('wishlistFilterSelect').value || null;
   updateFilterBtnLabel();
   document.getElementById('filterOverlay').classList.add('hidden');
   renderMarkers();
@@ -2933,10 +3046,12 @@ document.getElementById('filterResetAllBtn').onclick = ()=>{
   activePriceFilters = new Set();
   timeFilter = null;
   visitFilter = null;
+  wishlistFilter = null;
   document.getElementById('tf_enable').checked = false;
   document.getElementById('tf_day').value = currentDayName();
   document.getElementById('tf_time').value = currentTimeStr();
   document.getElementById('visitFilterSelect').value = '';
+  document.getElementById('wishlistFilterSelect').value = '';
   renderTypeCheckList();
   renderPlatformCheckList();
   renderPriceCheckList();
@@ -2976,6 +3091,9 @@ document.getElementById('closeNewRestoBtn').onclick = ()=> document.getElementBy
 document.getElementById('markAllSeenBtn').onclick = markAllNewRestosSeen;
 document.getElementById('dismissNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
 document.getElementById('newRestoOverlay').onclick = (e)=>{ if(e.target.id === 'newRestoOverlay') document.getElementById('newRestoOverlay').classList.add('hidden'); };
+document.getElementById('openWishlistBtn').onclick = openWishlistPanel;
+document.getElementById('closeWishlistBtn').onclick = ()=> document.getElementById('wishlistOverlay').classList.add('hidden');
+document.getElementById('wishlistOverlay').onclick = (e)=>{ if(e.target.id === 'wishlistOverlay') document.getElementById('wishlistOverlay').classList.add('hidden'); };
 document.getElementById('userBadge').onclick = openAccountPanel;
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
 document.getElementById('loginGoogleBtn').onclick = signInWithGoogle;
