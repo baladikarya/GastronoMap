@@ -2409,7 +2409,7 @@ function openDetail(id, showAllTesti){
     ${platformsHtml}
     <div class="detail-fields">
       ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
-      ${r.phone ? `<div class="df-row"><span class="df-label">TELEPON</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">📲</a></span></div>` : ''}
+      ${r.phone ? `<div class="df-row"><span class="df-label">TELEPON</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">☎️</a></span></div>` : ''}
       <div class="df-row"><span class="df-label">HARGA</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.priceRange||'-')}</span></div>
       ${r.hoursByDay ? scheduleRowsHtml : `<div class="df-row"><span class="df-label">JAM BUKA</span><span class="df-colon1">:</span><span class="df-value" style="color:var(--muted);">Jam buka belum diisi</span></div>`}
     </div>
