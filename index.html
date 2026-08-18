@@ -332,6 +332,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 .resto-pin span{transform:rotate(45deg);font-size:16px;}
 .pin-wrap{position:relative;width:34px;height:34px;}
+.pin-wrap.pin-unverified .resto-pin{filter:grayscale(1) opacity(0.85);}
 
 /* ---------- BADGE CLUSTER (gabungan banyak pin berdekatan) ---------- */
 .cluster-badge{
@@ -393,10 +394,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   padding:2px;margin:0;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);
 }
 #detailContent{overflow-y:auto;padding:20px 20px 90px 20px;}
-.detail-type-tag{
-  display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;
-  font-weight:700;color:#fff;margin-bottom:10px;letter-spacing:0.3px;
-}
 .visit-toggle-btn{
   flex-shrink:0;border:1px solid var(--line);background:var(--paper);color:var(--muted);
   border-radius:14px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
@@ -404,10 +401,20 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .visit-toggle-btn.is-visited{background:#E4F3E0;border-color:#2E7D32;color:#2E7D32;}
 .wishlist-toggle-btn{
   flex-shrink:0;border:1px solid var(--line);background:var(--paper);color:var(--muted);
-  border-radius:14px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+  border-radius:50%;width:30px;height:30px;padding:0;font-size:15px;line-height:1;
+  cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;
 }
 .wishlist-toggle-btn.is-wishlisted{background:#FCE4EC;border-color:#C2185B;color:#C2185B;}
-.detail-name{font-family:'Fraunces',serif;font-size:24px;font-weight:600;margin:0 0 4px 0;}
+.detail-name{font-family:'Fraunces',serif;font-size:24px;font-weight:600;margin:0 0 4px 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.verified-badge{
+  flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;background:#1877F2;color:#fff;
+  font-size:11px;font-weight:900;line-height:1;
+}
+.admin-verify-row{margin-top:8px;}
+.admin-verify-row .btn{width:100%;}
+.btn-verify-on{background:#1877F2;color:#fff;}
+.btn-verify-off{background:var(--paper);color:var(--muted);border:1px solid var(--line);}
 .detail-fields{
   display:grid;grid-template-columns:auto auto auto auto auto;
   row-gap:6px;column-gap:6px;font-size:13.5px;margin:8px 0;align-items:baseline;
@@ -2084,6 +2091,7 @@ async function loadAllRestos(){
         menuImages: row.menu_images || [], onlinePlatforms: row.online_platforms || [],
         paymentMethods: row.payment_methods || [],
         lat: row.lat, lng: row.lng, createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
+        isVerified: !!row.is_verified,
         ratings: [], testimonials: [], favoriteMenu: [], references: [], photos: [], menuPhotos: []
       };
     });
@@ -2135,10 +2143,20 @@ async function upsertRestoCore(data){
     return data.id;
   }else{
     row.created_by = myUserId;
+    // Resto yang ditambahkan langsung oleh admin otomatis dianggap terverifikasi.
+    // Resto dari user biasa mulai sebagai belum diverifikasi (default kolom di DB juga false).
+    row.is_verified = isAdmin;
     const { data: inserted, error } = await sb.from('restos').insert(row).select('id').single();
     if(error) throw error;
     return inserted.id;
   }
+}
+
+/* Toggle status verifikasi resto (khusus admin, enforced juga oleh RLS). */
+async function toggleVerified(id, verified){
+  const { error } = await sb.from('restos').update({ is_verified: verified, updated_at: new Date().toISOString() }).eq('id', id);
+  if(error){ showToast('Gagal mengubah status verifikasi: ' + error.message); return; }
+  showToast(verified ? 'Resto ditandai Verified' : 'Resto ditandai Unverified');
 }
 
 async function deleteResto(id){
@@ -2149,11 +2167,12 @@ async function deleteResto(id){
 }
 
 /* ================= MARKERS ================= */
-function makeIcon(type, visited, isNew){
+function makeIcon(type, visited, isNew, isVerified){
   const t = TYPES[type] || DEFAULT_TYPE_META;
+  const unverifiedClass = isVerified ? '' : ' pin-unverified';
   return L.divIcon({
     className:'',
-    html:`<div class="pin-wrap${isNew ? ' pin-new' : ''}"><div class="resto-pin" style="background:${t.color}"><span>${t.emoji}</span></div>${visited ? '<div class="visited-badge">✓</div>' : ''}${isNew ? '<div class="new-badge">!</div>' : ''}</div>`,
+    html:`<div class="pin-wrap${isNew ? ' pin-new' : ''}${unverifiedClass}"><div class="resto-pin" style="background:${t.color}"><span>${t.emoji}</span></div>${visited ? '<div class="visited-badge">✓</div>' : ''}${isNew ? '<div class="new-badge">!</div>' : ''}</div>`,
     iconSize:[34,34], iconAnchor:[17,34], popupAnchor:[0,-30]
   });
 }
@@ -2178,7 +2197,7 @@ function renderMarkers(){
     if(visitFilter === 'visited' && !isVisited) return;
     if(visitFilter === 'unvisited' && isVisited) return;
     if(wishlistFilter === 'wishlist' && !wishlistIds.has(r.id)) return;
-    const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r))});
+    const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r), r.isVerified)});
     m.on('click', ()=> openDetail(r.id));
     markersToAdd.push(m);
   });
@@ -2529,14 +2548,13 @@ function openDetail(id, showAllTesti){
   const isWishlisted = wishlistIds.has(r.id);
 
   document.getElementById('detailContent').innerHTML = `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-      <span class="detail-type-tag" style="background:${t.color}">${t.emoji} ${r.type}</span>
+    <div style="display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
       <div style="display:flex;align-items:center;gap:6px;">
-        <button id="wishlistToggleBtn" class="wishlist-toggle-btn ${isWishlisted ? 'is-wishlisted' : ''}">${isWishlisted ? '❤️ Di Wishlist' : '🤍 Wishlist'}</button>
+        <button id="wishlistToggleBtn" class="wishlist-toggle-btn ${isWishlisted ? 'is-wishlisted' : ''}" title="${isWishlisted ? 'Di Wishlist' : 'Wishlist'}">${isWishlisted ? '❤️' : '🤍'}</button>
         <button id="visitToggleBtn" class="visit-toggle-btn ${isVisited ? 'is-visited' : ''}">${isVisited ? '✅ Sudah Dikunjungi' : '🆕 Belum Dikunjungi'}</button>
       </div>
     </div>
-    <h3 class="detail-name">${escapeHtml(r.name)} ${openNowBadge}</h3>
+    <h3 class="detail-name">${escapeHtml(r.name)} ${r.isVerified ? '<span class="verified-badge" title="Diverifikasi admin">✓</span>' : ''} ${openNowBadge}</h3>
     ${paymentsHtml}
     ${ratingSummaryHtml}
     <button class="btn btn-primary" id="directionBtn" style="width:100%;margin-top:10px;">🧭 Direction</button>
@@ -2611,6 +2629,9 @@ function openDetail(id, showAllTesti){
     ${isAdmin ? `<div class="action-row">
       <button class="btn btn-secondary" id="editBtn">✏️ Edit</button>
       <button class="btn btn-danger" id="delBtn">🗑</button>
+    </div>
+    <div class="admin-verify-row">
+      <button class="btn ${r.isVerified ? 'btn-verify-on' : 'btn-verify-off'}" id="verifyBtn">${r.isVerified ? '✓ Verified' : 'Tandai Verified'}</button>
     </div>` : ''}
   `;
   if(myRatingEntry){
@@ -2642,6 +2663,12 @@ function openDetail(id, showAllTesti){
       closeDetail();
       showToast('Resto dihapus');
     }
+  };
+  const verifyBtnEl = document.getElementById('verifyBtn');
+  if(verifyBtnEl) verifyBtnEl.onclick = async ()=>{
+    await toggleVerified(r.id, !r.isVerified);
+    await loadAllRestos();
+    openDetail(id, showAllTesti);
   };
   document.getElementById('photoCameraBtn').onclick = ()=>{
     if(!requireLogin()) return;
