@@ -182,6 +182,52 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #wishlistPanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 6px 0;}
 #wishlistIntro{font-size:12.5px;color:var(--muted);margin:0 0 12px 0;}
 
+/* ---------- LAPORAN / FEEDBACK (kirim & panel admin) ---------- */
+#reportOverlay{
+  position:fixed;inset:0;z-index:5000;background:rgba(20,25,24,0.72);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#reportOverlay.hidden{display:none;}
+.report-resto-link{
+  display:block;width:100%;text-align:center;background:none;border:none;
+  color:var(--muted);font-size:12px;font-weight:600;padding:8px 0 2px 0;cursor:pointer;
+  font-family:'Work Sans',sans-serif;text-decoration:underline;
+}
+#reportContextLabel{font-size:12px;color:var(--teal-dark);background:var(--paper);border-radius:8px;padding:8px 10px;margin-bottom:12px;}
+#adminReportsOverlay{
+  position:fixed;inset:0;z-index:4500;background:rgba(20,25,24,0.6);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#adminReportsOverlay.hidden{display:none;}
+#adminReportsPanel{
+  position:relative;background:var(--card);width:100%;max-width:440px;max-height:82vh;overflow-y:auto;
+  border-radius:16px;padding:24px 20px 26px 20px;
+}
+#adminReportsPanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 6px 0;}
+#adminReportsIntro{font-size:12.5px;color:var(--muted);margin:0 0 12px 0;}
+.report-filter-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.report-filter-tab{
+  border:1px solid var(--line);background:var(--paper);color:var(--muted);border-radius:20px;
+  padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;
+}
+.report-filter-tab.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+.report-item{padding:12px 12px;border-radius:10px;border:1px solid var(--line);margin-bottom:9px;background:var(--paper);}
+.report-item-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
+.report-type-chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--ink);}
+.report-status-chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;color:#fff;}
+.report-status-chip.pending{background:var(--red);}
+.report-status-chip.reviewed{background:var(--amber-dark);}
+.report-status-chip.resolved{background:var(--teal);}
+.report-item-msg{font-size:13px;color:var(--ink);line-height:1.5;margin-bottom:6px;white-space:pre-wrap;}
+.report-item-meta{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.report-item-resto-link{font-size:12px;color:var(--teal-dark);font-weight:700;cursor:pointer;text-decoration:underline;margin-bottom:8px;display:inline-block;}
+.report-item-actions{display:flex;gap:6px;flex-wrap:wrap;}
+.report-item-actions button{
+  border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;
+  padding:6px 10px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;
+}
+.report-item-actions button.active-status{background:var(--teal);border-color:var(--teal);color:#fff;}
+
 #googleHint{font-size:11px;text-align:center;color:var(--muted);margin-top:6px;}
 #loginDivider{text-align:center;color:var(--muted);font-size:11.5px;margin:14px 0;position:relative;}
 #loginDivider::before, #loginDivider::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:var(--line);}
@@ -675,6 +721,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil</button>
       <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
       <button class="account-menu-item" id="openWishlistBtn">❤️ Wishlist</button>
+      <button class="account-menu-item" id="openReportBtn">📝 Kirim Masukan / Laporan</button>
+      <button class="account-menu-item hidden" id="openAdminReportsBtn">🚩 Kelola Laporan</button>
       <button class="account-menu-item account-menu-dropdown" id="guideMenuToggle" type="button">
         <span>📖 Panduan</span>
         <span id="guideMenuArrow" class="dropdown-arrow">▾</span>
@@ -712,6 +760,44 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <h2 id="wishlistTitle">❤️ Wishlist Saya</h2>
       <p id="wishlistIntro" class="hidden"></p>
       <div id="wishlistList"></div>
+    </div>
+  </div>
+
+  <div id="reportOverlay" class="hidden">
+    <div id="reportBox" class="popup-box">
+      <div class="popup-box-title"><span>Kirim</span> Laporan</div>
+      <div id="reportContextLabel" class="hidden"></div>
+      <div class="field" style="text-align:left;">
+        <label>Jenis Laporan</label>
+        <select id="reportTypeSelect">
+          <option value="data_error">Data Resto Salah/Tidak Sesuai</option>
+          <option value="bug">Bug / Error Aplikasi</option>
+          <option value="suggestion">Saran / Masukan Fitur</option>
+          <option value="other">Lainnya</option>
+        </select>
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>Detail</label>
+        <textarea id="reportMessageInput" placeholder="Jelaskan laporan Anda selengkap mungkin..." style="min-height:90px;"></textarea>
+      </div>
+      <button id="reportSubmitBtn" class="btn btn-primary" style="width:100%;margin-top:6px;">Kirim Laporan</button>
+      <button id="reportCancelBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;">Batalkan</button>
+      <div id="reportStatus"></div>
+    </div>
+  </div>
+
+  <div id="adminReportsOverlay" class="hidden">
+    <div id="adminReportsPanel">
+      <button class="plain-close-btn" id="closeAdminReportsBtn">✕</button>
+      <h2>🚩 Kelola Laporan</h2>
+      <p id="adminReportsIntro">Laporan data resto & masukan dari pengguna.</p>
+      <div class="report-filter-tabs" id="reportFilterTabs">
+        <button class="report-filter-tab active" data-status="pending">Pending</button>
+        <button class="report-filter-tab" data-status="reviewed">Ditinjau</button>
+        <button class="report-filter-tab" data-status="resolved">Selesai</button>
+        <button class="report-filter-tab" data-status="all">Semua</button>
+      </div>
+      <div id="adminReportsList"></div>
     </div>
   </div>
 
@@ -1153,9 +1239,21 @@ function openAccountPanel(){
   }
   updateNewRestoMenuBadge();
   updateWishlistMenuBadge();
+  document.getElementById('openAdminReportsBtn').classList.toggle('hidden', !isAdmin);
+  if(isAdmin) updatePendingReportsBadge();
   document.getElementById('guideSubmenu').classList.add('hidden');
   document.getElementById('guideMenuArrow').classList.remove('open');
   document.getElementById('accountOverlay').classList.remove('hidden');
+}
+
+/* Badge jumlah laporan berstatus pending pada tombol menu admin "Kelola Laporan" */
+async function updatePendingReportsBadge(){
+  const btn = document.getElementById('openAdminReportsBtn');
+  if(!btn || !isAdmin) return;
+  try{
+    const { count } = await sb.from('reports').select('id', {count:'exact', head:true}).eq('status', 'pending');
+    btn.textContent = count > 0 ? `🚩 Kelola Laporan (${count})` : '🚩 Kelola Laporan';
+  }catch(e){ btn.textContent = '🚩 Kelola Laporan'; }
 }
 
 /* Badge jumlah resto baru (belum dilihat) di tombol menu "List Resto Baru" pada panel akun */
@@ -1216,9 +1314,15 @@ const GUIDE_HTML = `
   <ul>
     <li>Buka detail resto, tekan "Tandai Dikunjungi" -- ini personal, hanya Anda yang lihat statusnya.</li>
   </ul>
+  <h3>🚩 Laporan & Masukan</h3>
+  <ul>
+    <li>Tap "🚩 Laporkan data resto ini" di halaman detail kalau ada data yang salah/tidak sesuai.</li>
+    <li>Untuk saran, bug, atau masukan umum, gunakan menu "📝 Kirim Masukan / Laporan" di panel akun.</li>
+  </ul>
   <h3>🔑 Untuk Admin</h3>
   <ul>
     <li>Admin bisa Edit dan Hapus resto lewat panel detail (tombol khusus muncul otomatis kalau akun Anda berstatus admin).</li>
+    <li>Semua laporan dari pengguna bisa dikelola lewat menu "🚩 Kelola Laporan" di panel akun.</li>
   </ul>
 `;
 
@@ -1377,6 +1481,115 @@ function openWishlistPanel(){
   document.getElementById('accountOverlay').classList.add('hidden');
   renderWishlistItems(getWishlistedRestosForMe());
   document.getElementById('wishlistOverlay').classList.remove('hidden');
+}
+
+/* ================= LAPORAN / FEEDBACK ================= */
+let reportContextRestoId = null;
+
+/* Buka form kirim laporan. Jika dipanggil dari halaman detail resto, restoId & restoName
+   diisi supaya laporan otomatis terhubung ke resto tsb (jenis default: data_error).
+   Jika dipanggil dari panel akun (masukan umum), restoId kosong (jenis default: suggestion). */
+function openReportModal(restoId, restoName){
+  if(!requireLogin()) return;
+  reportContextRestoId = restoId || null;
+  document.getElementById('accountOverlay').classList.add('hidden');
+  const ctxLabel = document.getElementById('reportContextLabel');
+  if(restoId){
+    ctxLabel.textContent = `Terkait resto: ${restoName || ''}`;
+    ctxLabel.classList.remove('hidden');
+    document.getElementById('reportTypeSelect').value = 'data_error';
+  }else{
+    ctxLabel.classList.add('hidden');
+    document.getElementById('reportTypeSelect').value = 'suggestion';
+  }
+  document.getElementById('reportMessageInput').value = '';
+  document.getElementById('reportStatus').textContent = '';
+  document.getElementById('reportOverlay').classList.remove('hidden');
+}
+
+async function submitReport(){
+  const type = document.getElementById('reportTypeSelect').value;
+  const message = document.getElementById('reportMessageInput').value.trim();
+  const statusEl = document.getElementById('reportStatus');
+  if(!message){ statusEl.textContent = 'Tulis detail laporan dulu'; return; }
+  statusEl.textContent = 'Mengirim...';
+  const { error } = await sb.from('reports').insert({
+    user_id: myUserId,
+    resto_id: reportContextRestoId,
+    type,
+    message
+  });
+  if(error){ statusEl.textContent = 'Gagal: ' + error.message; return; }
+  document.getElementById('reportOverlay').classList.add('hidden');
+  showToast('Laporan terkirim, terima kasih! 🙏');
+}
+
+const REPORT_TYPE_LABELS = {
+  data_error: '📍 Data Salah', bug: '🐞 Bug', suggestion: '💡 Saran', other: '📌 Lainnya'
+};
+const REPORT_STATUS_LABELS = { pending: 'Pending', reviewed: 'Ditinjau', resolved: 'Selesai' };
+let currentReportFilter = 'pending';
+
+async function openAdminReportsPanel(){
+  if(!isAdmin) return;
+  document.getElementById('accountOverlay').classList.add('hidden');
+  document.getElementById('adminReportsOverlay').classList.remove('hidden');
+  currentReportFilter = 'pending';
+  document.querySelectorAll('.report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
+  await loadAndRenderAdminReports();
+}
+
+async function loadAndRenderAdminReports(){
+  const list = document.getElementById('adminReportsList');
+  list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Memuat laporan...</div>';
+  let q = sb.from('reports').select('*, restos(id, name)').order('created_at', {ascending:false});
+  if(currentReportFilter !== 'all') q = q.eq('status', currentReportFilter);
+  const { data, error } = await q;
+  if(error){ list.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat: ${escapeHtml(error.message)}</div>`; return; }
+  if(!data || data.length === 0){
+    list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Tidak ada laporan di kategori ini.</div>';
+    return;
+  }
+  list.innerHTML = data.map(rep=>{
+    const typeLabel = REPORT_TYPE_LABELS[rep.type] || rep.type;
+    const dateStr = new Date(rep.created_at).toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'});
+    const restoLinkHtml = rep.restos ? `<div class="report-item-resto-link" data-resto-id="${escapeAttr(rep.restos.id)}">📍 ${escapeHtml(rep.restos.name)}</div>` : '';
+    return `<div class="report-item" data-report-id="${escapeAttr(rep.id)}">
+      <div class="report-item-top">
+        <span class="report-type-chip">${typeLabel}</span>
+        <span class="report-status-chip ${rep.status}">${REPORT_STATUS_LABELS[rep.status] || rep.status}</span>
+      </div>
+      ${restoLinkHtml}
+      <div class="report-item-msg">${escapeHtml(rep.message)}</div>
+      <div class="report-item-meta">${dateStr}</div>
+      <div class="report-item-actions">
+        <button data-action="reviewed" class="${rep.status === 'reviewed' ? 'active-status' : ''}">Tandai Ditinjau</button>
+        <button data-action="resolved" class="${rep.status === 'resolved' ? 'active-status' : ''}">Tandai Selesai</button>
+      </div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.report-item-resto-link').forEach(el=>{
+    el.onclick = ()=>{
+      const rid = el.dataset.restoId;
+      const r = allRestos[rid];
+      document.getElementById('adminReportsOverlay').classList.add('hidden');
+      if(r){ map.setView([r.lat, r.lng], 17); openDetail(r.id); }
+    };
+  });
+  list.querySelectorAll('.report-item').forEach(itemEl=>{
+    const reportId = itemEl.dataset.reportId;
+    itemEl.querySelectorAll('.report-item-actions button').forEach(btn=>{
+      btn.onclick = ()=> updateReportStatus(reportId, btn.dataset.action);
+    });
+  });
+}
+
+async function updateReportStatus(reportId, status){
+  const { error } = await sb.from('reports').update({ status, updated_at: new Date().toISOString() }).eq('id', reportId);
+  if(error){ showToast('Gagal update laporan: ' + error.message); return; }
+  showToast('Status laporan diperbarui');
+  await loadAndRenderAdminReports();
+  updatePendingReportsBadge();
 }
 
 function emptyHours(){
@@ -2559,6 +2772,7 @@ function openDetail(id, showAllTesti){
     ${paymentsHtml}
     ${ratingSummaryHtml}
     <button class="btn btn-primary" id="directionBtn" style="width:100%;margin-top:10px;">🧭 Direction</button>
+    <button class="report-resto-link" id="reportRestoBtn">🚩 Laporkan data resto ini</button>
     ${platformsHtml}
     <div class="detail-fields">
       ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
@@ -2654,6 +2868,9 @@ function openDetail(id, showAllTesti){
   };
   document.getElementById('directionBtn').onclick = ()=>{
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`, '_blank');
+  };
+  document.getElementById('reportRestoBtn').onclick = ()=>{
+    openReportModal(r.id, r.name);
   };
   const editBtnEl = document.getElementById('editBtn');
   if(editBtnEl) editBtnEl.onclick = ()=> openForm(r);
@@ -3244,6 +3461,23 @@ document.getElementById('newRestoOverlay').onclick = (e)=>{ if(e.target.id === '
 document.getElementById('openWishlistBtn').onclick = openWishlistPanel;
 document.getElementById('closeWishlistBtn').onclick = ()=> document.getElementById('wishlistOverlay').classList.add('hidden');
 document.getElementById('wishlistOverlay').onclick = (e)=>{ if(e.target.id === 'wishlistOverlay') document.getElementById('wishlistOverlay').classList.add('hidden'); };
+
+document.getElementById('openReportBtn').onclick = ()=> openReportModal(null, null);
+document.getElementById('reportSubmitBtn').onclick = submitReport;
+document.getElementById('reportCancelBtn').onclick = ()=> document.getElementById('reportOverlay').classList.add('hidden');
+document.getElementById('reportOverlay').onclick = (e)=>{ if(e.target.id === 'reportOverlay') document.getElementById('reportOverlay').classList.add('hidden'); };
+
+document.getElementById('openAdminReportsBtn').onclick = openAdminReportsPanel;
+document.getElementById('closeAdminReportsBtn').onclick = ()=> document.getElementById('adminReportsOverlay').classList.add('hidden');
+document.getElementById('adminReportsOverlay').onclick = (e)=>{ if(e.target.id === 'adminReportsOverlay') document.getElementById('adminReportsOverlay').classList.add('hidden'); };
+document.querySelectorAll('.report-filter-tab').forEach(tab=>{
+  tab.onclick = ()=>{
+    document.querySelectorAll('.report-filter-tab').forEach(t=> t.classList.remove('active'));
+    tab.classList.add('active');
+    currentReportFilter = tab.dataset.status;
+    loadAndRenderAdminReports();
+  };
+});
 document.getElementById('userBadge').onclick = openAccountPanel;
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
 document.getElementById('loginGoogleBtn').onclick = signInWithGoogle;
