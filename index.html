@@ -859,11 +859,32 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <button type="button" id="addFavBtn">+ Tambah menu favorit</button>
       </div>
 
+      <div class="field" id="visitPhotoFieldWrap">
+        <label>Foto Kunjungan</label>
+        <div class="photo-grid" id="visitPhotoGrid"></div>
+        <input type="file" id="visitPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="visitPhotoGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row">
+          <button type="button" id="visitPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="visitPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+        </div>
+      </div>
+
       <div class="field" id="refFieldWrap">
         <label>Referensi (link Reels IG/YouTube/TikTok)</label>
         <div id="refUrlList"></div>
         <button type="button" id="addRefUrlBtn">+ Tambah link referensi</button>
         <div id="refFieldEditNote" class="hidden" style="font-size:11.5px;color:var(--muted);margin-top:4px;">Untuk resto yang sudah ada, tambah/hapus referensi lewat panel detail (tombol ✕ pada tiap link), bukan dari sini.</div>
+      </div>
+
+      <div class="field" id="formRatingFieldWrap">
+        <label>Rating Pengunjung</label>
+        <div id="formRatingForm"></div>
+      </div>
+
+      <div class="field" id="formTestiFieldWrap">
+        <label>Testimoni Pengunjung</label>
+        <textarea id="f_testi" placeholder="Bagaimana suasana atau pengalaman Anda di sini?"></textarea>
       </div>
 
       <div class="field">
@@ -912,6 +933,8 @@ const DAYS = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
 let map, markersLayer, allRestos = {}, activeTypeFilters = new Set(), pickedLatLng = null, editingId = null, tempMarker = null;
 let pickingLocationMode = false; // true selama alur tambah/edit resto aktif (form terbuka ATAU sedang di mode "pastikan pin")
 let formMenuImages = []; // foto menu yang sudah diunggah untuk resto yang sedang diisi di form
+let formVisitPhotos = []; // {file, previewUrl} foto kunjungan yang dipilih di form tambah resto, diunggah saat Simpan (baru butuh resto_id)
+let formRatingDraft = {}; // draft rating (per kriteria) yang diisi di form tambah resto
 let myGpsLatLng = null; // lokasi HP user saat ini, dipakai supaya sugesti alamat prioritas ke sekitar sini
 
 function refreshMyGpsLocation(){
@@ -2810,6 +2833,17 @@ function openForm(existing){
   formMenuImages = (existing && existing.menuImages) ? existing.menuImages.slice() : [];
   renderMenuPhotoGrid();
 
+  // Foto Kunjungan, Rating, & Testimoni di form ini hanya untuk ISIAN AWAL resto baru
+  // (sama seperti Menu Favorit & Referensi) -- disembunyikan saat mode edit.
+  formVisitPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
+  formVisitPhotos = [];
+  renderVisitPhotoGrid();
+  resetFormRatingPicker();
+  document.getElementById('f_testi').value = '';
+  ['visitPhotoFieldWrap','formRatingFieldWrap','formTestiFieldWrap'].forEach(id=>{
+    document.getElementById(id).classList.toggle('hidden', !!existing);
+  });
+
   const favList = document.getElementById('favList');
   favList.innerHTML = '';
   const favs = existing && existing.favoriteMenu && existing.favoriteMenu.length ? existing.favoriteMenu : [''];
@@ -2854,6 +2888,55 @@ function renderMenuPhotoGrid(){
       renderMenuPhotoGrid();
     };
   });
+}
+
+/* Foto Kunjungan di form Tambah Resto: preview lokal saja (object URL), diunggah beneran
+   ke Supabase saat Simpan Resto -- karena butuh resto_id yang baru terbit setelah insert. */
+function renderVisitPhotoGrid(){
+  const grid = document.getElementById('visitPhotoGrid');
+  if(formVisitPhotos.length === 0){
+    grid.innerHTML = '<span style="color:var(--muted);font-size:12.5px;">Belum ada foto kunjungan.</span>';
+    return;
+  }
+  grid.innerHTML = formVisitPhotos.map((p, idx)=>`
+    <div class="photo-card">
+      <img src="${escapeAttr(p.previewUrl)}" onerror="this.style.opacity=0.2">
+      <button type="button" class="photo-del-btn" data-idx="${idx}" title="Hapus foto">✕</button>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.photo-del-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      const idx = Number(btn.dataset.idx);
+      URL.revokeObjectURL(formVisitPhotos[idx].previewUrl);
+      formVisitPhotos.splice(idx, 1);
+      renderVisitPhotoGrid();
+    };
+  });
+}
+
+/* Rating Pengunjung di form Tambah Resto: sama seperti #ratingSection di panel detail,
+   tapi disimpan ke tabel `ratings` setelah resto_id terbit (opsional, boleh dilewati). */
+function renderFormRatingPicker(){
+  const wrap = document.getElementById('formRatingForm');
+  wrap.innerHTML = RATING_CRITERIA.map(c=>`
+    <div class="rating-crit-row">
+      <span class="crit-label">${c.label}</span>
+      <div class="star-picker" data-crit="${c.key}">${[1,2,3,4,5].map(v=>`<span data-v="${v}">★</span>`).join('')}</div>
+    </div>`).join('');
+  wrap.querySelectorAll('.star-picker').forEach(picker=>{
+    const crit = picker.dataset.crit;
+    picker.querySelectorAll('span').forEach(star=>{
+      star.onclick = ()=>{
+        const v = Number(star.dataset.v);
+        formRatingDraft[crit] = v;
+        picker.querySelectorAll('span').forEach(s=> s.classList.toggle('filled', Number(s.dataset.v) <= v));
+      };
+    });
+  });
+}
+function resetFormRatingPicker(){
+  formRatingDraft = {};
+  document.querySelectorAll('#formRatingForm .star-picker span').forEach(s=> s.classList.remove('filled'));
 }
 
 async function uploadMenuImage(file){
@@ -2920,8 +3003,9 @@ async function handleSave(){
   };
   try{
     const restoId = await upsertRestoCore(data);
-    // Menu favorit & referensi di form ini hanya dipakai untuk ISIAN AWAL resto baru.
-    // Untuk resto yang sudah ada, tambah/kelola lewat panel detail (supaya jelas siapa penulisnya).
+    // Menu favorit, referensi, foto kunjungan, rating & testimoni di form ini hanya dipakai
+    // untuk ISIAN AWAL resto baru. Untuk resto yang sudah ada, tambah/kelola lewat panel detail
+    // (supaya jelas siapa penulisnya).
     if(!editingId){
       if(favMenus.length){
         const { error } = await sb.from('favorite_menu').insert(favMenus.map(menu_name=>({resto_id: restoId, user_id: myUserId, menu_name})));
@@ -2935,10 +3019,33 @@ async function handleSave(){
         const { error } = await sb.from('references_link').insert(refRows);
         if(error) console.error(error);
       }
+      if(formVisitPhotos.length){
+        for(const p of formVisitPhotos){ await uploadVisitPhoto(p.file, restoId); }
+      }
+      const ratedCrit = RATING_CRITERIA.filter(c => formRatingDraft[c.key]);
+      if(ratedCrit.length === RATING_CRITERIA.length){
+        const critValues = RATING_CRITERIA.map(c => formRatingDraft[c.key]);
+        const overall = critValues.reduce((a,b)=>a+b,0) / critValues.length;
+        const row = {resto_id: restoId, user_id: myUserId, overall};
+        RATING_CRITERIA.forEach(c=>{ row[c.key] = formRatingDraft[c.key]; });
+        const { error } = await sb.from('ratings').upsert(row);
+        if(error) console.error(error);
+      } else if(ratedCrit.length > 0){
+        showToast('Rating tidak disimpan: isi semua kriteria dulu, atau kosongkan semua.');
+      }
+      const testiVal = document.getElementById('f_testi').value.trim();
+      if(testiVal){
+        const { error } = await sb.from('testimonials').upsert({resto_id: restoId, user_id: myUserId, text: testiVal, updated_at: new Date().toISOString()});
+        if(error) console.error(error);
+      }
     }
     closeForm();
     showToast(editingId ? 'Perubahan disimpan' : 'Resto ditambahkan');
     editingId = null;
+    formVisitPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
+    formVisitPhotos = [];
+    resetFormRatingPicker();
+    document.getElementById('f_testi').value = '';
     await loadAllRestos();
   }catch(e){
     showToast('Gagal menyimpan: ' + e.message);
@@ -2998,6 +3105,18 @@ const handleMenuPhotoPick = async (e)=>{
 };
 document.getElementById('menuPhotoCameraInput').onchange = handleMenuPhotoPick;
 document.getElementById('menuPhotoGalleryInput').onchange = handleMenuPhotoPick;
+document.getElementById('visitPhotoCameraBtn').onclick = ()=>{ if(requireLogin()) document.getElementById('visitPhotoCameraInput').click(); };
+document.getElementById('visitPhotoGalleryBtn').onclick = ()=>{ if(requireLogin()) document.getElementById('visitPhotoGalleryInput').click(); };
+const handleVisitPhotoPick = (e)=>{
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  formVisitPhotos.push({ file, previewUrl: URL.createObjectURL(file) });
+  renderVisitPhotoGrid();
+};
+document.getElementById('visitPhotoCameraInput').onchange = handleVisitPhotoPick;
+document.getElementById('visitPhotoGalleryInput').onchange = handleVisitPhotoPick;
+renderFormRatingPicker();
 document.getElementById('searchInput').oninput = ()=>{
   renderMarkers();
   renderSearchSuggestions();
