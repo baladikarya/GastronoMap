@@ -754,8 +754,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil</button>
       <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
       <button class="account-menu-item" id="openWishlistBtn">❤️ Wishlist</button>
-      <button class="account-menu-item" id="openReportBtn">📝 Bantuan</button>
-      <button class="account-menu-item" id="openMyReportsBtn">📋 Laporan Saya</button>
+      <button class="account-menu-item account-menu-dropdown" id="reportMenuToggle" type="button">
+        <span>📝 Bantuan</span>
+        <span id="reportMenuArrow" class="dropdown-arrow">▾</span>
+      </button>
+      <div id="reportSubmenu" class="account-submenu hidden">
+        <button class="account-menu-item account-submenu-item" id="openReportBtn">📮 Kirim Laporan</button>
+        <button class="account-menu-item account-submenu-item" id="openMyReportsBtn">📋 Laporan Saya</button>
+      </div>
       <button class="account-menu-item hidden" id="openAdminReportsBtn">🚩 Kelola Laporan</button>
       <button class="account-menu-item account-menu-dropdown" id="guideMenuToggle" type="button">
         <span>📖 Panduan</span>
@@ -1277,9 +1283,14 @@ function openAccountPanel(){
   }
   updateNewRestoMenuBadge();
   updateWishlistMenuBadge();
+  document.getElementById('openWishlistBtn').classList.toggle('hidden', isAdmin);
+  document.getElementById('reportMenuToggle').classList.toggle('hidden', isAdmin);
+  document.getElementById('guideMenuToggle').classList.toggle('hidden', isAdmin);
   document.getElementById('openReportBtn').classList.toggle('hidden', isAdmin);
   document.getElementById('openAdminReportsBtn').classList.toggle('hidden', !isAdmin);
   if(isAdmin) updatePendingReportsBadge();
+  document.getElementById('reportSubmenu').classList.add('hidden');
+  document.getElementById('reportMenuArrow').classList.remove('open');
   document.getElementById('guideSubmenu').classList.add('hidden');
   document.getElementById('guideMenuArrow').classList.remove('open');
   document.getElementById('accountOverlay').classList.remove('hidden');
@@ -3586,6 +3597,10 @@ document.getElementById('openWishlistBtn').onclick = openWishlistPanel;
 document.getElementById('closeWishlistBtn').onclick = ()=> document.getElementById('wishlistOverlay').classList.add('hidden');
 document.getElementById('wishlistOverlay').onclick = (e)=>{ if(e.target.id === 'wishlistOverlay') document.getElementById('wishlistOverlay').classList.add('hidden'); };
 
+document.getElementById('reportMenuToggle').onclick = ()=>{
+  document.getElementById('reportSubmenu').classList.toggle('hidden');
+  document.getElementById('reportMenuArrow').classList.toggle('open');
+};
 document.getElementById('openReportBtn').onclick = ()=> openReportModal(null, null);
 document.getElementById('reportSubmitBtn').onclick = submitReport;
 document.getElementById('reportCancelBtn').onclick = ()=> document.getElementById('reportOverlay').classList.add('hidden');
