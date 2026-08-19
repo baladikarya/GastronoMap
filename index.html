@@ -413,6 +413,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 .resto-pin span{transform:rotate(45deg);font-size:16px;}
 .pin-wrap{position:relative;width:34px;height:34px;}
+.quick-pin-icon{font-size:28px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.4));cursor:pointer;animation:quickPinDrop 0.25s ease-out;}
+@keyframes quickPinDrop{from{transform:translateY(-14px);opacity:0;}to{transform:translateY(0);opacity:1;}}
 .pin-wrap.pin-unverified .resto-pin{filter:grayscale(1) opacity(0.85);}
 
 /* ---------- BADGE CLUSTER (gabungan banyak pin berdekatan) ---------- */
@@ -932,7 +934,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   <div id="pinPeekBar" class="hidden">
     <div class="pin-peek-text">
       <p class="pin-peek-title">📍 Pastikan posisi pin</p>
-      <p class="pin-peek-sub">Geser pin di peta kalau kurang pas, lalu lanjutkan isi data.</p>
+      <p class="pin-peek-sub">Tap di peta untuk pilih/pindah titik lokasi resto, atau geser pin yang sudah ada. Lalu lanjutkan isi data.</p>
     </div>
     <button type="button" class="btn btn-primary" id="pinPeekConfirmBtn">Lanjutkan ✓</button>
   </div>
@@ -1074,6 +1076,8 @@ const DAYS = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
 
 let map, markersLayer, allRestos = {}, activeTypeFilters = new Set(), pickedLatLng = null, editingId = null, tempMarker = null;
 let pickingLocationMode = false; // true selama alur tambah/edit resto aktif (form terbuka ATAU sedang di mode "pastikan pin")
+let quickPinMarker = null; // pin sementara dari tap-tahan di peta utama (sebelum form Tambah Resto dibuka)
+let pendingNewRestoLatLng = null; // lokasi dari quickPinMarker yang dibawa masuk ke openForm() saat pin-nya ditekan
 let formMenuImages = []; // foto menu yang sudah diunggah untuk resto yang sedang diisi di form
 let formVisitPhotos = []; // {file, previewUrl} foto kunjungan yang dipilih di form tambah resto, diunggah saat Simpan (baru butuh resto_id)
 let formRatingDraft = {}; // draft rating (per kriteria) yang diisi di form tambah resto
@@ -1845,7 +1849,20 @@ function initMap(){
   map.on('click', (e) => {
     if(pickingLocationMode){
       placeDraggableMarker(e.latlng.lat, e.latlng.lng, 'tap peta', 'manual');
+    } else if(quickPinMarker){
+      // Tap di tempat lain (bukan pin-nya sendiri) saat belum ada form terbuka -> batalkan pin sementara.
+      map.removeLayer(quickPinMarker);
+      quickPinMarker = null;
     }
+  });
+
+  // Tap-tahan di peta (seperti Google Maps) untuk menjatuhkan pin lokasi resto baru,
+  // TANPA perlu buka form dulu. Leaflet menerjemahkan long-press di HP maupun klik-kanan
+  // di desktop sebagai event 'contextmenu'. Pin ini baru sekadar preview -- begitu pin
+  // ditekan, baru form Tambah Resto dibuka dengan lokasi ini sudah terisi.
+  map.on('contextmenu', (e) => {
+    if(pickingLocationMode) return; // form sedang aktif, biarkan alur tap-di-form yang menangani
+    dropQuickPin(e.latlng.lat, e.latlng.lng);
   });
 
   navigator.geolocation && navigator.geolocation.getCurrentPosition(pos=>{
@@ -2134,6 +2151,25 @@ function enterPinPeek(){
 function exitPinPeek(){
   document.getElementById('pinPeekBar').classList.add('hidden');
   document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+/* Pin sementara dari tap-tahan di peta utama, sebelum form Tambah Resto dibuka sama sekali.
+   Beda dari tempMarker (yang aktif selama form terbuka) -- ini cuma "preview" lokasi;
+   user harus tap pin-nya untuk benar-benar lanjut ke form Tambah Resto. */
+function dropQuickPin(lat, lng){
+  if(!requireLogin()) return;
+  if(quickPinMarker) map.removeLayer(quickPinMarker);
+  quickPinMarker = L.marker([lat, lng], {
+    icon: L.divIcon({ className: '', html: '<div class="quick-pin-icon">📍</div>', iconSize: [30, 30], iconAnchor: [15, 30] })
+  }).addTo(map);
+  quickPinMarker.bindTooltip('Tap pin untuk tambah resto di sini', { direction: 'top', offset: [0, -28] }).openTooltip();
+  quickPinMarker.on('click', (ev)=>{
+    L.DomEvent.stopPropagation(ev); // supaya tidak kena handler map.on('click') yang membatalkan pin
+    pendingNewRestoLatLng = { lat, lng };
+    map.removeLayer(quickPinMarker);
+    quickPinMarker = null;
+    openForm(null);
+  });
 }
 
 /* Menaruh pin SEMENTARA yang bisa digeser (draggable) di peta -- dipakai oleh
@@ -3176,6 +3212,8 @@ function openForm(existing){
   if(!existing && !requireLogin()) return;
   pickingLocationMode = true;
   editingId = existing ? existing.id : null;
+  const quickLoc = (!existing && pendingNewRestoLatLng) ? pendingNewRestoLatLng : null;
+  pendingNewRestoLatLng = null;
   pickedLatLng = existing ? L.latLng(existing.lat, existing.lng) : null;
   document.getElementById('formTitle').textContent = existing ? 'Edit Resto' : 'Tambah Resto';
   document.getElementById('f_address').value = existing ? (existing.address || '') : '';
@@ -3207,7 +3245,10 @@ function openForm(existing){
   document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>{
     el.classList.toggle('active', existingPayments.includes(el.dataset.payment));
   });
-  if(pickedLatLng){
+  if(quickLoc){
+    // Datang dari tap-tahan di peta utama -- langsung taruh tempMarker draggable di lokasi itu.
+    placeDraggableMarker(quickLoc.lat, quickLoc.lng, 'tap-tahan peta', 'manual');
+  } else if(pickedLatLng){
     setPinStatus(`Lokasi tersimpan: ${pickedLatLng.lat.toFixed(5)}, ${pickedLatLng.lng.toFixed(5)}. Geser kalau perlu diperbaiki.`, 'auto');
   } else {
     setPinStatus('Anda juga bisa tap langsung di peta untuk pilih lokasi.', null);
