@@ -248,7 +248,9 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   border:none;background:var(--teal);color:#fff;border-radius:8px;padding:6px 12px;
   font-size:11.5px;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;
 }
-.report-item-note{font-size:11.5px;color:var(--teal-dark);background:var(--card);border-radius:8px;padding:6px 8px;margin-bottom:6px;line-height:1.4;}
+.report-item-note{font-size:11.5px;color:var(--teal-dark);background:var(--card);border-radius:8px;padding:9px 10px;margin-bottom:6px;line-height:1.4;}
+.report-item-note-title{font-weight:700;color:var(--ink);font-size:12.5px;margin-bottom:4px;}
+.report-item-note-body{color:var(--teal-dark);font-size:12.5px;line-height:1.5;white-space:pre-wrap;}
 #myReportsOverlay{
   position:fixed;inset:0;z-index:4500;background:rgba(20,25,24,0.6);
   display:flex;align-items:center;justify-content:center;padding:20px;
@@ -1705,7 +1707,7 @@ async function loadAndRenderMyReports(){
     const typeLabel = REPORT_TYPE_LABELS[rep.type] || rep.type;
     const dateStr = new Date(rep.created_at).toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'});
     const restoLinkHtml = rep.restos ? `<div class="report-item-resto-link" data-resto-id="${escapeAttr(rep.restos.id)}">📍 ${escapeHtml(rep.restos.name)}</div>` : '';
-    const noteHtml = rep.admin_note ? `<div class="report-item-note">💬 Catatan Admin: ${escapeHtml(rep.admin_note)}</div>` : '';
+    const noteHtml = rep.admin_note ? `<div class="report-item-note"><div class="report-item-note-title">💬 Balasan Admin:</div><div class="report-item-note-body">${escapeHtml(rep.admin_note)}</div></div>` : '';
     return `<div class="report-item">
       <div class="report-item-top">
         <span class="report-type-chip">${typeLabel}</span>
