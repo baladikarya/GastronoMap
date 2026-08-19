@@ -2774,11 +2774,126 @@ function compressImage(file, maxDim=1600, quality=0.75){
     reader.readAsDataURL(file);
   });
 }
+/* ================= BLUR WAJAH OTOMATIS (PRIVASI FOTO KUNJUNGAN) =================
+   Foto Kunjungan sering memotret pengunjung lain yang tak sengaja terekam di
+   ruang publik. Sebelum diunggah, foto diperiksa di browser pengguna sendiri
+   (tidak dikirim ke server pihak ketiga manapun untuk deteksi ini) memakai
+   face-api.js (model TinyFaceDetector, ringan) dan setiap wajah yang terdeteksi
+   langsung diburamkan (mosaic) sebelum blob diunggah ke Supabase Storage.
+   Library & model dimuat on-demand saat foto kunjungan pertama diproses (bukan
+   saat aplikasi dibuka) supaya tidak memperlambat waktu buka awal; setelah
+   diunduh sekali, browser & service worker akan menyimpannya di cache HTTP.
+
+   KETERBATASAN yang disengaja diterima demi keamanan privasi:
+   - Kotak deteksi wajah diperbesar (padding) supaya bagian yang sering luput
+     karena tertutup masker, kacamata, topi, atau kerudung (dahi, dagu, telinga,
+     garis rambut) ikut tersamarkan, bukan cuma area wajah yang persis terlihat.
+   - Deteksi berbasis pola visual umum tidak bisa 100% membedakan wajah manusia
+     asli dari wajah pada lukisan/patung/poster -- kalau itu terjadi, wajah
+     lukisan/patung ikut terblur. Ini konsekuensi yang lebih aman dipilih
+     ketimbang risiko wajah pengunjung asli lolos tanpa blur.
+   - Wajah yang tertutup sangat banyak sekaligus (mis. masker + kacamata gelap +
+     topi + menyamping ekstrem) berpotensi tidak terdeteksi sama sekali; ini
+     batas kemampuan model ringan client-side, bukan kegagalan sistem. */
+const FACE_API_LIB_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+const FACE_API_MODEL_URL = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js-models@master/tiny_face_detector';
+let faceApiReadyPromise = null;
+function loadScriptOnce(src){
+  return new Promise((resolve, reject)=>{
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = ()=> reject(new Error('Gagal memuat pustaka deteksi wajah'));
+    document.head.appendChild(s);
+  });
+}
+function ensureFaceApiReady(){
+  if(!faceApiReadyPromise){
+    faceApiReadyPromise = (async ()=>{
+      if(!window.faceapi) await loadScriptOnce(FACE_API_LIB_URL);
+      await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_API_MODEL_URL);
+    })().catch(err=>{ faceApiReadyPromise = null; throw err; });
+  }
+  return faceApiReadyPromise;
+}
+/* Mem-mosaic (bukan gaussian blur) area x,y,w,h pada canvas -- mosaic dipakai
+   supaya kekuatan penyamaran identitas tetap konsisten kuat berapapun ukuran
+   wajah & radius blur-nya (gaussian blur ringan pada wajah besar masih bisa
+   menyisakan fitur yang cukup dikenali, mosaic tidak). */
+function pixelateCanvasRegion(ctx, srcCanvas, x, y, w, h){
+  const blockSize = Math.max(6, Math.round(Math.min(w, h) / 10));
+  const smallW = Math.max(1, Math.round(w / blockSize));
+  const smallH = Math.max(1, Math.round(h / blockSize));
+  const temp = document.createElement('canvas');
+  temp.width = smallW; temp.height = smallH;
+  temp.getContext('2d').drawImage(srcCanvas, x, y, w, h, 0, 0, smallW, smallH);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(temp, 0, 0, smallW, smallH, x, y, w, h);
+  ctx.restore();
+}
+/* Mendeteksi semua wajah pada canvas & langsung mem-mosaic areanya di tempat.
+   Return: jumlah wajah yang ter-blur (0 = tidak ada wajah, -1 = deteksi gagal
+   dijalankan sama sekali, mis. gagal unduh model karena koneksi lemot). */
+async function blurFacesOnCanvas(canvas){
+  try{
+    await ensureFaceApiReady();
+    const detections = await faceapi.detectAllFaces(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 608, scoreThreshold: 0.3 }));
+    if(!detections.length) return 0;
+    const ctx = canvas.getContext('2d');
+    detections.forEach(d=>{
+      const box = d.box;
+      const padX = box.width * 0.35;
+      const padY = box.height * 0.45;
+      const x = Math.max(0, Math.round(box.x - padX));
+      const y = Math.max(0, Math.round(box.y - padY * 1.3)); // ekstra ke atas: dahi/kerudung/topi
+      const w = Math.min(canvas.width - x, Math.round(box.width + padX * 2));
+      const h = Math.min(canvas.height - y, Math.round(box.height + padY * 2));
+      if(w > 0 && h > 0) pixelateCanvasRegion(ctx, canvas, x, y, w, h);
+    });
+    return detections.length;
+  }catch(e){
+    console.warn('Deteksi wajah gagal, foto diunggah tanpa blur otomatis:', e);
+    return -1;
+  }
+}
+function blobToCanvas(blob){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(img.src); reject(new Error('Gagal memuat gambar untuk deteksi wajah')); };
+    img.src = URL.createObjectURL(blob);
+  });
+}
+/* Titik masuk yang dipakai uploadVisitPhoto: terima blob hasil compressImage,
+   kembalikan blob baru yang wajahnya (jika ada) sudah ter-mosaic. Kalau
+   deteksi gagal dijalankan (mis. offline saat unduh model), foto ASLI (belum
+   diperiksa) tetap diunggah apa adanya -- supaya kontribusi user tidak
+   terhambat oleh masalah jaringan; ini trade-off yang disadari. */
+async function blurFacesInBlob(blob){
+  try{
+    const canvas = await blobToCanvas(blob);
+    const count = await blurFacesOnCanvas(canvas);
+    if(count <= 0) return blob;
+    return await new Promise(resolve=> canvas.toBlob(b=> resolve(b || blob), 'image/jpeg', 0.85));
+  }catch(e){
+    console.warn('Proses blur wajah dilewati:', e);
+    return blob;
+  }
+}
 async function uploadVisitPhoto(file, restoId){
   if(!requireLogin()) return;
-  showToast('Mengunggah foto...');
+  showToast('Memeriksa wajah pada foto...');
   try{
-    const blob = await compressImage(file);
+    let blob = await compressImage(file);
+    blob = await blurFacesInBlob(blob);
+    showToast('Mengunggah foto...');
     const path = `${restoId}/${myUserId}_${Date.now()}.jpg`;
     const { error: upErr } = await sb.storage.from('visit-photos').upload(path, blob, { contentType: 'image/jpeg' });
     if(upErr) throw upErr;
