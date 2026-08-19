@@ -3397,11 +3397,51 @@ function closeForm(){
   if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
 }
 
+/* ================= CEK DUPLIKAT LOKASI (crowdsource) ================= */
+// Haversine sederhana, cukup akurat untuk radius kecil (meter-level).
+function distanceMetersBetween(lat1, lng1, lat2, lng2){
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function normalizeRestoName(name){
+  return (name || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+function namesLookSimilar(a, b){
+  const na = normalizeRestoName(a), nb = normalizeRestoName(b);
+  if(!na || !nb) return false;
+  return na === nb || na.includes(nb) || nb.includes(na);
+}
+// Dipanggil sebelum simpan resto BARU: cari resto lain dalam radius 5m dari pin.
+// - Nama mirip & <=5m  -> diblokir (kemungkinan besar duplikat)
+// - Nama beda & <=5m   -> peringatan, boleh lanjut kalau user yakin (mis. beda tenant di foodcourt)
+// Return true kalau boleh lanjut simpan, false kalau harus dibatalkan.
+function checkDuplicateLocation(name, lat, lng){
+  const DUP_RADIUS_M = 5;
+  let nearest = null;
+  Object.values(allRestos).forEach(r=>{
+    if(r.lat == null || r.lng == null) return;
+    const d = distanceMetersBetween(lat, lng, r.lat, r.lng);
+    if(d <= DUP_RADIUS_M && (!nearest || d < nearest.d)) nearest = { r, d };
+  });
+  if(!nearest) return true;
+  const distTxt = nearest.d < 1 ? '<1 meter' : `${nearest.d.toFixed(1)} meter`;
+  if(namesLookSimilar(name, nearest.r.name)){
+    showToast(`Sudah ada resto serupa: "${nearest.r.name}" (${distTxt} dari titik ini). Cek dulu apakah ini resto yang sama.`);
+    return false;
+  }
+  return confirm(`Ada resto lain persis di lokasi ini: "${nearest.r.name}" (${distTxt}). Yakin ini resto yang berbeda (mis. tenant lain di foodcourt/ruko yang sama)?`);
+}
+
 async function handleSave(){
   const name = document.getElementById('f_name').value.trim();
   if(!name){ showToast('Nama resto wajib diisi'); return; }
   if(!pickedLatLng){ showToast('Pilih lokasi di peta dulu'); return; }
   if(!requireLogin()) return;
+  if(!editingId && !checkDuplicateLocation(name, pickedLatLng.lat, pickedLatLng.lng)) return;
   const imgUrls = formMenuImages;
   const favMenus = Array.from(document.querySelectorAll('.fav-row input')).map(i=>i.value.trim()).filter(Boolean);
   const refUrlsRaw = Array.from(document.querySelectorAll('.ref-url-row input')).map(i=>i.value.trim()).filter(Boolean);
