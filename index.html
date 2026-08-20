@@ -268,6 +268,52 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 #myReportsPanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 6px 0;}
 #myReportsIntro{font-size:12.5px;color:var(--muted);margin:0 0 12px 0;}
 
+/* ===== LEADERBOARD & LINK KETERSEDIAAN ONLINE ===== */
+#leaderboardOverlay, #adminLinkSubmissionsOverlay{
+  position:fixed;inset:0;z-index:4500;background:rgba(20,25,24,0.6);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#leaderboardOverlay.hidden, #adminLinkSubmissionsOverlay.hidden{display:none;}
+#leaderboardPanel, #adminLinkSubmissionsPanel{
+  position:relative;background:var(--card);width:100%;max-width:440px;max-height:82vh;overflow-y:auto;
+  border-radius:16px;padding:24px 20px 26px 20px;
+}
+#leaderboardPanel h2, #adminLinkSubmissionsPanel h2{font-family:'Fraunces',serif;font-size:19px;margin:0 0 6px 0;}
+#leaderboardIntro, #adminLinkSubmissionsIntro{font-size:12.5px;color:var(--muted);margin:0 0 12px 0;}
+.leaderboard-period-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.leaderboard-period-tab{
+  border:1px solid var(--line);background:var(--paper);color:var(--muted);border-radius:20px;flex:1;
+  padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Work Sans',sans-serif;
+}
+.leaderboard-period-tab.active{background:var(--teal);border-color:var(--teal);color:#fff;}
+.leaderboard-city-block{margin-bottom:16px;}
+.leaderboard-city-title{font-size:13.5px;font-weight:700;color:var(--ink);margin-bottom:8px;}
+.leaderboard-empty-card{
+  font-size:12.5px;color:var(--teal-dark);background:var(--paper);border-radius:10px;
+  padding:12px;line-height:1.5;
+}
+.leaderboard-row{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;margin-bottom:4px;
+  font-size:13px;
+}
+.leaderboard-row.is-me{background:var(--paper);font-weight:700;}
+.leaderboard-rank{width:20px;color:var(--muted);font-weight:700;font-size:12.5px;}
+.leaderboard-name{flex:1;}
+.leaderboard-pts{font-weight:700;color:var(--teal-dark);}
+.leaderboard-progress-card{
+  font-size:12px;color:var(--amber-dark);background:var(--paper);border-radius:10px;
+  padding:10px 12px;margin-bottom:14px;line-height:1.5;
+}
+.link-status-chip{font-size:11px;font-weight:700;padding:3px 8px;border-radius:10px;color:#fff;}
+.link-status-chip.pending{background:var(--amber-dark);}
+.link-status-chip.approved{background:var(--teal);}
+.link-status-chip.rejected{background:var(--red);}
+#linkSubmitOverlay{
+  position:fixed;inset:0;z-index:4600;background:rgba(20,25,24,0.6);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#linkSubmitOverlay.hidden{display:none;}
+
 #googleHint{font-size:11px;text-align:center;color:var(--muted);margin-top:6px;}
 #loginDivider{text-align:center;color:var(--muted);font-size:11.5px;margin:14px 0;position:relative;}
 #loginDivider::before, #loginDivider::after{content:'';position:absolute;top:50%;width:38%;height:1px;background:var(--line);}
@@ -763,6 +809,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil</button>
       <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
       <button class="account-menu-item" id="openWishlistBtn">❤️ Wishlist</button>
+      <button class="account-menu-item" id="openLeaderboardBtn">🏆 Leaderboard</button>
+      <button class="account-menu-item hidden" id="openAdminLinkSubmissionsBtn">🔗 Kelola Link Online</button>
       <button class="account-menu-item account-menu-dropdown" id="reportMenuToggle" type="button">
         <span>📝 Bantuan</span>
         <span id="reportMenuArrow" class="dropdown-arrow">▾</span>
@@ -865,6 +913,49 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <h2 id="myReportsTitle">📋 Laporan Saya</h2>
       <p id="myReportsIntro" class="hidden"></p>
       <div id="myReportsList"></div>
+    </div>
+  </div>
+
+  <div id="leaderboardOverlay" class="hidden">
+    <div id="leaderboardPanel">
+      <button class="plain-close-btn" id="closeLeaderboardBtn">✕</button>
+      <h2>🏆 Leaderboard Kontributor</h2>
+      <p id="leaderboardIntro">Kontributor teraktif per kota. Namamu tampil setelah 3 resto disetujui atau 5 review lengkap (rating + testimoni + foto kunjungan pada resto yang sama).</p>
+      <div class="leaderboard-period-tabs" id="leaderboardPeriodTabs">
+        <button class="leaderboard-period-tab active" data-period="month">Bulanan</button>
+        <button class="leaderboard-period-tab" data-period="year">Tahunan</button>
+        <button class="leaderboard-period-tab" data-period="all">All-time</button>
+      </div>
+      <div id="leaderboardMyProgress"></div>
+      <div id="leaderboardContent"></div>
+    </div>
+  </div>
+
+  <div id="adminLinkSubmissionsOverlay" class="hidden">
+    <div id="adminLinkSubmissionsPanel">
+      <button class="plain-close-btn" id="closeAdminLinkSubmissionsBtn">✕</button>
+      <h2>🔗 Kelola Link Online</h2>
+      <p id="adminLinkSubmissionsIntro">Usulan link GoFood/GrabFood/ShopeeFood dari pengguna, perlu ditinjau sebelum tampil publik.</p>
+      <div class="report-filter-tabs" id="linkSubmissionFilterTabs">
+        <button class="report-filter-tab active" data-status="pending">Pending</button>
+        <button class="report-filter-tab" data-status="approved">Disetujui</button>
+        <button class="report-filter-tab" data-status="rejected">Ditolak</button>
+        <button class="report-filter-tab" data-status="all">Semua</button>
+      </div>
+      <div id="adminLinkSubmissionsList"></div>
+    </div>
+  </div>
+
+  <div id="linkSubmitOverlay" class="hidden">
+    <div id="linkSubmitBox" class="popup-box">
+      <div class="popup-box-title">Tambah <span>Link Platform</span></div>
+      <div class="field" style="text-align:left;">
+        <label>Link ke resto ini</label>
+        <input type="url" id="linkSubmitUrlInput" placeholder="https://...">
+      </div>
+      <button id="linkSubmitSendBtn" class="btn btn-primary" style="width:100%;margin-top:6px;">Kirim untuk Ditinjau Admin</button>
+      <button id="linkSubmitCancelBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;">Batalkan</button>
+      <div id="linkSubmitStatus"></div>
     </div>
   </div>
 
@@ -1313,7 +1404,8 @@ function openAccountPanel(){
   document.getElementById('guideMenuToggle').classList.toggle('hidden', isAdmin);
   document.getElementById('openReportBtn').classList.toggle('hidden', isAdmin);
   document.getElementById('openAdminReportsBtn').classList.toggle('hidden', !isAdmin);
-  if(isAdmin) updatePendingReportsBadge();
+  document.getElementById('openAdminLinkSubmissionsBtn').classList.toggle('hidden', !isAdmin);
+  if(isAdmin){ updatePendingReportsBadge(); updatePendingLinkSubmissionsBadge(); }
   document.getElementById('reportSubmenu').classList.add('hidden');
   document.getElementById('reportMenuArrow').classList.remove('open');
   document.getElementById('guideSubmenu').classList.add('hidden');
@@ -1623,6 +1715,227 @@ async function openAdminReportsPanel(){
   currentReportFilter = 'pending';
   document.querySelectorAll('.report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
   await loadAndRenderAdminReports();
+}
+
+/* ================= LINK KETERSEDIAAN ONLINE (submit oleh user, approval admin) ================= */
+let linkSubmitContext = { restoId: null, platform: null };
+
+function openLinkSubmitPopup(restoId, platform){
+  linkSubmitContext = { restoId, platform };
+  document.getElementById('linkSubmitUrlInput').value = '';
+  document.getElementById('linkSubmitStatus').textContent = '';
+  document.getElementById('linkSubmitOverlay').classList.remove('hidden');
+}
+
+async function sendLinkSubmission(){
+  const statusEl = document.getElementById('linkSubmitStatus');
+  const url = document.getElementById('linkSubmitUrlInput').value.trim();
+  if(!url){ statusEl.textContent = 'Isi link dulu ya'; return; }
+  if(!/^https?:\/\//i.test(url)){ statusEl.textContent = 'Link harus diawali http:// atau https://'; return; }
+  statusEl.textContent = 'Mengirim...';
+  const { error } = await sb.from('online_link_submissions').insert({
+    resto_id: linkSubmitContext.restoId,
+    user_id: myUserId,
+    platforms: [{ platform: linkSubmitContext.platform, url }]
+  });
+  if(error){ statusEl.textContent = 'Gagal: ' + error.message; return; }
+  document.getElementById('linkSubmitOverlay').classList.add('hidden');
+  showToast('Link terkirim, menunggu tinjauan admin 🙏');
+}
+
+const LINK_SUBMISSION_STATUS_LABELS = { pending: 'Pending', approved: 'Disetujui', rejected: 'Ditolak' };
+let currentLinkSubmissionFilter = 'pending';
+
+async function openAdminLinkSubmissionsPanel(){
+  if(!isAdmin) return;
+  document.getElementById('accountOverlay').classList.add('hidden');
+  document.getElementById('adminLinkSubmissionsOverlay').classList.remove('hidden');
+  currentLinkSubmissionFilter = 'pending';
+  document.querySelectorAll('#linkSubmissionFilterTabs .report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
+  await loadAndRenderAdminLinkSubmissions();
+}
+
+async function loadAndRenderAdminLinkSubmissions(){
+  const list = document.getElementById('adminLinkSubmissionsList');
+  list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Memuat...</div>';
+  let q = sb.from('online_link_submissions').select('*, restos(id, name)').order('created_at', {ascending:false});
+  if(currentLinkSubmissionFilter !== 'all') q = q.eq('status', currentLinkSubmissionFilter);
+  const { data, error } = await q;
+  if(error){ list.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat: ${escapeHtml(error.message)}</div>`; return; }
+  if(!data || data.length === 0){
+    list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Tidak ada usulan link di kategori ini.</div>';
+    return;
+  }
+  const userIds = [...new Set(data.map(s=> s.user_id).filter(Boolean))];
+  let usernameById = {};
+  if(userIds.length){
+    const { data: profilesData } = await sb.from('profiles').select('id, username').in('id', userIds);
+    (profilesData || []).forEach(p=> usernameById[p.id] = p.username);
+  }
+  list.innerHTML = data.map(sub=>{
+    const dateStr = new Date(sub.created_at).toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'});
+    const submitterName = (sub.user_id && usernameById[sub.user_id]) || 'Pengguna (tanpa username)';
+    const restoLinkHtml = sub.restos ? `<div class="report-item-resto-link" data-resto-id="${escapeAttr(sub.restos.id)}">📍 ${escapeHtml(sub.restos.name)}</div>` : '';
+    const platformsHtml = (sub.platforms||[]).map(p=> `<div>🔗 <b>${escapeHtml(p.platform)}</b>: <a href="${escapeAttr(p.url)}" target="_blank" rel="noopener">${escapeHtml(p.url)}</a></div>`).join('');
+    const actionsHtml = sub.status === 'pending'
+      ? `<div class="report-item-actions">
+          <button data-action="approve">✅ Setujui</button>
+          <button data-action="reject">🚫 Tolak</button>
+        </div>`
+      : '';
+    return `<div class="report-item" data-submission-id="${escapeAttr(sub.id)}">
+      <div class="report-item-top">
+        <span class="link-status-chip ${sub.status}">${LINK_SUBMISSION_STATUS_LABELS[sub.status] || sub.status}</span>
+      </div>
+      <div class="report-item-meta">👤 ${escapeHtml(submitterName)} &middot; ${dateStr}</div>
+      ${restoLinkHtml}
+      <div class="report-item-msg">${platformsHtml}</div>
+      ${actionsHtml}
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.report-item-resto-link').forEach(el=>{
+    el.onclick = ()=>{
+      const rid = el.dataset.restoId;
+      const r = allRestos[rid];
+      document.getElementById('adminLinkSubmissionsOverlay').classList.add('hidden');
+      if(r){ map.setView([r.lat, r.lng], 17); openDetail(r.id); }
+    };
+  });
+  list.querySelectorAll('.report-item').forEach(itemEl=>{
+    const submissionId = itemEl.dataset.submissionId;
+    const approveBtn = itemEl.querySelector('[data-action="approve"]');
+    const rejectBtn = itemEl.querySelector('[data-action="reject"]');
+    if(approveBtn) approveBtn.onclick = ()=> handleApproveLinkSubmission(submissionId);
+    if(rejectBtn) rejectBtn.onclick = ()=> handleRejectLinkSubmission(submissionId);
+  });
+}
+
+async function handleApproveLinkSubmission(submissionId){
+  const { error } = await sb.rpc('approve_online_link_submission', { p_submission_id: submissionId });
+  if(error){ showToast('Gagal approve: ' + error.message); return; }
+  showToast('Link disetujui ✅');
+  await loadAndRenderAdminLinkSubmissions();
+  updatePendingLinkSubmissionsBadge();
+  await loadAllRestos(); // muat ulang data resto supaya link baru langsung tampil
+}
+
+async function handleRejectLinkSubmission(submissionId){
+  const note = prompt('Catatan penolakan (opsional):') || '';
+  const { error } = await sb.rpc('reject_online_link_submission', { p_submission_id: submissionId, p_note: note });
+  if(error){ showToast('Gagal tolak: ' + error.message); return; }
+  showToast('Link ditolak');
+  await loadAndRenderAdminLinkSubmissions();
+  updatePendingLinkSubmissionsBadge();
+}
+
+/* Badge jumlah usulan link berstatus pending pada tombol menu admin "Kelola Link Online" */
+async function updatePendingLinkSubmissionsBadge(){
+  const btn = document.getElementById('openAdminLinkSubmissionsBtn');
+  if(!btn || !isAdmin) return;
+  try{
+    const { count } = await sb.from('online_link_submissions').select('id', {count:'exact', head:true}).eq('status', 'pending');
+    btn.textContent = count > 0 ? `🔗 Kelola Link Online (${count})` : '🔗 Kelola Link Online';
+  }catch(e){ btn.textContent = '🔗 Kelola Link Online'; }
+}
+
+/* ================= LEADERBOARD KONTRIBUTOR ================= */
+let currentLeaderboardPeriod = 'month';
+
+function leaderboardPeriodStart(period){
+  const now = new Date();
+  if(period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  if(period === 'year') return new Date(now.getFullYear(), 0, 1).toISOString();
+  return null; // all-time
+}
+
+async function openLeaderboard(){
+  document.getElementById('accountOverlay').classList.add('hidden');
+  document.getElementById('leaderboardOverlay').classList.remove('hidden');
+  currentLeaderboardPeriod = 'month';
+  document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(t=> t.classList.toggle('active', t.dataset.period === 'month'));
+  await loadAndRenderLeaderboard();
+}
+
+async function loadAndRenderLeaderboard(){
+  const wrap = document.getElementById('leaderboardContent');
+  const progressWrap = document.getElementById('leaderboardMyProgress');
+  progressWrap.innerHTML = '';
+  wrap.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Memuat papan peringkat...</div>';
+
+  const startDate = leaderboardPeriodStart(currentLeaderboardPeriod);
+  let q = sb.from('leaderboard_points').select('user_id, points, city_id, created_at');
+  if(startDate) q = q.gte('created_at', startDate);
+  const { data, error } = await q;
+  if(error){ wrap.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat: ${escapeHtml(error.message)}</div>`; return; }
+
+  const byCity = {};
+  (data||[]).forEach(row=>{
+    const key = row.city_id || '__no_city__';
+    if(!byCity[key]) byCity[key] = {};
+    byCity[key][row.user_id] = (byCity[key][row.user_id]||0) + row.points;
+  });
+
+  const cityIds = Object.keys(byCity).filter(k=> k !== '__no_city__');
+  let cityNameById = {};
+  if(cityIds.length){
+    const { data: citiesData } = await sb.from('cities').select('id, name').in('id', cityIds);
+    (citiesData||[]).forEach(c=> cityNameById[c.id] = c.name);
+  }
+
+  const allUserIds = [...new Set((data||[]).map(row=> row.user_id))];
+  let profileById = {};
+  if(allUserIds.length){
+    const { data: profilesData } = await sb.from('profiles')
+      .select('id, username, is_verified_contributor')
+      .in('id', allUserIds);
+    (profilesData||[]).forEach(p=> profileById[p.id] = p);
+  }
+
+  // Progres unlock milik user yang sedang login, ditampilkan terpisah di atas (bukan per kota)
+  if(myUserId && !isAdmin){
+    const { data: myProfile } = await sb.from('profiles')
+      .select('resto_approved_count, full_review_count, is_verified_contributor')
+      .eq('id', myUserId).maybeSingle();
+    if(myProfile && !myProfile.is_verified_contributor){
+      const restoProgress = Math.min(myProfile.resto_approved_count || 0, 3);
+      const reviewProgress = Math.min(myProfile.full_review_count || 0, 5);
+      progressWrap.innerHTML = `<div class="leaderboard-progress-card">🔒 Namamu tampil setelah ${restoProgress}/3 resto disetujui atau ${reviewProgress}/5 review lengkap.</div>`;
+    }
+  }
+
+  const cityKeys = Object.keys(byCity);
+  if(cityKeys.length === 0){
+    wrap.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Belum ada kontribusi pada periode ini.</div>';
+    return;
+  }
+
+  wrap.innerHTML = cityKeys.map(cityKey=>{
+    const cityName = cityKey === '__no_city__' ? 'Kota belum diketahui' : (cityNameById[cityKey] || 'Kota lain');
+    const rows = Object.entries(byCity[cityKey])
+      .map(([uid, pts])=> ({ uid, pts, profile: profileById[uid] }))
+      .filter(row=> row.profile && row.profile.is_verified_contributor)
+      .sort((a,b)=> b.pts - a.pts);
+
+    if(rows.length < 5){
+      return `<div class="leaderboard-city-block">
+        <div class="leaderboard-city-title">📍 ${escapeHtml(cityName)}</div>
+        <div class="leaderboard-empty-card">Butuh minimal 5 kontributor aktif untuk membuka papan peringkat kota ini. Jadilah kontributor pertama di sini! 🚀</div>
+      </div>`;
+    }
+    const listHtml = rows.slice(0, 20).map((row, idx)=>{
+      const isMe = row.uid === myUserId;
+      const name = isMe ? 'Kamu' : escapeHtml(row.profile.username || 'Pengguna');
+      return `<div class="leaderboard-row ${isMe ? 'is-me' : ''}">
+        <span class="leaderboard-rank">${idx+1}</span>
+        <span class="leaderboard-name">${name}</span>
+        <span class="leaderboard-pts">${row.pts} pts</span>
+      </div>`;
+    }).join('');
+    return `<div class="leaderboard-city-block">
+      <div class="leaderboard-city-title">📍 ${escapeHtml(cityName)}</div>
+      ${listHtml}
+    </div>`;
+  }).join('');
 }
 
 async function loadAndRenderAdminReports(){
@@ -3130,9 +3443,12 @@ function openDetail(id, showAllTesti){
         const url = typeof p === 'string' ? '' : (p.url || '');
         const meta = PLATFORM_FILTER_META[name] || {emoji:'🔗', color:'#555', file:'other'};
         const inner = `${platformIconHtml(meta.file, meta.emoji, 16)} ${name}`;
-        return url
-          ? `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="platform-chip" style="background:${meta.color}">${inner}</a>`
-          : `<span class="platform-chip" style="background:${meta.color};opacity:0.75;" title="Link belum ditambahkan admin">${inner}</span>`;
+        if(url){
+          return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="platform-chip" style="background:${meta.color}">${inner}</a>`;
+        }
+        // Belum ada link -- siapa pun yang login boleh mengusulkan link, masuk antrean
+        // review admin (lihat online_link_submissions & approve_online_link_submission()).
+        return `<span class="platform-chip platform-chip-add-link" data-platform="${escapeAttr(name)}" style="background:${meta.color};opacity:0.75;cursor:pointer;" title="Tap untuk tambahkan link">${inner} ➕</span>`;
       }).join('')}</div>`
     : '';
   const payments = (r.paymentMethods||[]);
@@ -3258,6 +3574,13 @@ function openDetail(id, showAllTesti){
   document.getElementById('reportRestoBtn').onclick = ()=>{
     openReportModal(r.id, r.name);
   };
+  document.querySelectorAll('.platform-chip-add-link').forEach(chip=>{
+    chip.onclick = ()=>{
+      if(!requireLogin()) return;
+      if(isAdmin){ showToast('Admin bisa edit langsung lewat form Edit Resto'); return; }
+      openLinkSubmitPopup(r.id, chip.dataset.platform);
+    };
+  });
   const editBtnEl = document.getElementById('editBtn');
   if(editBtnEl) editBtnEl.onclick = ()=> openForm(r);
   const delBtnEl = document.getElementById('delBtn');
@@ -3924,6 +4247,35 @@ document.querySelectorAll('.report-filter-tab').forEach(tab=>{
     loadAndRenderAdminReports();
   };
 });
+
+document.getElementById('openLeaderboardBtn').onclick = openLeaderboard;
+document.getElementById('closeLeaderboardBtn').onclick = ()=> document.getElementById('leaderboardOverlay').classList.add('hidden');
+document.getElementById('leaderboardOverlay').onclick = (e)=>{ if(e.target.id === 'leaderboardOverlay') document.getElementById('leaderboardOverlay').classList.add('hidden'); };
+document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(tab=>{
+  tab.onclick = ()=>{
+    document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(t=> t.classList.remove('active'));
+    tab.classList.add('active');
+    currentLeaderboardPeriod = tab.dataset.period;
+    loadAndRenderLeaderboard();
+  };
+});
+
+document.getElementById('openAdminLinkSubmissionsBtn').onclick = openAdminLinkSubmissionsPanel;
+document.getElementById('closeAdminLinkSubmissionsBtn').onclick = ()=> document.getElementById('adminLinkSubmissionsOverlay').classList.add('hidden');
+document.getElementById('adminLinkSubmissionsOverlay').onclick = (e)=>{ if(e.target.id === 'adminLinkSubmissionsOverlay') document.getElementById('adminLinkSubmissionsOverlay').classList.add('hidden'); };
+document.querySelectorAll('#linkSubmissionFilterTabs .report-filter-tab').forEach(tab=>{
+  tab.onclick = ()=>{
+    document.querySelectorAll('#linkSubmissionFilterTabs .report-filter-tab').forEach(t=> t.classList.remove('active'));
+    tab.classList.add('active');
+    currentLinkSubmissionFilter = tab.dataset.status;
+    loadAndRenderAdminLinkSubmissions();
+  };
+});
+
+document.getElementById('linkSubmitSendBtn').onclick = sendLinkSubmission;
+document.getElementById('linkSubmitCancelBtn').onclick = ()=> document.getElementById('linkSubmitOverlay').classList.add('hidden');
+document.getElementById('linkSubmitOverlay').onclick = (e)=>{ if(e.target.id === 'linkSubmitOverlay') document.getElementById('linkSubmitOverlay').classList.add('hidden'); };
+
 document.getElementById('userBadge').onclick = openAccountPanel;
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
 document.getElementById('loginGoogleBtn').onclick = signInWithGoogle;
