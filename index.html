@@ -948,12 +948,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
   <div id="linkSubmitOverlay" class="hidden">
     <div id="linkSubmitBox" class="popup-box">
-      <div class="popup-box-title">Tambah <span>Link Platform</span></div>
-      <div class="field" style="text-align:left;">
-        <label>Link ke resto ini</label>
-        <input type="url" id="linkSubmitUrlInput" placeholder="https://...">
-      </div>
-      <button id="linkSubmitSendBtn" class="btn btn-primary" style="width:100%;margin-top:6px;">Kirim untuk Ditinjau Admin</button>
+      <div class="popup-box-title">Ketersediaan <span>Online</span></div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px 0;">Centang platform yang tersedia & isi linknya. Semua usulan ditinjau admin dulu sebelum tampil publik.</p>
+      <div id="linkSubmitPlatformRows"></div>
+      <button id="linkSubmitSendBtn" class="btn btn-primary" style="width:100%;margin-top:10px;">Kirim untuk Ditinjau Admin</button>
+      <div style="text-align:center;margin:10px 0;font-size:12px;color:var(--muted);">atau</div>
+      <button id="linkSubmitNotOnlineBtn" class="btn btn-secondary" style="width:100%;">Resto ini tidak menjual online</button>
       <button id="linkSubmitCancelBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;">Batalkan</button>
       <div id="linkSubmitStatus"></div>
     </div>
@@ -1141,8 +1141,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <textarea id="f_testi" placeholder="Bagaimana suasana atau pengalaman Anda di sini?"></textarea>
       </div>
 
-      <div class="field">
-        <label>Ketersediaan Online</label>
+      <div class="field" id="platformPickerField">
+        <label>Ketersediaan Online <span style="font-weight:400;color:var(--muted);">(khusus admin -- user bisa usulkan link lewat halaman detail resto setelah tersimpan)</span></label>
         <div class="platform-picker" id="platformPicker"></div>
       </div>
 
@@ -1718,29 +1718,76 @@ async function openAdminReportsPanel(){
 }
 
 /* ================= LINK KETERSEDIAAN ONLINE (submit oleh user, approval admin) ================= */
-let linkSubmitContext = { restoId: null, platform: null };
+let linkSubmitContext = { restoId: null };
 
-function openLinkSubmitPopup(restoId, platform){
-  linkSubmitContext = { restoId, platform };
-  document.getElementById('linkSubmitUrlInput').value = '';
+function openLinkSubmitPopup(restoId, presetPlatform){
+  linkSubmitContext = { restoId };
+  const rowsWrap = document.getElementById('linkSubmitPlatformRows');
+  rowsWrap.innerHTML = Object.keys(PLATFORM_FILTER_META).map(p=>{
+    const meta = PLATFORM_FILTER_META[p];
+    const checked = presetPlatform === p ? 'checked' : '';
+    return `<div class="platform-url-row" data-platform="${p}">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:4px;">
+        <input type="checkbox" class="linksubmit-check" data-platform="${p}" ${checked}>
+        ${platformIconHtml(meta.file, meta.emoji, 16)} ${p}
+      </label>
+      <input type="url" class="linksubmit-url" data-platform="${p}" placeholder="Link ke resto di ${p}" ${checked ? '' : 'style="display:none;"'}>
+    </div>`;
+  }).join('');
+  rowsWrap.querySelectorAll('.linksubmit-check').forEach(cb=>{
+    cb.onchange = ()=>{
+      const urlInput = rowsWrap.querySelector(`.linksubmit-url[data-platform="${cb.dataset.platform}"]`);
+      urlInput.style.display = cb.checked ? '' : 'none';
+      if(!cb.checked) urlInput.value = '';
+    };
+  });
   document.getElementById('linkSubmitStatus').textContent = '';
   document.getElementById('linkSubmitOverlay').classList.remove('hidden');
 }
 
 async function sendLinkSubmission(){
   const statusEl = document.getElementById('linkSubmitStatus');
-  const url = document.getElementById('linkSubmitUrlInput').value.trim();
-  if(!url){ statusEl.textContent = 'Isi link dulu ya'; return; }
-  if(!/^https?:\/\//i.test(url)){ statusEl.textContent = 'Link harus diawali http:// atau https://'; return; }
+  const rows = Array.from(document.querySelectorAll('#linkSubmitPlatformRows .platform-url-row'));
+  const platforms = [];
+  for(const row of rows){
+    const checkbox = row.querySelector('.linksubmit-check');
+    const urlInput = row.querySelector('.linksubmit-url');
+    if(checkbox.checked){
+      const url = urlInput.value.trim();
+      if(!url || !/^https?:\/\//i.test(url)){
+        statusEl.textContent = `Isi link ${row.dataset.platform} dengan benar (harus diawali http:// atau https://)`;
+        return;
+      }
+      platforms.push({ platform: row.dataset.platform, url });
+    }
+  }
+  if(platforms.length === 0){
+    statusEl.textContent = 'Centang minimal 1 platform dan isi linknya, atau pilih "Resto ini tidak menjual online"';
+    return;
+  }
   statusEl.textContent = 'Mengirim...';
   const { error } = await sb.from('online_link_submissions').insert({
     resto_id: linkSubmitContext.restoId,
     user_id: myUserId,
-    platforms: [{ platform: linkSubmitContext.platform, url }]
+    platforms
   });
   if(error){ statusEl.textContent = 'Gagal: ' + error.message; return; }
   document.getElementById('linkSubmitOverlay').classList.add('hidden');
   showToast('Link terkirim, menunggu tinjauan admin 🙏');
+}
+
+async function sendNoOnlineSalesSubmission(){
+  const statusEl = document.getElementById('linkSubmitStatus');
+  statusEl.textContent = 'Mengirim...';
+  const { error } = await sb.from('online_link_submissions').insert({
+    resto_id: linkSubmitContext.restoId,
+    user_id: myUserId,
+    platforms: [],
+    no_online_sales: true
+  });
+  if(error){ statusEl.textContent = 'Gagal: ' + error.message; return; }
+  document.getElementById('linkSubmitOverlay').classList.add('hidden');
+  showToast('Terkirim, menunggu tinjauan admin 🙏');
 }
 
 const LINK_SUBMISSION_STATUS_LABELS = { pending: 'Pending', approved: 'Disetujui', rejected: 'Ditolak' };
@@ -1776,7 +1823,9 @@ async function loadAndRenderAdminLinkSubmissions(){
     const dateStr = new Date(sub.created_at).toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'});
     const submitterName = (sub.user_id && usernameById[sub.user_id]) || 'Pengguna (tanpa username)';
     const restoLinkHtml = sub.restos ? `<div class="report-item-resto-link" data-resto-id="${escapeAttr(sub.restos.id)}">📍 ${escapeHtml(sub.restos.name)}</div>` : '';
-    const platformsHtml = (sub.platforms||[]).map(p=> `<div>🔗 <b>${escapeHtml(p.platform)}</b>: <a href="${escapeAttr(p.url)}" target="_blank" rel="noopener">${escapeHtml(p.url)}</a></div>`).join('');
+    const platformsHtml = sub.no_online_sales
+      ? `<div>🚫 <b>Diusulkan: Resto ini tidak menjual online</b></div>`
+      : (sub.platforms||[]).map(p=> `<div>🔗 <b>${escapeHtml(p.platform)}</b>: <a href="${escapeAttr(p.url)}" target="_blank" rel="noopener">${escapeHtml(p.url)}</a></div>`).join('');
     const actionsHtml = sub.status === 'pending'
       ? `<div class="report-item-actions">
           <button data-action="approve">✅ Setujui</button>
@@ -1916,10 +1965,10 @@ async function loadAndRenderLeaderboard(){
       .filter(row=> row.profile && row.profile.is_verified_contributor)
       .sort((a,b)=> b.pts - a.pts);
 
-    if(rows.length < 5){
+    if(rows.length === 0){
       return `<div class="leaderboard-city-block">
         <div class="leaderboard-city-title">📍 ${escapeHtml(cityName)}</div>
-        <div class="leaderboard-empty-card">Butuh minimal 5 kontributor aktif untuk membuka papan peringkat kota ini. Jadilah kontributor pertama di sini! 🚀</div>
+        <div class="leaderboard-empty-card">Belum ada kontributor di kota ini. Jadilah kontributor pertama di sini! 🚀</div>
       </div>`;
     }
     const listHtml = rows.slice(0, 20).map((row, idx)=>{
@@ -2662,25 +2711,31 @@ function populateTypeSelect(){
 }
 
 function initPlatformPicker(){
-  const wrap = document.getElementById('platformPicker');
-  wrap.innerHTML = Object.keys(PLATFORM_FILTER_META).map(p=>{
-    const meta = PLATFORM_FILTER_META[p];
-    return `<div class="platform-url-row" data-platform="${p}">
-      <div class="platform-toggle" data-platform="${p}" style="--pcolor:${meta.color}">${platformIconHtml(meta.file, meta.emoji, 16)} ${p}</div>
-      <input type="url" class="platform-url-input" data-platform="${p}" placeholder="Link langsung ke resto di ${p} (opsional)">
-    </div>`;
-  }).join('');
-  wrap.querySelectorAll('.platform-toggle').forEach(el=>{
-    el.onclick = ()=>{
-      el.classList.toggle('active');
-      const input = wrap.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
-      // Kotak link hanya pernah muncul untuk admin. User biasa cukup lihat
-      // toggle-nya saja, tanpa kotak link (walau disabled) yang membingungkan.
-      input.classList.toggle('hidden', !el.classList.contains('active') || !isAdmin);
-      if(!el.classList.contains('active')) input.value = '';
-    };
-  });
-  wrap.querySelectorAll('.platform-url-input').forEach(el=> el.classList.add('hidden')); // sembunyi sampai toggle diaktifkan
+  const fieldWrap = document.getElementById('platformPickerField');
+  // Ketersediaan Online sekarang wajib disertai link saat dipilih (tidak boleh toggle
+  // tanpa link lagi), dan link cuma boleh diisi admin di form ini. User biasa
+  // mengusulkan link lewat halaman detail resto (lihat openLinkSubmitPopup), jadi
+  // field ini disembunyikan total untuk mereka di form Tambah/Edit Resto.
+  fieldWrap.classList.toggle('hidden', !isAdmin);
+  if(isAdmin){
+    const wrap = document.getElementById('platformPicker');
+    wrap.innerHTML = Object.keys(PLATFORM_FILTER_META).map(p=>{
+      const meta = PLATFORM_FILTER_META[p];
+      return `<div class="platform-url-row" data-platform="${p}">
+        <div class="platform-toggle" data-platform="${p}" style="--pcolor:${meta.color}">${platformIconHtml(meta.file, meta.emoji, 16)} ${p}</div>
+        <input type="url" class="platform-url-input" data-platform="${p}" placeholder="Wajib isi link langsung ke resto di ${p}">
+      </div>`;
+    }).join('');
+    wrap.querySelectorAll('.platform-toggle').forEach(el=>{
+      el.onclick = ()=>{
+        el.classList.toggle('active');
+        const input = wrap.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
+        input.classList.toggle('hidden', !el.classList.contains('active'));
+        if(!el.classList.contains('active')) input.value = '';
+      };
+    });
+    wrap.querySelectorAll('.platform-url-input').forEach(el=> el.classList.add('hidden')); // sembunyi sampai toggle diaktifkan
+  }
   document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>{
     el.onclick = ()=> el.classList.toggle('active');
   });
@@ -2808,6 +2863,7 @@ async function loadAllRestos(){
         priceRange: row.price_range, hoursByDay: row.hours_by_day,
         menuImages: row.menu_images || [], onlinePlatforms: row.online_platforms || [],
         paymentMethods: row.payment_methods || [],
+        noOnlineSales: !!row.no_online_sales,
         lat: row.lat, lng: row.lng, createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
         isVerified: !!row.is_verified,
         ratings: [], testimonials: [], favoriteMenu: [], references: [], photos: [], menuPhotos: []
@@ -2855,6 +2911,23 @@ async function upsertRestoCore(data){
     payment_methods: data.paymentMethods,
     lat: data.lat, lng: data.lng, updated_at: new Date().toISOString()
   };
+  // Kalau admin mengedit resto yang sudah ada dan menambahkan platform online lewat form ini
+  // (mis. resto yang tadinya ditandai "tidak menjual online" ternyata sekarang mulai jualan
+  // online, dilaporkan lewat fitur Laporan), sinkronkan status & kolom kunci supaya tetap
+  // konsisten dengan sistem poin/leaderboard -- bukan cuma menimpa online_platforms mentah.
+  if(data.id && Array.isArray(data.onlinePlatforms) && data.onlinePlatforms.length){
+    row.no_online_sales = false;
+    const LOCK_COL = { GoFood: 'gofood_locked_by', GrabFood: 'grabfood_locked_by', ShopeeFood: 'shopeefood_locked_by' };
+    const { data: existingLocks } = await sb.from('restos')
+      .select('gofood_locked_by, grabfood_locked_by, shopeefood_locked_by')
+      .eq('id', data.id).maybeSingle();
+    data.onlinePlatforms.forEach(p=>{
+      const col = LOCK_COL[p.platform];
+      // Cuma isi kolom kunci kalau memang masih kosong -- jangan timpa kepemilikan
+      // poin user yang sudah lebih dulu mengusulkan link ini lewat alur approval.
+      if(col && existingLocks && !existingLocks[col]) row[col] = myUserId;
+    });
+  }
   if(data.id){
     const { error } = await sb.from('restos').update(row).eq('id', data.id);
     if(error) throw error;
@@ -3436,8 +3509,12 @@ function openDetail(id, showAllTesti){
     : `<div class="rating-summary"><span style="color:var(--muted);font-size:12.5px;">Belum ada rating. Jadilah yang pertama menilai!</span></div>`;
 
   const platforms = (r.onlinePlatforms||[]);
-  const platformsHtml = platforms.length
-    ? `<div class="badge-row">${platforms.map(p=>{
+  let platformsHtml = '';
+  if(r.noOnlineSales){
+    // Sudah diverifikasi tidak berjualan online -- sengaja tidak menampilkan apa pun.
+    platformsHtml = '';
+  } else if(platforms.length){
+    platformsHtml = `<div class="badge-row">${platforms.map(p=>{
         // Kompatibel data lama (string saja) maupun baru ({platform,url})
         const name = typeof p === 'string' ? p : p.platform;
         const url = typeof p === 'string' ? '' : (p.url || '');
@@ -3446,11 +3523,12 @@ function openDetail(id, showAllTesti){
         if(url){
           return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="platform-chip" style="background:${meta.color}">${inner}</a>`;
         }
-        // Belum ada link -- siapa pun yang login boleh mengusulkan link, masuk antrean
-        // review admin (lihat online_link_submissions & approve_online_link_submission()).
         return `<span class="platform-chip platform-chip-add-link" data-platform="${escapeAttr(name)}" style="background:${meta.color};opacity:0.75;cursor:pointer;" title="Tap untuk tambahkan link">${inner} ➕</span>`;
-      }).join('')}</div>`
-    : '';
+      }).join('')}</div>`;
+  } else {
+    // Belum ada info sama sekali -- ajak user melengkapi (link platform ATAU tandai tidak jual online)
+    platformsHtml = `<div class="badge-row"><span class="platform-chip platform-chip-add-link" id="onlineAvailabilityPromptChip" style="background:var(--teal);cursor:pointer;">🔗 Lengkapi ketersediaan online ➕</span></div>`;
+  }
   const payments = (r.paymentMethods||[]);
   const paymentsHtml = payments.length
     ? `<div style="font-size:13.5px;margin:2px 0 4px;color:var(--ink);">${payments.map(p=> p === 'cash' ? 'Cash' : 'Cashless').join(' & ')}</div>`
@@ -3578,7 +3656,7 @@ function openDetail(id, showAllTesti){
     chip.onclick = ()=>{
       if(!requireLogin()) return;
       if(isAdmin){ showToast('Admin bisa edit langsung lewat form Edit Resto'); return; }
-      openLinkSubmitPopup(r.id, chip.dataset.platform);
+      openLinkSubmitPopup(r.id, chip.dataset.platform || null);
     };
   });
   const editBtnEl = document.getElementById('editBtn');
@@ -3985,13 +4063,16 @@ async function handleSave(){
   const imgUrls = formMenuImages;
   const favMenus = Array.from(document.querySelectorAll('.fav-row input')).map(i=>i.value.trim()).filter(Boolean);
   const refUrlsRaw = Array.from(document.querySelectorAll('.ref-url-row input')).map(i=>i.value.trim()).filter(Boolean);
-  const platforms = Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>{
-    const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
-    // Jaga-jaga di sisi client: link hanya diambil dari form kalau memang admin.
-    // Enforcement sebenarnya tetap di RLS Supabase (lihat migrasi restos-link-admin-only.sql).
-    const url = isAdmin ? ((input && input.value.trim()) || '') : '';
-    return { platform: el.dataset.platform, url };
-  });
+  const platforms = isAdmin
+    ? Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>{
+        const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
+        return { platform: el.dataset.platform, url: (input && input.value.trim()) || '' };
+      })
+    : []; // User biasa: ketersediaan online diusulkan lewat halaman detail (openLinkSubmitPopup), bukan form ini.
+  if(isAdmin && platforms.some(p=> !p.url)){
+    showToast('Link wajib diisi kalau platform ketersediaan online dipilih');
+    return;
+  }
   const paymentMethods = Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(el=>el.dataset.payment);
   const data = {
     id: editingId || null,
@@ -4273,6 +4354,7 @@ document.querySelectorAll('#linkSubmissionFilterTabs .report-filter-tab').forEac
 });
 
 document.getElementById('linkSubmitSendBtn').onclick = sendLinkSubmission;
+document.getElementById('linkSubmitNotOnlineBtn').onclick = sendNoOnlineSalesSubmission;
 document.getElementById('linkSubmitCancelBtn').onclick = ()=> document.getElementById('linkSubmitOverlay').classList.add('hidden');
 document.getElementById('linkSubmitOverlay').onclick = (e)=>{ if(e.target.id === 'linkSubmitOverlay') document.getElementById('linkSubmitOverlay').classList.add('hidden'); };
 
