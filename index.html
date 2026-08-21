@@ -410,6 +410,16 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .chip.time-chip.active{background:var(--amber);color:var(--ink);border-color:var(--amber);}
 .chip.visit-chip.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
 
+/* Chip kategori cepat (Semua/Indonesian/Asian/dst) di bawah search bar */
+.type-chip{
+  flex:0 0 auto;padding:7px 13px;border-radius:16px;background:var(--card);
+  border:1px solid var(--line);font-size:12.5px;font-weight:700;cursor:pointer;color:var(--ink);
+  white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.08);user-select:none;
+  font-family:'Work Sans',sans-serif;display:flex;align-items:center;gap:5px;
+}
+.type-chip.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+.type-chip-icon{font-size:13px;line-height:1;}
+
 /* ---------- TIME FILTER POPOVER ---------- */
 /* ---------- PANEL FILTER TERPADU (bottom sheet) ---------- */
 #filterOverlay{
@@ -539,6 +549,37 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 /* Kontrol Leaflet (tombol zoom & atribusi OSM) ikut digeser ke atas supaya tidak
    tertutup bottom nav yang sekarang permanen menempel di bawah layar. */
 .leaflet-bottom{bottom:calc(74px + env(safe-area-inset-bottom)) !important;}
+
+/* ---------- PREVIEW CARD (tampil singkat saat tap marker, sebelum buka detail penuh) ---------- */
+#previewCard{
+  position:absolute;left:12px;right:12px;z-index:1200;
+  bottom:calc(78px + env(safe-area-inset-bottom));
+  background:var(--card);border-radius:16px;box-shadow:0 10px 28px rgba(13,39,25,0.22);
+  display:flex;gap:12px;padding:12px;cursor:pointer;
+  transition:opacity 0.2s ease,transform 0.2s ease;
+}
+#previewCard.hidden{display:none;}
+#previewCard .pc-thumb{
+  flex:0 0 auto;width:78px;height:78px;border-radius:12px;object-fit:cover;background:var(--paper);
+}
+#previewCard .pc-body{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px;}
+#previewCard .pc-name{font-family:'Fraunces',serif;font-weight:700;font-size:15px;margin:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
+#previewCard .pc-rating{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+#previewCard .pc-rating b{color:var(--ink);}
+#previewCard .pc-meta{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#previewCard .pc-quote{font-size:12px;color:var(--ink);font-style:italic;margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#previewCard .pc-heart{
+  flex:0 0 auto;align-self:flex-start;background:none;border:none;font-size:18px;
+  padding:2px;line-height:1;cursor:pointer;
+}
+#previewCard .pc-close{
+  position:absolute;top:6px;right:6px;background:var(--card);border:1px solid var(--line);
+  border-radius:50%;width:22px;height:22px;font-size:12px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:var(--muted);box-shadow:0 2px 6px rgba(0,0,0,0.12);
+}
+@media(min-width:760px){ #previewCard{max-width:420px;left:16px;right:auto;} }
 
 /* ---------- PANEL (detail resto) ---------- */
 #detailPanel{
@@ -1169,6 +1210,18 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   <div id="detailPanel" class="hidden">
     <button class="closeBtn" id="closeDetail">✕</button>
     <div id="detailContent"></div>
+  </div>
+
+  <div id="previewCard" class="hidden">
+    <button type="button" class="pc-close" id="previewCardCloseBtn">✕</button>
+    <img class="pc-thumb" id="pcThumb" src="" alt="">
+    <div class="pc-body">
+      <p class="pc-name" id="pcName"></p>
+      <div class="pc-rating" id="pcRating"></div>
+      <div class="pc-meta" id="pcMeta"></div>
+      <div class="pc-quote" id="pcQuote"></div>
+    </div>
+    <button type="button" class="pc-heart" id="pcHeart" title="Wishlist">🤍</button>
   </div>
 
   <div id="pinPeekBar" class="hidden">
@@ -2366,6 +2419,8 @@ function initMap(){
       // Tap di tempat lain (bukan pin-nya sendiri) saat belum ada form terbuka -> batalkan pin sementara.
       map.removeLayer(quickPinMarker);
       quickPinMarker = null;
+    } else {
+      closePreviewCard(); // tap area kosong peta -> tutup preview card yang sedang tampil (kalau ada)
     }
   });
 
@@ -2772,12 +2827,35 @@ function renderFilterChips(){
   const wrap = document.getElementById('filters');
   wrap.innerHTML = '';
 
+  // Chip "Semua" -- reset kategori cepat (filter lain seperti harga/jam buka tidak ikut direset)
+  const isSingleType = activeTypeFilters.size === 1;
+  const allChip = document.createElement('button');
+  allChip.type = 'button';
+  allChip.className = 'type-chip' + (activeTypeFilters.size === 0 ? ' active' : '');
+  allChip.innerHTML = '<span class="type-chip-icon">▦</span> Semua';
+  allChip.onclick = ()=>{ activeTypeFilters = new Set(); renderFilterChips(); renderMarkers(); };
+  wrap.appendChild(allChip);
+
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.id = 'openFilterBtn';
   btn.innerHTML = '🔧 Filter';
   btn.onclick = openFilterPanel;
   wrap.appendChild(btn);
+
+  Object.keys(TYPES).forEach(t=>{
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'type-chip' + (isSingleType && activeTypeFilters.has(t) ? ' active' : '');
+    chip.innerHTML = `<span class="type-chip-icon">${TYPES[t].emoji}</span> ${t}`;
+    chip.onclick = ()=>{
+      // tap ulang tipe yang sama -> balik ke "Semua"; tap tipe lain -> ganti single-select
+      activeTypeFilters = (isSingleType && activeTypeFilters.has(t)) ? new Set() : new Set([t]);
+      renderFilterChips();
+      renderMarkers();
+    };
+    wrap.appendChild(chip);
+  });
 
   renderTypeCheckList();
   renderPlatformCheckList();
@@ -3089,6 +3167,50 @@ async function deleteResto(id){
   renderMarkers();
 }
 
+/* ================= PREVIEW CARD (tap marker) ================= */
+function openPreviewCard(id){
+  const r = allRestos[id];
+  if(!r) return;
+  document.getElementById('detailPanel').classList.add('hidden'); // pastikan detail lama (kalau ada) tertutup dulu
+  const t = TYPES[r.type] || DEFAULT_TYPE_META;
+  const summary = computeRatingSummary(r.ratings);
+  const imgs = (r.menuImages||[]).filter(Boolean);
+
+  document.getElementById('pcThumb').src = imgs[0] || 'icons/icon-192.png';
+  document.getElementById('pcName').textContent = r.name;
+  document.getElementById('pcRating').innerHTML = summary.overallCount > 0
+    ? `⭐ <b>${summary.overall.toFixed(1)}</b> · ${summary.overallCount} ulasan`
+    : `${t.emoji} ${escapeHtml(r.type)}`;
+
+  const metaParts = [];
+  if(myGpsLatLng){
+    const distM = distanceMetersBetween(myGpsLatLng.lat, myGpsLatLng.lng, r.lat, r.lng);
+    metaParts.push(distM < 1000 ? `${Math.round(distM)} m` : `${(distM/1000).toFixed(1)} km`);
+  }
+  if(r.address) metaParts.push(r.address);
+  document.getElementById('pcMeta').textContent = metaParts.join(' • ');
+
+  const testi = (r.testimonials||[]).find(x=> x.text);
+  const quoteEl = document.getElementById('pcQuote');
+  quoteEl.textContent = testi ? `"${testi.text}"` : '';
+  quoteEl.style.display = testi ? '' : 'none';
+
+  const heartBtn = document.getElementById('pcHeart');
+  heartBtn.textContent = wishlistIds.has(id) ? '❤️' : '🤍';
+  heartBtn.onclick = async (e)=>{
+    e.stopPropagation();
+    await toggleWishlist(id);
+    heartBtn.textContent = wishlistIds.has(id) ? '❤️' : '🤍';
+  };
+
+  const card = document.getElementById('previewCard');
+  card.onclick = ()=>{ closePreviewCard(); openDetail(id); };
+  card.classList.remove('hidden');
+}
+function closePreviewCard(){
+  document.getElementById('previewCard').classList.add('hidden');
+}
+
 /* ================= MARKERS ================= */
 function makeIcon(type, visited, isNew, isVerified){
   const t = TYPES[type] || DEFAULT_TYPE_META;
@@ -3121,7 +3243,7 @@ function renderMarkers(){
     if(visitFilter === 'unvisited' && isVisited) return;
     if(wishlistFilter === 'wishlist' && !wishlistIds.has(r.id)) return;
     const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r), r.isVerified)});
-    m.on('click', ()=> openDetail(r.id));
+    m.on('click', ()=> openPreviewCard(r.id));
     markersToAdd.push(m);
   });
   markersLayer.addLayers(markersToAdd); // tambah semua sekaligus (jauh lebih cepat daripada satu-satu untuk ratusan pin)
@@ -3614,6 +3736,7 @@ function testimoniListHtml(r, showAll){
 function openDetail(id, showAllTesti){
   const r = allRestos[id];
   if(!r) return;
+  closePreviewCard(); // pastikan preview card (kalau ada) tertutup begitu detail penuh dibuka
   if(isNewForMe(r)) markRestoSeen(id); // hilangkan badge "baru" begitu resto ini dilihat
   const t = TYPES[r.type] || DEFAULT_TYPE_META;
   const imgs = (r.menuImages||[]).filter(Boolean);
@@ -4295,6 +4418,7 @@ document.getElementById('navJelajahBtn').onclick = ()=>{
   document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('wishlistOverlay').classList.add('hidden');
   document.getElementById('filterOverlay').classList.add('hidden');
+  closePreviewCard();
   setActiveNavTab('navJelajahBtn');
 };
 document.getElementById('navTemukanBtn').onclick = ()=>{
@@ -4310,6 +4434,7 @@ document.getElementById('navProfilBtn').onclick = ()=>{
   openAccountPanel();
   if(myUserId) setActiveNavTab('navProfilBtn');
 };
+document.getElementById('previewCardCloseBtn').onclick = (e)=>{ e.stopPropagation(); closePreviewCard(); };
 document.getElementById('closeDetail').onclick = closeDetail;
 document.getElementById('cancelForm').onclick = closeForm;
 document.getElementById('modalOverlay').onclick = (e)=>{
@@ -4403,7 +4528,7 @@ document.getElementById('filterApplyAllBtn').onclick = ()=>{
   }
   visitFilter = document.getElementById('visitFilterSelect').value || null;
   wishlistFilter = document.getElementById('wishlistFilterSelect').value || null;
-  updateFilterBtnLabel();
+  renderFilterChips(); // sinkronkan chip kategori cepat dengan checkbox tipe yang baru diterapkan
   document.getElementById('filterOverlay').classList.add('hidden');
   renderMarkers();
   showToast('Filter diterapkan');
@@ -4421,10 +4546,7 @@ document.getElementById('filterResetAllBtn').onclick = ()=>{
   document.getElementById('tf_time').value = currentTimeStr();
   document.getElementById('visitFilterSelect').value = '';
   document.getElementById('wishlistFilterSelect').value = '';
-  renderTypeCheckList();
-  renderPlatformCheckList();
-  renderPriceCheckList();
-  updateFilterBtnLabel();
+  renderFilterChips(); // sinkronkan chip kategori cepat setelah reset
   document.getElementById('filterOverlay').classList.add('hidden');
   renderMarkers();
   showToast('Semua filter direset');
