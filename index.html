@@ -751,32 +751,66 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 #toast.show{opacity:1;}
 
-/* ---------- SPLASH / WELCOME SCREEN (tampil sekali di kunjungan pertama) ---------- */
+/* ---------- SPLASH / WELCOME SCREEN (tampil tiap kali app dibuka) ---------- */
 #splashOverlay{
   position:fixed;inset:0;z-index:6000;background:var(--ink-deep);
   display:flex;flex-direction:column;align-items:center;justify-content:space-between;
   padding:calc(64px + env(safe-area-inset-top)) 28px calc(32px + env(safe-area-inset-bottom));
-  text-align:center;overflow:hidden;
+  text-align:center;overflow-y:auto;overflow-x:hidden;
 }
 #splashOverlay.hidden{display:none;}
 #splashOverlay::before{
-  content:'';position:absolute;inset:0;pointer-events:none;
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:-1;
   background:radial-gradient(circle at 50% 26%, rgba(226,126,27,0.14), transparent 58%);
 }
-#splashContent{position:relative;display:flex;flex-direction:column;align-items:center;margin-top:12vh;}
+#splashContent{position:relative;display:flex;flex-direction:column;align-items:center;margin-top:12vh;transition:margin-top 0.3s ease;}
 #splashLogoBadge{
   width:104px;height:104px;border-radius:50%;background:#fff;border:5px solid var(--amber);
   box-shadow:0 12px 26px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;
-  overflow:hidden;margin-bottom:22px;
+  overflow:hidden;margin-bottom:22px;transition:width 0.3s ease,height 0.3s ease,margin 0.3s ease;
 }
 #splashLogoBadge img{width:76%;height:76%;object-fit:contain;}
 #splashWordmark{font-family:'Fraunces',serif;font-weight:700;font-size:30px;margin-bottom:14px;letter-spacing:-0.2px;}
 #splashWordmark .sw-white{color:#fff;}
 #splashWordmark .sw-amber{color:var(--amber);}
-#splashTagline{position:relative;color:rgba(255,255,255,0.82);font-size:14.5px;line-height:1.55;margin:0;max-width:260px;}
-#splashActions{position:relative;width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;}
+#splashTagline{position:relative;color:rgba(255,255,255,0.82);font-size:14.5px;line-height:1.55;margin:0;max-width:260px;overflow:hidden;transition:max-height 0.3s ease,opacity 0.3s ease;max-height:60px;opacity:1;}
+
+/* Saat form Masuk/Daftar aktif: ciutkan bagian brand supaya form muat tanpa terpotong di layar pendek */
+#splashOverlay.auth-mode #splashContent{margin-top:4vh;}
+#splashOverlay.auth-mode #splashLogoBadge{width:56px;height:56px;margin-bottom:10px;border-width:3px;}
+#splashOverlay.auth-mode #splashWordmark{font-size:20px;margin-bottom:2px;}
+#splashOverlay.auth-mode #splashTagline{max-height:0;opacity:0;margin:0;}
+
+/* Tombol pilihan awal (Mulai Jelajah / Masuk-Daftar). Disembunyikan dulu saat
+   splash baru muncul & masih mengecek status login, supaya tidak "berkedip"
+   sebelum kita tahu user perlu login atau bisa langsung lanjut. */
+#splashActions{
+  position:relative;width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;
+  opacity:0;transform:translateY(6px);pointer-events:none;transition:opacity 0.35s ease,transform 0.35s ease;
+}
+#splashActions.ready{opacity:1;transform:translateY(0);pointer-events:auto;}
 .btn-splash-primary{background:var(--amber);color:#fff;width:100%;padding:13px 14px;font-size:14.5px;}
 .btn-splash-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.8);width:100%;padding:13px 14px;font-size:14.5px;}
+
+/* Form Masuk/Daftar yang ditanam LANGSUNG di splash (bukan modal terpisah) */
+#splashAuthForm{
+  position:relative;width:100%;max-width:340px;display:none;flex-direction:column;gap:10px;text-align:left;
+}
+#splashAuthForm.show{display:flex;}
+#splashAuthBackBtn{
+  align-self:flex-start;background:none;border:none;color:rgba(255,255,255,0.85);
+  font-size:13.5px;padding:4px 0 10px;cursor:pointer;display:flex;align-items:center;gap:4px;
+}
+#splashAuthTitle{color:#fff;font-size:17px;font-weight:700;margin:0 0 4px;font-family:'Fraunces',serif;}
+#splashAuthDesc{color:rgba(255,255,255,0.75);font-size:12.5px;line-height:1.5;margin:0 0 6px;}
+#splashEmailInput{
+  width:100%;box-sizing:border-box;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.28);
+  background:rgba(255,255,255,0.08);color:#fff;font-size:14px;font-family:'Work Sans',sans-serif;
+}
+#splashEmailInput::placeholder{color:rgba(255,255,255,0.5);}
+#splashLoginStatus{font-size:12px;text-align:center;min-height:16px;color:var(--amber);}
+#splashAuthDivider{text-align:center;color:rgba(255,255,255,0.55);font-size:11.5px;margin:2px 0;}
+#splashGoogleHint{font-size:11px;text-align:center;color:rgba(255,255,255,0.55);margin-top:2px;}
 </style>
 </head>
 <body>
@@ -791,14 +825,18 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <button type="button" id="splashStartBtn" class="btn btn-splash-primary">Mulai Jelajah</button>
       <button type="button" id="splashLoginBtn" class="btn btn-splash-outline">Masuk / Daftar</button>
     </div>
+    <div id="splashAuthForm">
+      <button type="button" id="splashAuthBackBtn">‹ Kembali</button>
+      <div id="splashAuthTitle">Masuk / Daftar</div>
+      <p id="splashAuthDesc">Login sekali dengan email untuk menambah resto, kasih rating, atau tulis testimoni. Cukup tempel &amp; klik link yang dikirim ke email Anda — tanpa password.</p>
+      <input type="email" id="splashEmailInput" placeholder="email@anda.com">
+      <button type="button" id="splashSendLinkBtn" class="btn btn-splash-primary">Kirim Link Login</button>
+      <div id="splashLoginStatus"></div>
+      <div id="splashAuthDivider">atau</div>
+      <button type="button" id="splashGoogleBtn" class="btn btn-splash-outline">🔵 Masuk dengan Google</button>
+      <div id="splashGoogleHint">Belum aktif? Selesaikan Langkah 5 di panduan migrasi dulu.</div>
+    </div>
   </div>
-  <script>
-    // Cek langsung (blocking, sebelum konten lain dirender) supaya returning
-    // visitor tidak sempat lihat "kedipan" splash sebelum disembunyikan.
-    if (localStorage.getItem('gm_seen_splash') === '1') {
-      document.getElementById('splashOverlay').classList.add('hidden');
-    }
-  </script>
   <div id="loginOverlay" class="hidden">
     <div id="loginBox">
       <div id="loginLogo"><span>Gastrono</span>Map</div>
@@ -1380,9 +1418,11 @@ function updateUserBadge(){
   }
 }
 
-async function sendMagicLink(){
-  const email = document.getElementById('loginEmailInput').value.trim();
-  const statusEl = document.getElementById('loginStatus');
+async function sendMagicLink(inputId, statusId){
+  inputId = inputId || 'loginEmailInput';
+  statusId = statusId || 'loginStatus';
+  const email = document.getElementById(inputId).value.trim();
+  const statusEl = document.getElementById(statusId);
   if(!email){ statusEl.textContent = 'Isi email dulu'; return; }
   statusEl.textContent = 'Mengirim link...';
   const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.href } });
@@ -4404,15 +4444,47 @@ document.getElementById('linkSubmitNotOnlineBtn').onclick = sendNoOnlineSalesSub
 document.getElementById('linkSubmitCancelBtn').onclick = ()=> document.getElementById('linkSubmitOverlay').classList.add('hidden');
 document.getElementById('linkSubmitOverlay').onclick = (e)=>{ if(e.target.id === 'linkSubmitOverlay') document.getElementById('linkSubmitOverlay').classList.add('hidden'); };
 
-document.getElementById('splashStartBtn').onclick = ()=>{
-  localStorage.setItem('gm_seen_splash', '1');
+function hideSplash(){
   document.getElementById('splashOverlay').classList.add('hidden');
-};
+}
+document.getElementById('splashStartBtn').onclick = hideSplash;
 document.getElementById('splashLoginBtn').onclick = ()=>{
-  localStorage.setItem('gm_seen_splash', '1');
-  document.getElementById('splashOverlay').classList.add('hidden');
-  document.getElementById('loginOverlay').classList.remove('hidden');
+  // Form Masuk/Daftar ditanam di splash sendiri -- BUKAN buka modal #loginOverlay.
+  document.getElementById('splashActions').classList.remove('ready');
+  document.getElementById('splashAuthForm').classList.add('show');
+  document.getElementById('splashOverlay').classList.add('auth-mode');
 };
+document.getElementById('splashAuthBackBtn').onclick = ()=>{
+  document.getElementById('splashAuthForm').classList.remove('show');
+  document.getElementById('splashActions').classList.add('ready');
+  document.getElementById('splashOverlay').classList.remove('auth-mode');
+};
+document.getElementById('splashSendLinkBtn').onclick = ()=> sendMagicLink('splashEmailInput','splashLoginStatus');
+document.getElementById('splashGoogleBtn').onclick = signInWithGoogle;
+
+// Splash tampil TIAP kali app dibuka, tapi perilakunya beda tergantung status login:
+// - Sudah login (sesi tersimpan valid)  -> splash tampil sebentar lalu otomatis lanjut ke home.
+// - Belum login / sudah logout          -> splash tetap tampil dengan pilihan "Mulai Jelajah" / "Masuk & Daftar".
+// Timeout dipasang supaya kalau koneksi lemot, splash tidak nyangkut selamanya di posisi "mengecek".
+async function runSplashSessionCheck(){
+  const MIN_DISPLAY_MS = 550; // splash tetap terlihat sebentar walau sesi kedetek instan, biar tidak "kedip"
+  const started = Date.now();
+  let session = null;
+  try{
+    const sessionCheck = sb.auth.getSession().then(r => r.data.session);
+    const timeout = new Promise(resolve => setTimeout(()=> resolve(null), 2500));
+    session = await Promise.race([sessionCheck, timeout]);
+  }catch(e){ session = null; }
+
+  const elapsed = Date.now() - started;
+  if(elapsed < MIN_DISPLAY_MS) await new Promise(r => setTimeout(r, MIN_DISPLAY_MS - elapsed));
+
+  if(session && session.user){
+    hideSplash(); // sudah login -> langsung ke home, tanpa perlu pilih apa pun
+  }else{
+    document.getElementById('splashActions').classList.add('ready'); // belum login -> tampilkan pilihan
+  }
+}
 
 document.getElementById('userBadge').onclick = openAccountPanel;
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
@@ -4456,6 +4528,7 @@ renderFilterChips();
 populateTypeSelect();
 initPlatformPicker();
 refreshMyGpsLocation();
+runSplashSessionCheck();
 (async ()=>{
   await initIdentity();
   await loadAllRestos();
