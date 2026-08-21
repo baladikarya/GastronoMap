@@ -501,16 +501,44 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   width:58px;height:58px;border-radius:50%;
   background:var(--amber);color:var(--ink);border:none;
   font-size:28px;font-weight:700;box-shadow:var(--shadow);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;
+  display:none;align-items:center;justify-content:center;
 }
 #fab:active{background:var(--amber-dark);}
 
 #locateBtn{
-  position:absolute;bottom:calc(96px + env(safe-area-inset-bottom));right:24px;z-index:999;
+  position:absolute;bottom:calc(90px + 60px + env(safe-area-inset-bottom));right:16px;z-index:999;
   width:42px;height:42px;border-radius:50%;background:var(--card);
   border:1px solid var(--line);box-shadow:var(--shadow);cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:18px;
 }
+
+/* ---------- BOTTOM NAVIGATION ---------- */
+#bottomNav{
+  position:absolute;left:0;right:0;bottom:0;z-index:1000;
+  background:var(--card);border-top:1px solid var(--line);
+  display:flex;align-items:flex-end;justify-content:space-around;
+  padding:8px 4px calc(8px + env(safe-area-inset-bottom));
+  box-shadow:0 -4px 16px rgba(13,39,25,0.10);
+}
+.nav-item{
+  background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:var(--muted);font-size:10.5px;font-weight:600;padding:4px 2px;cursor:pointer;flex:1;
+  font-family:'Work Sans',sans-serif;
+}
+.nav-item .nav-icon{font-size:21px;line-height:1;}
+.nav-item.active{color:var(--ink);}
+.nav-item-add{flex:1;position:relative;margin-top:-30px;}
+.nav-item-add .nav-icon{
+  width:50px;height:50px;border-radius:50%;background:var(--ink);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;
+  box-shadow:0 6px 16px rgba(13,39,25,0.4);border:4px solid var(--paper);
+}
+.nav-item-add .nav-label{display:none;}
+.nav-item-add:active .nav-icon{background:var(--ink-deep);}
+
+/* Kontrol Leaflet (tombol zoom & atribusi OSM) ikut digeser ke atas supaya tidak
+   tertutup bottom nav yang sekarang permanen menempel di bawah layar. */
+.leaflet-bottom{bottom:calc(74px + env(safe-area-inset-bottom)) !important;}
 
 /* ---------- PANEL (detail resto) ---------- */
 #detailPanel{
@@ -1119,6 +1147,24 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   <div id="map"></div>
   <div id="locateBtn" title="Lokasi saya">🧭</div>
   <button id="fab" title="Tambah resto">+</button>
+
+  <div id="bottomNav">
+    <button type="button" class="nav-item active" id="navJelajahBtn">
+      <span class="nav-icon">🏠</span><span class="nav-label">Jelajah</span>
+    </button>
+    <button type="button" class="nav-item" id="navTemukanBtn">
+      <span class="nav-icon">🔍</span><span class="nav-label">Temukan</span>
+    </button>
+    <button type="button" class="nav-item nav-item-add" id="navAddBtn" title="Tambah resto">
+      <span class="nav-icon">+</span><span class="nav-label">Tambah</span>
+    </button>
+    <button type="button" class="nav-item" id="navFavoritBtn">
+      <span class="nav-icon">🤍</span><span class="nav-label">Favorit</span>
+    </button>
+    <button type="button" class="nav-item" id="navProfilBtn">
+      <span class="nav-icon">👤</span><span class="nav-label">Profil</span>
+    </button>
+  </div>
 
   <div id="detailPanel" class="hidden">
     <button class="closeBtn" id="closeDetail">✕</button>
@@ -4236,6 +4282,34 @@ function showToast(msg){
 
 /* ================= EVENTS ================= */
 document.getElementById('fab').onclick = ()=>{ refreshMyGpsLocation(); openForm(null); };
+
+/* ---------- BOTTOM NAVIGATION ---------- */
+function setActiveNavTab(activeId){
+  document.querySelectorAll('#bottomNav .nav-item').forEach(el=>{
+    el.classList.toggle('active', el.id === activeId);
+  });
+}
+document.getElementById('navJelajahBtn').onclick = ()=>{
+  // "Kembali ke peta": tutup semua panel/overlay yang mungkin sedang terbuka
+  document.getElementById('detailPanel').classList.add('hidden');
+  document.getElementById('accountOverlay').classList.add('hidden');
+  document.getElementById('wishlistOverlay').classList.add('hidden');
+  document.getElementById('filterOverlay').classList.add('hidden');
+  setActiveNavTab('navJelajahBtn');
+};
+document.getElementById('navTemukanBtn').onclick = ()=>{
+  document.getElementById('searchInput').focus();
+  setActiveNavTab('navTemukanBtn');
+};
+document.getElementById('navAddBtn').onclick = ()=>{ refreshMyGpsLocation(); openForm(null); };
+document.getElementById('navFavoritBtn').onclick = ()=>{
+  openWishlistPanel();
+  if(myUserId) setActiveNavTab('navFavoritBtn'); // kalau belum login, openWishlistPanel cuma munculkan prompt login -> jangan pindah highlight
+};
+document.getElementById('navProfilBtn').onclick = ()=>{
+  openAccountPanel();
+  if(myUserId) setActiveNavTab('navProfilBtn');
+};
 document.getElementById('closeDetail').onclick = closeDetail;
 document.getElementById('cancelForm').onclick = closeForm;
 document.getElementById('modalOverlay').onclick = (e)=>{
