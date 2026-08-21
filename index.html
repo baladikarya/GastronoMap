@@ -750,10 +750,55 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity 0.25s;
 }
 #toast.show{opacity:1;}
+
+/* ---------- SPLASH / WELCOME SCREEN (tampil sekali di kunjungan pertama) ---------- */
+#splashOverlay{
+  position:fixed;inset:0;z-index:6000;background:var(--ink-deep);
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:calc(64px + env(safe-area-inset-top)) 28px calc(32px + env(safe-area-inset-bottom));
+  text-align:center;overflow:hidden;
+}
+#splashOverlay.hidden{display:none;}
+#splashOverlay::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 50% 26%, rgba(226,126,27,0.14), transparent 58%);
+}
+#splashContent{position:relative;display:flex;flex-direction:column;align-items:center;margin-top:12vh;}
+#splashLogoBadge{
+  width:104px;height:104px;border-radius:50%;background:#fff;border:5px solid var(--amber);
+  box-shadow:0 12px 26px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;
+  overflow:hidden;margin-bottom:22px;
+}
+#splashLogoBadge img{width:76%;height:76%;object-fit:contain;}
+#splashWordmark{font-family:'Fraunces',serif;font-weight:700;font-size:30px;margin-bottom:14px;letter-spacing:-0.2px;}
+#splashWordmark .sw-white{color:#fff;}
+#splashWordmark .sw-amber{color:var(--amber);}
+#splashTagline{position:relative;color:rgba(255,255,255,0.82);font-size:14.5px;line-height:1.55;margin:0;max-width:260px;}
+#splashActions{position:relative;width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;}
+.btn-splash-primary{background:var(--amber);color:#fff;width:100%;padding:13px 14px;font-size:14.5px;}
+.btn-splash-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.8);width:100%;padding:13px 14px;font-size:14.5px;}
 </style>
 </head>
 <body>
 <div id="app">
+  <div id="splashOverlay">
+    <div id="splashContent">
+      <div id="splashLogoBadge"><img src="icons/icon-192.png" alt="GastronoMap"></div>
+      <div id="splashWordmark"><span class="sw-white">Gastrono</span><span class="sw-amber">Map</span></div>
+      <p id="splashTagline">Peta tempat makan,<br>dibangun bersama.</p>
+    </div>
+    <div id="splashActions">
+      <button type="button" id="splashStartBtn" class="btn btn-splash-primary">Mulai Jelajah</button>
+      <button type="button" id="splashLoginBtn" class="btn btn-splash-outline">Masuk / Daftar</button>
+    </div>
+  </div>
+  <script>
+    // Cek langsung (blocking, sebelum konten lain dirender) supaya returning
+    // visitor tidak sempat lihat "kedipan" splash sebelum disembunyikan.
+    if (localStorage.getItem('gm_seen_splash') === '1') {
+      document.getElementById('splashOverlay').classList.add('hidden');
+    }
+  </script>
   <div id="loginOverlay" class="hidden">
     <div id="loginBox">
       <div id="loginLogo"><span>Gastrono</span>Map</div>
@@ -4358,6 +4403,16 @@ document.getElementById('linkSubmitSendBtn').onclick = sendLinkSubmission;
 document.getElementById('linkSubmitNotOnlineBtn').onclick = sendNoOnlineSalesSubmission;
 document.getElementById('linkSubmitCancelBtn').onclick = ()=> document.getElementById('linkSubmitOverlay').classList.add('hidden');
 document.getElementById('linkSubmitOverlay').onclick = (e)=>{ if(e.target.id === 'linkSubmitOverlay') document.getElementById('linkSubmitOverlay').classList.add('hidden'); };
+
+document.getElementById('splashStartBtn').onclick = ()=>{
+  localStorage.setItem('gm_seen_splash', '1');
+  document.getElementById('splashOverlay').classList.add('hidden');
+};
+document.getElementById('splashLoginBtn').onclick = ()=>{
+  localStorage.setItem('gm_seen_splash', '1');
+  document.getElementById('splashOverlay').classList.add('hidden');
+  document.getElementById('loginOverlay').classList.remove('hidden');
+};
 
 document.getElementById('userBadge').onclick = openAccountPanel;
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
