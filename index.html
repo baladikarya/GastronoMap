@@ -7,7 +7,7 @@
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1E2A28">
+<meta name="theme-color" content="#16382A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,17 +24,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
 
 :root{
-  --ink:#1E2A28;
-  --paper:#F4F5F1;
+  --ink:#16382A;
+  --ink-deep:#0D2719;
+  --paper:#FBF7F0;
   --card:#FFFFFF;
-  --amber:#E8A33D;
-  --amber-dark:#C4801F;
+  --amber:#E27E1B;
+  --amber-dark:#C4691A;
   --teal:#1F7A6C;
   --teal-dark:#155C51;
   --red:#C1443B;
-  --line:#DCDCD2;
+  --line:#E4DFD1;
   --muted:#6B7570;
-  --shadow: 0 8px 24px rgba(30,42,40,0.14);
+  --shadow: 0 8px 24px rgba(13,39,25,0.16);
 }
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;color:var(--ink);background:var(--paper);}
@@ -651,7 +652,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
 /* ---------- RATING BINTANG ---------- */
 .star-picker{display:flex;gap:2px;cursor:pointer;}
-.star-picker span{font-size:18px;color:#DCDCD2;user-select:none;}
+.star-picker span{font-size:18px;color:var(--line);user-select:none;}
 .star-picker span.filled{color:var(--amber);}
 .star-picker-big span{font-size:26px;}
 #ratingForm{display:flex;gap:10px;flex-wrap:wrap;}
