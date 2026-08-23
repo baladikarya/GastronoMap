@@ -589,15 +589,25 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   display:flex;flex-direction:column;
 }
 #detailPanel.hidden{transform:translateY(110%);}
-#detailPanel .closeBtn{
-  position:absolute;top:10px;right:12px;background:none;border:none;
-  font-size:20px;cursor:pointer;color:var(--muted);
-}
+#detailPanel .closeBtn{display:none;} /* diganti tombol back bulat di atas hero photo (lihat .detail-hero-back) */
 .plain-close-btn{
   position:absolute;top:12px;right:14px;background:none;border:none;
   padding:2px;margin:0;font-size:20px;line-height:1;cursor:pointer;color:var(--muted);
 }
-#detailContent{overflow-y:auto;padding:20px 20px 90px 20px;}
+
+/* Hero photo full-bleed di atas panel, dengan tombol back/share/wishlist mengambang */
+#detailHero{position:relative;flex-shrink:0;width:100%;height:220px;background:var(--paper);overflow:hidden;}
+#detailHeroImg{width:100%;height:100%;object-fit:cover;display:block;}
+.detail-hero-back, .detail-hero-icon-btn{
+  position:absolute;top:calc(12px + env(safe-area-inset-top));width:34px;height:34px;border-radius:50%;
+  background:rgba(255,255,255,0.92);border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);
+  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--ink);
+}
+.detail-hero-back{left:12px;}
+.detail-hero-actions{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;display:flex;gap:8px;}
+.detail-hero-icon-btn.is-wishlisted{color:#C2185B;}
+
+#detailContent{overflow-y:auto;padding:16px 20px 90px 20px;}
 .visit-toggle-btn{
   flex-shrink:0;border:1px solid var(--line);background:var(--paper);color:var(--muted);
   border-radius:14px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
@@ -609,7 +619,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;
 }
 .wishlist-toggle-btn.is-wishlisted{background:#FCE4EC;border-color:#C2185B;color:#C2185B;}
-.detail-name{font-family:'Fraunces',serif;font-size:24px;font-weight:600;margin:0 0 4px 0;}
+.detail-name{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 6px 0;}
 .verified-badge{
   display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
   width:18px;height:18px;border-radius:50%;background:#1877F2;color:#fff;
@@ -619,6 +629,47 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .admin-verify-row .btn{width:100%;}
 .btn-verify-on{background:#1877F2;color:#fff;}
 .btn-verify-off{background:var(--paper);color:var(--muted);border:1px solid var(--line);}
+
+/* Baris pill kecil: kategori, harga, status buka/tutup -- persis di bawah nama */
+.detail-pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.detail-pill{
+  padding:4px 10px;border-radius:12px;background:var(--paper);border:1px solid var(--line);
+  font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;
+}
+.detail-pill.open-yes{background:#E4F3E0;border-color:#2E7D32;color:#2E7D32;}
+.detail-pill.open-no{background:#FBE4E1;border-color:var(--red);color:var(--red);}
+
+/* Baris alamat & telepon ringkas (ikon + teks satu baris), tampil di atas tombol aksi */
+.detail-quickline{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);margin-bottom:5px;}
+.detail-quickline .dq-icon{flex-shrink:0;color:var(--muted);}
+
+/* 4 tombol aksi utama: Rute / Telepon / Simpan / Bagikan */
+.detail-cta-row{display:flex;gap:8px;margin:14px 0 4px;}
+.detail-cta-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;
+  border-radius:12px;border:1.5px solid var(--line);background:var(--card);cursor:pointer;
+  font-family:'Work Sans',sans-serif;font-size:11px;font-weight:700;color:var(--ink);
+}
+.detail-cta-btn .cta-icon{font-size:16px;}
+.detail-cta-btn.cta-primary{background:var(--ink);border-color:var(--ink);color:#fff;}
+.detail-cta-btn.cta-active{background:#FCE4EC;border-color:#C2185B;color:#C2185B;}
+.detail-cta-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+/* Tab Ringkasan / Menu Rekomendasi / Ulasan / Foto */
+.detail-tabs{
+  display:flex;gap:4px;border-bottom:1px solid var(--line);margin:16px 0 14px;overflow-x:auto;
+  scrollbar-width:none;
+}
+.detail-tabs::-webkit-scrollbar{display:none;}
+.detail-tab-btn{
+  flex:0 0 auto;background:none;border:none;padding:8px 4px;margin-right:14px;font-size:13px;
+  font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;
+  font-family:'Work Sans',sans-serif;white-space:nowrap;
+}
+.detail-tab-btn.active{color:var(--ink);border-bottom-color:var(--ink);}
+.detail-tab-panel{display:none;}
+.detail-tab-panel.active{display:block;}
+
 .detail-fields{
   display:grid;grid-template-columns:auto auto auto auto auto;
   row-gap:6px;column-gap:6px;font-size:13.5px;margin:8px 0;align-items:baseline;
@@ -645,13 +696,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .btn-secondary{background:var(--paper);color:var(--ink);border:1px solid var(--line);}
 .btn-danger{background:none;color:var(--red);border:1px solid var(--red);}
 
-/* Desktop: side panel. Mobile: bottom sheet */
+/* Desktop: side panel. Mobile: full-screen (sesuai referensi -- bukan bottom sheet parsial lagi) */
 @media(min-width:760px){
-  #detailPanel{top:0;right:0;bottom:0;width:380px;border-left:1px solid var(--line);}
+  #detailPanel{top:0;right:0;bottom:0;width:420px;border-left:1px solid var(--line);}
   #detailPanel.hidden{transform:translateX(110%);}
 }
 @media(max-width:759px){
-  #detailPanel{left:0;right:0;bottom:0;max-height:70vh;border-radius:18px 18px 0 0;}
+  #detailPanel{left:0;right:0;top:0;bottom:0;border-radius:0;}
+  #detailHero{height:38vh;min-height:200px;}
 }
 
 /* ---------- MODAL FORM ---------- */
@@ -669,6 +721,33 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   #formModal{border-radius:16px;max-height:82vh;}
 }
 #formModal h2{font-family:'Fraunces',serif;font-size:21px;margin:0 0 14px 0;}
+
+/* ---------- WIZARD STEPPER (mode Tambah Resto baru saja; mode Edit tetap 1 halaman) ---------- */
+.wizard-stepper{display:flex;align-items:flex-start;margin:2px 0 20px;}
+.wizard-stepper.hidden{display:none;}
+.wizard-step-item{display:flex;flex-direction:column;align-items:center;flex:0 0 auto;width:56px;}
+.wizard-step-dot{
+  width:26px;height:26px;border-radius:50%;background:var(--line);color:var(--muted);
+  display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;flex-shrink:0;
+}
+.wizard-step-dot.active{background:var(--ink);color:#fff;}
+.wizard-step-dot.done{background:var(--teal);color:#fff;}
+.wizard-step-label{font-size:10px;color:var(--muted);margin-top:4px;text-align:center;white-space:nowrap;}
+.wizard-step-item.active .wizard-step-label{color:var(--ink);font-weight:700;}
+.wizard-step-connector{flex:1;height:2px;background:var(--line);margin:12px 2px 0;}
+.wizard-step-connector.done{background:var(--teal);}
+
+.wizard-step{display:none;}
+.wizard-step.active{display:block;}
+#formModal.is-edit-mode .wizard-step{display:block !important;} /* mode edit: semua field tampil 1 halaman seperti sebelumnya */
+#formModal.is-edit-mode .wizard-nav{display:none !important;}
+#formModal.is-edit-mode .wizard-stepper{display:none !important;}
+
+.wizard-nav{display:flex;gap:10px;margin-top:18px;}
+.wizard-review-box{background:var(--paper);border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:16px;}
+.wizard-review-box .wr-row{display:flex;gap:6px;margin-bottom:5px;}
+.wizard-review-box .wr-label{font-weight:700;color:var(--ink);flex:0 0 auto;min-width:70px;}
+.wizard-review-box .wr-value{color:var(--muted);}
 
 /* ---------- PANEL "PASTIKAN PIN" (form disembunyikan sementara agar peta terlihat penuh) ---------- */
 #pinPeekBar{
@@ -1209,6 +1288,14 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
   <div id="detailPanel" class="hidden">
     <button class="closeBtn" id="closeDetail">✕</button>
+    <div id="detailHero">
+      <img id="detailHeroImg" src="" alt="">
+      <button type="button" class="detail-hero-back" id="detailHeroBackBtn" title="Kembali">‹</button>
+      <div class="detail-hero-actions">
+        <button type="button" class="detail-hero-icon-btn" id="detailHeroShareBtn" title="Bagikan">⤴</button>
+        <button type="button" class="detail-hero-icon-btn" id="detailHeroHeartBtn" title="Wishlist">🤍</button>
+      </div>
+    </div>
     <div id="detailContent"></div>
   </div>
 
@@ -1235,6 +1322,18 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   <div id="modalOverlay" class="hidden">
     <div id="formModal">
       <h2 id="formTitle">Tambah Resto</h2>
+
+      <div class="wizard-stepper" id="wizardStepper">
+        <div class="wizard-step-item" data-step-item="1"><div class="wizard-step-dot">1</div><span class="wizard-step-label">Info</span></div>
+        <div class="wizard-step-connector" data-connector="1"></div>
+        <div class="wizard-step-item" data-step-item="2"><div class="wizard-step-dot">2</div><span class="wizard-step-label">Detail</span></div>
+        <div class="wizard-step-connector" data-connector="2"></div>
+        <div class="wizard-step-item" data-step-item="3"><div class="wizard-step-dot">3</div><span class="wizard-step-label">Foto</span></div>
+        <div class="wizard-step-connector" data-connector="3"></div>
+        <div class="wizard-step-item" data-step-item="4"><div class="wizard-step-dot">4</div><span class="wizard-step-label">Selesai</span></div>
+      </div>
+
+      <div class="wizard-step" data-step="1">
       <div class="field" style="position:relative;">
         <label>Nama Resto</label>
         <input type="text" id="f_name" placeholder="ex: Bakmie Pak Slamet">
@@ -1259,19 +1358,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <input type="tel" id="f_phone" placeholder="mis. 081234567890 atau 021-5551234">
       </div>
 
-      <div class="field-row">
-        <div class="field"><label>Tipe</label>
-          <select id="f_type"></select>
-        </div>
-        <div class="field"><label>Range Harga / orang</label>
-          <select id="f_price">
-            <option value="< Rp 25rb">&lt; Rp 25rb</option>
-            <option value="Rp 25rb - 50rb">Rp 25rb – 50rb</option>
-            <option value="Rp 50rb - 100rb">Rp 50rb – 100rb</option>
-            <option value="Rp 100rb - 250rb">Rp 100rb – 250rb</option>
-            <option value="> Rp 250rb">&gt; Rp 250rb</option>
-          </select>
-        </div>
+      <div class="field"><label>Tipe</label>
+        <select id="f_type"></select>
       </div>
 
       <div class="field">
@@ -1279,15 +1367,20 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <div id="dayHoursList"></div>
       </div>
 
-      <div class="field">
-        <label>Foto Menu</label>
-        <div class="photo-grid" id="menuPhotoGrid"></div>
-        <input type="file" id="menuPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
-        <input type="file" id="menuPhotoGalleryInput" accept="image/*" class="hidden">
-        <div class="quick-photo-row">
-          <button type="button" id="menuPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-          <button type="button" id="menuPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
-        </div>
+      <div class="wizard-nav">
+        <button type="button" class="btn btn-primary" id="wizardNext1" style="width:100%;">Lanjut →</button>
+      </div>
+      </div><!-- /step 1 -->
+
+      <div class="wizard-step" data-step="2">
+      <div class="field"><label>Range Harga / orang</label>
+        <select id="f_price">
+          <option value="< Rp 25rb">&lt; Rp 25rb</option>
+          <option value="Rp 25rb - 50rb">Rp 25rb – 50rb</option>
+          <option value="Rp 50rb - 100rb">Rp 50rb – 100rb</option>
+          <option value="Rp 100rb - 250rb">Rp 100rb – 250rb</option>
+          <option value="> Rp 250rb">&gt; Rp 250rb</option>
+        </select>
       </div>
 
       <div class="field">
@@ -1296,32 +1389,11 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
         <button type="button" id="addFavBtn">+ Tambah menu favorit</button>
       </div>
 
-      <div class="field" id="visitPhotoFieldWrap">
-        <label>Foto Kunjungan</label>
-        <div class="photo-grid" id="visitPhotoGrid"></div>
-        <input type="file" id="visitPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
-        <input type="file" id="visitPhotoGalleryInput" accept="image/*" class="hidden">
-        <div class="quick-photo-row">
-          <button type="button" id="visitPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-          <button type="button" id="visitPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
-        </div>
-      </div>
-
       <div class="field" id="refFieldWrap">
         <label>Referensi (link Reels IG/YouTube/TikTok)</label>
         <div id="refUrlList"></div>
         <button type="button" id="addRefUrlBtn">+ Tambah link referensi</button>
         <div id="refFieldEditNote" class="hidden" style="font-size:11.5px;color:var(--muted);margin-top:4px;">Untuk resto yang sudah ada, tambah/hapus referensi lewat panel detail (tombol ✕ pada tiap link), bukan dari sini.</div>
-      </div>
-
-      <div class="field" id="formRatingFieldWrap">
-        <label>Rating Pengunjung</label>
-        <div id="formRatingForm"></div>
-      </div>
-
-      <div class="field" id="formTestiFieldWrap">
-        <label>Testimoni Pengunjung</label>
-        <textarea id="f_testi" placeholder="Bagaimana suasana atau pengalaman Anda di sini?"></textarea>
       </div>
 
       <div class="field" id="platformPickerField">
@@ -1336,6 +1408,59 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
           <div class="platform-toggle" data-payment="cashless" style="--pcolor:#1F7A6C">💳 Cashless</div>
         </div>
       </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn btn-secondary" id="wizardBack2">← Kembali</button>
+        <button type="button" class="btn btn-primary" id="wizardNext2" style="flex:2;">Lanjut →</button>
+      </div>
+      </div><!-- /step 2 -->
+
+      <div class="wizard-step" data-step="3">
+      <div class="field">
+        <label>Foto Menu</label>
+        <div class="photo-grid" id="menuPhotoGrid"></div>
+        <input type="file" id="menuPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="menuPhotoGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row">
+          <button type="button" id="menuPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="menuPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+        </div>
+      </div>
+
+      <div class="field" id="visitPhotoFieldWrap">
+        <label>Foto Kunjungan</label>
+        <div class="photo-grid" id="visitPhotoGrid"></div>
+        <input type="file" id="visitPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="visitPhotoGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row">
+          <button type="button" id="visitPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="visitPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+        </div>
+      </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn btn-secondary" id="wizardBack3">← Kembali</button>
+        <button type="button" class="btn btn-primary" id="wizardNext3" style="flex:2;">Lanjut →</button>
+      </div>
+      </div><!-- /step 3 -->
+
+      <div class="wizard-step" data-step="4">
+      <div class="wizard-review-box" id="wizardReviewBox"></div>
+
+      <div class="field" id="formRatingFieldWrap">
+        <label>Rating Pengunjung</label>
+        <div id="formRatingForm"></div>
+      </div>
+
+      <div class="field" id="formTestiFieldWrap">
+        <label>Testimoni Pengunjung</label>
+        <textarea id="f_testi" placeholder="Bagaimana suasana atau pengalaman Anda di sini?"></textarea>
+      </div>
+
+      <div class="wizard-nav">
+        <button type="button" class="btn btn-secondary" id="wizardBack4">← Kembali</button>
+      </div>
+      </div><!-- /step 4 -->
 
       <div id="formActions">
         <button class="btn btn-secondary" id="cancelForm" style="flex:1;">Batal</button>
@@ -1493,6 +1618,22 @@ async function toggleWishlist(restoId){
   }
   updateWishlistMenuBadge();
   renderMarkers();
+}
+
+/* Bagikan resto lewat Web Share API (kalau didukung browser/HP), fallback salin link ke clipboard. */
+async function shareResto(r){
+  const shareUrl = `${window.location.origin}${window.location.pathname}?resto=${encodeURIComponent(r.id)}`;
+  const shareData = { title: r.name, text: `Cek ${r.name} di GastronoMap!`, url: shareUrl };
+  if(navigator.share){
+    try{ await navigator.share(shareData); }catch(e){ /* user membatalkan share -- tidak perlu toast error */ }
+  }else{
+    try{
+      await navigator.clipboard.writeText(shareUrl);
+      showToast('Link disalin ke clipboard!');
+    }catch(e){
+      showToast('Gagal membuat link berbagi');
+    }
+  }
 }
 
 function updateUserBadge(){
@@ -3795,95 +3936,154 @@ function openDetail(id, showAllTesti){
   const isVisited = visitedIds.has(r.id);
   const isWishlisted = wishlistIds.has(r.id);
 
+  // ---------- Hero photo + tombol overlay (back/share/wishlist) ----------
+  const heroImgs = imgs.length ? imgs : (r.photos && r.photos.length ? [photoPublicUrl(r.photos[0].storagePath)] : []);
+  document.getElementById('detailHeroImg').src = heroImgs[0] || 'icons/icon-512.png';
+  document.getElementById('detailHeroBackBtn').onclick = closeDetail;
+  const heroHeartBtn = document.getElementById('detailHeroHeartBtn');
+  heroHeartBtn.textContent = isWishlisted ? '❤️' : '🤍';
+  heroHeartBtn.classList.toggle('is-wishlisted', isWishlisted);
+  heroHeartBtn.onclick = async ()=>{ await toggleWishlist(r.id); openDetail(id, showAllTesti); };
+  document.getElementById('detailHeroShareBtn').onclick = ()=> shareResto(r);
+
+  // ---------- Pill kategori/harga/status + baris alamat-telepon ringkas ----------
+  let closeTimeText = '';
+  const isOpenNow = r.hoursByDay ? isOpenAt(r.hoursByDay, today, currentTimeStr()) : false;
+  if(isOpenNow && r.hoursByDay && r.hoursByDay[today] && !r.hoursByDay[today].closed){
+    closeTimeText = ` • Tutup ${r.hoursByDay[today].close}`;
+  }
+  const openStatusPillHtml = r.hoursByDay
+    ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}">${isOpenNow ? 'Buka' : 'Tutup'}${closeTimeText}</span>`
+    : '';
+  const pillRowHtml = `<div class="detail-pill-row">
+    <span class="detail-pill">${t.emoji} ${escapeHtml(r.type)}</span>
+    ${r.priceRange ? `<span class="detail-pill">${escapeHtml(r.priceRange)}</span>` : ''}
+    ${openStatusPillHtml}
+  </div>`;
+  const quickAddressHtml = r.address ? `<div class="detail-quickline"><span class="dq-icon">📍</span><span>${escapeHtml(r.address)}</span></div>` : '';
+  const quickPhoneHtml = r.phone ? `<div class="detail-quickline"><span class="dq-icon">📞</span><span>${escapeHtml(r.phone)}</span></div>` : '';
+
   document.getElementById('detailContent').innerHTML = `
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-      ${openNowBadge || '<span></span>'}
-      <div style="display:flex;align-items:center;gap:6px;">
-        <button id="wishlistToggleBtn" class="wishlist-toggle-btn ${isWishlisted ? 'is-wishlisted' : ''}" title="${isWishlisted ? 'Di Wishlist' : 'Wishlist'}">${isWishlisted ? '❤️' : '🤍'}</button>
-        <button id="visitToggleBtn" class="visit-toggle-btn ${isVisited ? 'is-visited' : ''}">${isVisited ? '✅ Sudah Dikunjungi' : '🆕 Belum Dikunjungi'}</button>
-      </div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+      <h3 class="detail-name" style="margin:0;">${escapeHtml(r.name)}${r.isVerified ? '<span class="verified-badge" title="Diverifikasi admin">✓</span>' : ''}</h3>
+      <button id="visitToggleBtn" class="visit-toggle-btn ${isVisited ? 'is-visited' : ''}">${isVisited ? '✅ Dikunjungi' : '🆕 Belum'}</button>
     </div>
-    <h3 class="detail-name">${escapeHtml(r.name)}${r.isVerified ? '<span class="verified-badge" title="Diverifikasi admin">✓</span>' : ''}</h3>
-    ${paymentsHtml}
+    ${pillRowHtml}
+    ${quickAddressHtml}
+    ${quickPhoneHtml}
     ${ratingSummaryHtml}
-    <button class="btn btn-primary" id="directionBtn" style="width:100%;margin-top:10px;">🧭 Direction</button>
+    <div class="detail-cta-row">
+      <button type="button" class="detail-cta-btn cta-primary" id="directionBtn"><span class="cta-icon">🧭</span>Rute</button>
+      <button type="button" class="detail-cta-btn" id="telpCtaBtn" ${r.phone ? '' : 'disabled'}><span class="cta-icon">📞</span>Telepon</button>
+      <button type="button" class="detail-cta-btn ${isWishlisted ? 'cta-active' : ''}" id="simpanCtaBtn"><span class="cta-icon">${isWishlisted ? '🔖' : '🏷️'}</span>${isWishlisted ? 'Tersimpan' : 'Simpan'}</button>
+      <button type="button" class="detail-cta-btn" id="bagikanCtaBtn"><span class="cta-icon">⤴</span>Bagikan</button>
+    </div>
     <button class="report-resto-link" id="reportRestoBtn">🚩 Laporkan resto ini</button>
-    ${platformsHtml}
-    <div class="detail-fields">
-      ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
-      ${r.phone ? `<div class="df-row"><span class="df-label">TELEPON</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">☎️</a></span></div>` : ''}
-      <div class="df-row"><span class="df-label">HARGA</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.priceRange||'-')}</span></div>
-      ${r.hoursByDay ? scheduleRowsHtml : `<div class="df-row"><span class="df-label">JAM BUKA</span><span class="df-colon1">:</span><span class="df-value" style="color:var(--muted);">Jam buka belum diisi</span></div>`}
+
+    <div class="detail-tabs">
+      <button type="button" class="detail-tab-btn active" data-tab="ringkasan">Ringkasan</button>
+      <button type="button" class="detail-tab-btn" data-tab="menu">Menu Rekomendasi</button>
+      <button type="button" class="detail-tab-btn" data-tab="ulasan">Ulasan</button>
+      <button type="button" class="detail-tab-btn" data-tab="foto">Foto</button>
     </div>
-    <div class="field" style="margin-top:14px;">
-      <label>Menu Favorit / Rekomendasi</label>
-      <div class="fav-chip-list" id="favChipList">${(()=>{
-        const ranked = groupAndRankFavorites(favs);
-        return ranked.length
-          ? ranked.map(g=>`<span class="fav-chip">⭐ ${escapeHtml(g.canonical)}${g.count > 1 ? ` <b>(${g.count})</b>` : ''}</span>`).join('')
-          : '<span style="color:var(--muted);font-size:12.5px;">Belum ada rekomendasi. Jadilah yang pertama!</span>';
-      })()}</div>
-      <div class="quick-fav-row">
-        <input type="text" id="quickFavInput" placeholder="Tambahkan rekomendasi menu...">
-        <button id="quickFavBtn">Tambah</button>
+
+    <div class="detail-tab-panel active" data-tab-panel="ringkasan">
+      ${paymentsHtml}
+      ${platformsHtml}
+      <div class="detail-fields">
+        ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
+        ${r.phone ? `<div class="df-row"><span class="df-label">TELEPON</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">☎️</a></span></div>` : ''}
+        <div class="df-row"><span class="df-label">HARGA</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.priceRange||'-')}</span></div>
+        ${r.hoursByDay ? scheduleRowsHtml : `<div class="df-row"><span class="df-label">JAM BUKA</span><span class="df-colon1">:</span><span class="df-value" style="color:var(--muted);">Jam buka belum diisi</span></div>`}
+      </div>
+      ${isAdmin ? `<div class="action-row">
+        <button class="btn btn-secondary" id="editBtn">✏️ Edit</button>
+        <button class="btn btn-danger" id="delBtn">🗑</button>
+      </div>
+      <div class="admin-verify-row">
+        <button class="btn ${r.isVerified ? 'btn-verify-on' : 'btn-verify-off'}" id="verifyBtn">${r.isVerified ? '✓ Verified' : 'Tandai Verified'}</button>
+      </div>` : ''}
+    </div>
+
+    <div class="detail-tab-panel" data-tab-panel="menu">
+      <div class="field">
+        <label>Menu Favorit / Rekomendasi</label>
+        <div class="fav-chip-list" id="favChipList">${(()=>{
+          const ranked = groupAndRankFavorites(favs);
+          return ranked.length
+            ? ranked.map(g=>`<span class="fav-chip">⭐ ${escapeHtml(g.canonical)}${g.count > 1 ? ` <b>(${g.count})</b>` : ''}</span>`).join('')
+            : '<span style="color:var(--muted);font-size:12.5px;">Belum ada rekomendasi. Jadilah yang pertama!</span>';
+        })()}</div>
+        <div class="quick-fav-row">
+          <input type="text" id="quickFavInput" placeholder="Tambahkan rekomendasi menu...">
+          <button id="quickFavBtn">Tambah</button>
+        </div>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Daftar Menu</label>
+        ${buildMenuPhotosCarouselHtml(imgs, r.menuPhotos)}
+        <input type="file" id="menuPhotoDetailCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="menuPhotoDetailGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row">
+          <button type="button" id="menuPhotoDetailCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="menuPhotoDetailGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+        </div>
       </div>
     </div>
-    <div class="field" style="margin-top:14px;">
-      <label>Daftar Menu</label>
-      ${buildMenuPhotosCarouselHtml(imgs, r.menuPhotos)}
-      <input type="file" id="menuPhotoDetailCameraInput" accept="image/*" capture="environment" class="hidden">
-      <input type="file" id="menuPhotoDetailGalleryInput" accept="image/*" class="hidden">
-      <div class="quick-photo-row">
-        <button type="button" id="menuPhotoDetailCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-        <button type="button" id="menuPhotoDetailGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+
+    <div class="detail-tab-panel" data-tab-panel="ulasan">
+      <div class="field" id="ratingSection">
+        <label>Rating Pengunjung</label>
+        ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
+        <div id="ratingForm">${RATING_CRITERIA.map(c=>`
+          <div class="rating-crit-row">
+            <span class="crit-label">${c.label}</span>
+            <div class="star-picker" data-crit="${c.key}">${[1,2,3,4,5].map(v=>`<span data-v="${v}">★</span>`).join('')}</div>
+          </div>`).join('')}
+        </div>
+        <button class="btn btn-primary" id="submitRatingBtn" style="width:100%;margin-top:10px;">${myRatingEntry ? 'Update Rating Saya' : 'Kirim Rating'}</button>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Testimoni Pengunjung</label>
+        <div class="testi-list" id="testiList">${testimoniListHtml(r, showAllTesti)}</div>
+        <div class="quick-testi-row">
+          ${myTestiEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:4px;">Anda sudah menulis testimoni. Ubah teks di bawah untuk memperbarui.</div>' : ''}
+          <textarea id="quickTestiInput" placeholder="Bagaimana suasana atau pengalaman Anda di sini?">${myTestiEntry ? escapeHtml(myTestiEntry.text) : ''}</textarea>
+          <button id="quickTestiBtn">${myTestiEntry ? 'Update Testimoni Saya' : 'Kirim Testimoni'}</button>
+        </div>
       </div>
     </div>
-    <div class="field" style="margin-top:14px;">
-      <label>Foto Kunjungan</label>
-      ${buildPhotosCarouselHtml(r.photos)}
-      <input type="file" id="photoCameraInput" accept="image/*" capture="environment" class="hidden">
-      <input type="file" id="photoGalleryInput" accept="image/*" class="hidden">
-      <div class="quick-photo-row">
-        <button type="button" id="photoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-        <button type="button" id="photoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+
+    <div class="detail-tab-panel" data-tab-panel="foto">
+      <div class="field">
+        <label>Foto Kunjungan</label>
+        ${buildPhotosCarouselHtml(r.photos)}
+        <input type="file" id="photoCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="photoGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row">
+          <button type="button" id="photoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="photoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+        </div>
+      </div>
+      <div class="field" style="margin-top:14px;">
+        <label>Referensi (Reels/Video)</label>
+        <div class="ref-grid" id="refGrid">${(r.references && r.references.length) ? r.references.map(buildRefCardHtml).join('') : '<span style="color:var(--muted);font-size:12.5px;">Belum ada referensi. Tempel link IG/YouTube/TikTok di bawah.</span>'}</div>
+        <div class="quick-ref-row">
+          <input type="url" id="quickRefInput" placeholder="Tempel link Reels/YouTube/TikTok...">
+          <button id="quickRefBtn">Tambah</button>
+        </div>
       </div>
     </div>
-    <div class="field" style="margin-top:14px;">
-      <label>Referensi (Reels/Video)</label>
-      <div class="ref-grid" id="refGrid">${(r.references && r.references.length) ? r.references.map(buildRefCardHtml).join('') : '<span style="color:var(--muted);font-size:12.5px;">Belum ada referensi. Tempel link IG/YouTube/TikTok di bawah.</span>'}</div>
-      <div class="quick-ref-row">
-        <input type="url" id="quickRefInput" placeholder="Tempel link Reels/YouTube/TikTok...">
-        <button id="quickRefBtn">Tambah</button>
-      </div>
-    </div>
-    <div class="field" style="margin-top:14px;" id="ratingSection">
-      <label>Rating Pengunjung</label>
-      ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
-      <div id="ratingForm">${RATING_CRITERIA.map(c=>`
-        <div class="rating-crit-row">
-          <span class="crit-label">${c.label}</span>
-          <div class="star-picker" data-crit="${c.key}">${[1,2,3,4,5].map(v=>`<span data-v="${v}">★</span>`).join('')}</div>
-        </div>`).join('')}
-      </div>
-      <button class="btn btn-primary" id="submitRatingBtn" style="width:100%;margin-top:10px;">${myRatingEntry ? 'Update Rating Saya' : 'Kirim Rating'}</button>
-    </div>
-    <div class="field" style="margin-top:14px;">
-      <label>Testimoni Pengunjung</label>
-      <div class="testi-list" id="testiList">${testimoniListHtml(r, showAllTesti)}</div>
-      <div class="quick-testi-row">
-        ${myTestiEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:4px;">Anda sudah menulis testimoni. Ubah teks di bawah untuk memperbarui.</div>' : ''}
-        <textarea id="quickTestiInput" placeholder="Bagaimana suasana atau pengalaman Anda di sini?">${myTestiEntry ? escapeHtml(myTestiEntry.text) : ''}</textarea>
-        <button id="quickTestiBtn">${myTestiEntry ? 'Update Testimoni Saya' : 'Kirim Testimoni'}</button>
-      </div>
-    </div>
-    ${isAdmin ? `<div class="action-row">
-      <button class="btn btn-secondary" id="editBtn">✏️ Edit</button>
-      <button class="btn btn-danger" id="delBtn">🗑</button>
-    </div>
-    <div class="admin-verify-row">
-      <button class="btn ${r.isVerified ? 'btn-verify-on' : 'btn-verify-off'}" id="verifyBtn">${r.isVerified ? '✓ Verified' : 'Tandai Verified'}</button>
-    </div>` : ''}
   `;
+  document.querySelectorAll('.detail-tab-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('.detail-tab-btn').forEach(b=> b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.detail-tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tabPanel === btn.dataset.tab));
+    };
+  });
+  document.getElementById('telpCtaBtn').onclick = ()=>{ if(r.phone) window.location.href = `tel:${r.phone.replace(/[^0-9+]/g,'')}`; };
+  document.getElementById('simpanCtaBtn').onclick = async ()=>{ await toggleWishlist(r.id); openDetail(id, showAllTesti); };
+  document.getElementById('bagikanCtaBtn').onclick = ()=> shareResto(r);
   if(myRatingEntry){
     setTimeout(()=>{
       document.querySelectorAll('#ratingSection .star-picker').forEach(picker=>{
@@ -3895,10 +4095,6 @@ function openDetail(id, showAllTesti){
   }
   document.getElementById('visitToggleBtn').onclick = async ()=>{
     await toggleVisited(r.id);
-    openDetail(id, showAllTesti);
-  };
-  document.getElementById('wishlistToggleBtn').onclick = async ()=>{
-    await toggleWishlist(r.id);
     openDetail(id, showAllTesti);
   };
   document.getElementById('directionBtn').onclick = ()=>{
@@ -4089,6 +4285,8 @@ function openForm(existing){
   pendingNewRestoLatLng = null;
   pickedLatLng = existing ? L.latLng(existing.lat, existing.lng) : null;
   document.getElementById('formTitle').textContent = existing ? 'Edit Resto' : 'Tambah Resto';
+  document.getElementById('formModal').classList.toggle('is-edit-mode', !!existing);
+  if(!existing) goToWizardStep(1); // reset wizard ke step 1 tiap kali buka form Tambah Resto baru
   document.getElementById('f_address').value = existing ? (existing.address || '') : '';
   document.getElementById('f_phone').value = existing ? (existing.phone || '') : '';
   document.getElementById('locSuggestions').classList.add('hidden');
@@ -4269,6 +4467,54 @@ function closeForm(){
   document.getElementById('pinPeekBar').classList.add('hidden');
   if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
 }
+
+/* ================= WIZARD TAMBAH RESTO (4 langkah: Info/Detail/Foto/Selesai) =================
+   Hanya berlaku untuk mode TAMBAH BARU (lihat #formModal.is-edit-mode di CSS -- mode edit tetap
+   satu halaman panjang seperti sebelumnya, karena hanya admin yang mengedit dan mereka sudah
+   terbiasa dengan tampilan lama). Wizard ini murni navigasi/tampilan -- semua field tetap ada di
+   DOM yang sama seperti sebelumnya, jadi handleSave() tidak perlu diubah sama sekali. */
+let currentWizardStep = 1;
+function goToWizardStep(n){
+  currentWizardStep = n;
+  document.querySelectorAll('.wizard-step').forEach(el=>{
+    el.classList.toggle('active', Number(el.dataset.step) === n);
+  });
+  document.querySelectorAll('.wizard-step-item').forEach(el=>{
+    const s = Number(el.dataset.stepItem);
+    el.classList.toggle('active', s === n);
+    el.querySelector('.wizard-step-dot').classList.toggle('active', s === n);
+    el.querySelector('.wizard-step-dot').classList.toggle('done', s < n);
+    el.querySelector('.wizard-step-dot').textContent = s < n ? '✓' : s;
+  });
+  document.querySelectorAll('.wizard-step-connector').forEach(el=>{
+    el.classList.toggle('done', Number(el.dataset.connector) < n);
+  });
+  // Tombol "Simpan Resto" cuma tampil di step 4 (Selesai) -- step 1-3 pakai "Lanjut" bawaan wizard.
+  document.getElementById('saveForm').classList.toggle('hidden', n < 4);
+  if(n === 4) renderWizardReview();
+  document.getElementById('formModal').scrollTop = 0;
+}
+function renderWizardReview(){
+  const name = document.getElementById('f_name').value.trim() || '-';
+  const address = document.getElementById('f_address').value.trim() || '-';
+  const type = document.getElementById('f_type').value || '-';
+  const price = document.getElementById('f_price').value || '-';
+  document.getElementById('wizardReviewBox').innerHTML = `
+    <div class="wr-row"><span class="wr-label">Nama</span><span class="wr-value">${escapeHtml(name)}</span></div>
+    <div class="wr-row"><span class="wr-label">Alamat</span><span class="wr-value">${escapeHtml(address)}</span></div>
+    <div class="wr-row"><span class="wr-label">Kategori</span><span class="wr-value">${escapeHtml(type)} · ${escapeHtml(price)}</span></div>
+  `;
+}
+document.getElementById('wizardNext1').onclick = ()=>{
+  if(!document.getElementById('f_name').value.trim()){ showToast('Isi nama resto dulu'); return; }
+  if(!pickedLatLng){ showToast('Pilih lokasi resto di peta dulu'); return; }
+  goToWizardStep(2);
+};
+document.getElementById('wizardBack2').onclick = ()=> goToWizardStep(1);
+document.getElementById('wizardNext2').onclick = ()=> goToWizardStep(3);
+document.getElementById('wizardBack3').onclick = ()=> goToWizardStep(2);
+document.getElementById('wizardNext3').onclick = ()=> goToWizardStep(4);
+document.getElementById('wizardBack4').onclick = ()=> goToWizardStep(3);
 
 /* ================= CEK DUPLIKAT LOKASI (crowdsource) ================= */
 // Haversine sederhana, cukup akurat untuk radius kecil (meter-level).
