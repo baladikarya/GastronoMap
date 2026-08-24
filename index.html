@@ -4241,6 +4241,7 @@ function openForm(existing){
     return;
   }
   if(!existing && !requireLogin()) return;
+  initPlatformPicker(); // rebuild & tampilkan/sembunyikan field Ketersediaan Online sesuai status admin terkini
   pickingLocationMode = true;
   editingId = existing ? existing.id : null;
   const quickLoc = (!existing && pendingNewRestoLatLng) ? pendingNewRestoLatLng : null;
