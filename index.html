@@ -2128,7 +2128,7 @@ async function loadAndRenderAdminLinkSubmissions(){
   const userIds = [...new Set(data.map(s=> s.user_id).filter(Boolean))];
   let usernameById = {};
   if(userIds.length){
-    const { data: profilesData } = await sb.from('profiles').select('id, username').in('id', userIds);
+    const { data: profilesData } = await sb.from('public_contributor_profiles').select('id, username').in('id', userIds);
     (profilesData || []).forEach(p=> usernameById[p.id] = p.username);
   }
   list.innerHTML = data.map(sub=>{
@@ -2246,7 +2246,7 @@ async function loadAndRenderLeaderboard(){
   const allUserIds = [...new Set((data||[]).map(row=> row.user_id))];
   let profileById = {};
   if(allUserIds.length){
-    const { data: profilesData } = await sb.from('profiles')
+    const { data: profilesData } = await sb.from('public_contributor_profiles')
       .select('id, username, is_verified_contributor')
       .in('id', allUserIds);
     (profilesData||[]).forEach(p=> profileById[p.id] = p);
@@ -2315,7 +2315,7 @@ async function loadAndRenderAdminReports(){
   const userIds = [...new Set(data.map(rep=> rep.user_id).filter(Boolean))];
   let usernameById = {};
   if(userIds.length){
-    const { data: profilesData } = await sb.from('profiles').select('id, username').in('id', userIds);
+    const { data: profilesData } = await sb.from('public_contributor_profiles').select('id, username').in('id', userIds);
     (profilesData || []).forEach(p=> usernameById[p.id] = p.username);
   }
   list.innerHTML = data.map(rep=>{
@@ -3189,7 +3189,7 @@ async function loadAllRestos(){
       sb.from('references_link').select('*'),
       sb.from('visit_photos').select('*'),
       sb.from('menu_photos').select('*'),
-      sb.from('profiles').select('id, username')
+      sb.from('public_contributor_profiles').select('id, username')
     ]);
     profilesMap = {};
     (profileRows||[]).forEach(p=>{ if(p.username) profilesMap[p.id] = p.username; });
