@@ -1041,7 +1041,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil</button>
       <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
       <button class="account-menu-item" id="openWishlistBtn">❤️ Wishlist</button>
-      <button class="account-menu-item" id="openLeaderboardBtn">🏆 Leaderboard</button>
       <button class="account-menu-item hidden" id="openAdminLinkSubmissionsBtn">🔗 Kelola Link Online</button>
       <button class="account-menu-item account-menu-dropdown" id="reportMenuToggle" type="button">
         <span>📝 Bantuan</span>
@@ -1281,8 +1280,8 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     <button type="button" class="nav-item" id="navFavoritBtn">
       <span class="nav-icon">🤍</span><span class="nav-label">Favorit</span>
     </button>
-    <button type="button" class="nav-item" id="navProfilBtn">
-      <span class="nav-icon">👤</span><span class="nav-label">Profil</span>
+    <button type="button" class="nav-item" id="navLeaderboardBtn">
+      <span class="nav-icon">🏆</span><span class="nav-label">Leaderboard</span>
     </button>
   </div>
 
@@ -4676,9 +4675,9 @@ document.getElementById('navFavoritBtn').onclick = ()=>{
   openWishlistPanel();
   if(myUserId) setActiveNavTab('navFavoritBtn'); // kalau belum login, openWishlistPanel cuma munculkan prompt login -> jangan pindah highlight
 };
-document.getElementById('navProfilBtn').onclick = ()=>{
-  openAccountPanel();
-  if(myUserId) setActiveNavTab('navProfilBtn');
+document.getElementById('navLeaderboardBtn').onclick = ()=>{
+  openLeaderboard();
+  setActiveNavTab('navLeaderboardBtn');
 };
 document.getElementById('previewCardCloseBtn').onclick = (e)=>{ e.stopPropagation(); closePreviewCard(); };
 document.getElementById('closeDetail').onclick = closeDetail;
@@ -4857,8 +4856,10 @@ document.querySelectorAll('.report-filter-tab').forEach(tab=>{
   };
 });
 
-document.getElementById('openLeaderboardBtn').onclick = openLeaderboard;
-document.getElementById('closeLeaderboardBtn').onclick = ()=> document.getElementById('leaderboardOverlay').classList.add('hidden');
+document.getElementById('closeLeaderboardBtn').onclick = ()=>{
+  document.getElementById('leaderboardOverlay').classList.add('hidden');
+  setActiveNavTab('navJelajahBtn');
+};
 document.getElementById('leaderboardOverlay').onclick = (e)=>{ if(e.target.id === 'leaderboardOverlay') document.getElementById('leaderboardOverlay').classList.add('hidden'); };
 document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(tab=>{
   tab.onclick = ()=>{
