@@ -3913,7 +3913,7 @@ function openDetail(id, showAllTesti){
   }
   const payments = (r.paymentMethods||[]);
   const paymentsHtml = payments.length
-    ? `<div style="font-size:13.5px;margin:2px 0 4px;color:var(--ink);">${payments.map(p=> p === 'cash' ? 'Cash' : 'Cashless').join(' & ')}</div>`
+    ? `<div class="df-row"><span class="df-label">PEMBAYARAN</span><span class="df-colon1">:</span><span class="df-value">${payments.map(p=> p === 'cash' ? 'Cash' : 'Cashless').join(' & ')}</span></div>`
     : '';
 
   const myRatingEntry = (r.ratings||[]).find(x => x.userId === myUserId) || null;
@@ -3932,13 +3932,9 @@ function openDetail(id, showAllTesti){
   heroVisitBtn.onclick = async ()=>{ await toggleVisited(r.id); openDetail(id, showAllTesti); };
 
   // ---------- Status buka/tutup, sejajar dengan nama resto ----------
-  let closeTimeText = '';
   const isOpenNow = r.hoursByDay ? isOpenAt(r.hoursByDay, today, currentTimeStr()) : false;
-  if(isOpenNow && r.hoursByDay && r.hoursByDay[today] && !r.hoursByDay[today].closed){
-    closeTimeText = ` • Tutup ${r.hoursByDay[today].close}`;
-  }
   const openStatusPillHtml = r.hoursByDay
-    ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}">${isOpenNow ? 'Buka' : 'Tutup'}${closeTimeText}</span>`
+    ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}">${isOpenNow ? 'Buka' : 'Tutup'}</span>`
     : '';
 
   document.getElementById('detailContent').innerHTML = `
@@ -3962,11 +3958,11 @@ function openDetail(id, showAllTesti){
     </div>
 
     <div class="detail-tab-panel active" data-tab-panel="ringkasan">
-      ${paymentsHtml}
       ${platformsHtml}
       <div class="detail-fields">
         ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
         <div class="df-row"><span class="df-label">HARGA</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.priceRange||'-')}</span></div>
+        ${paymentsHtml}
         ${r.hoursByDay ? scheduleRowsHtml : `<div class="df-row"><span class="df-label">JAM BUKA</span><span class="df-colon1">:</span><span class="df-value" style="color:var(--muted);">Jam buka belum diisi</span></div>`}
       </div>
       ${isAdmin ? `<div class="action-row">
