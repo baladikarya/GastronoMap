@@ -598,14 +598,13 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   background:rgba(255,255,255,0.92);border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);
   display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--ink);
 }
-.detail-hero-actions{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;display:flex;gap:8px;}
-.detail-hero-icon-btn{
-  width:34px;height:34px;border-radius:50%;
-  background:rgba(255,255,255,0.92);border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);
-  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--ink);
-  text-shadow:0 0 1px rgba(0,0,0,0.35),0 1px 2px rgba(0,0,0,0.25); /* biar heart putih tetap kelihatan di atas tombol putih */
+.detail-hero-visit-btn{
+  position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;
+  border:none;border-radius:14px;padding:6px 12px;font-size:11.5px;font-weight:700;
+  background:rgba(255,255,255,0.92);color:var(--ink);cursor:pointer;white-space:nowrap;
+  box-shadow:0 2px 8px rgba(0,0,0,0.25);
 }
-.detail-hero-icon-btn.is-wishlisted{color:#C2185B;text-shadow:none;}
+.detail-hero-visit-btn.is-visited{background:#E4F3E0;color:#2E7D32;}
 
 #detailContent{overflow-y:auto;padding:16px 20px 90px 20px;}
 .visit-toggle-btn{
@@ -630,20 +629,15 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .btn-verify-on{background:#1877F2;color:#fff;}
 .btn-verify-off{background:var(--paper);color:var(--muted);border:1px solid var(--line);}
 
-/* Baris pill kecil: kategori, harga, status buka/tutup -- persis di bawah nama */
-.detail-pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+/* Pill status buka/tutup, sejajar dengan nama resto di ujung form */
 .detail-pill{
   padding:4px 10px;border-radius:12px;background:var(--paper);border:1px solid var(--line);
-  font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;
+  font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;flex-shrink:0;
 }
 .detail-pill.open-yes{background:#E4F3E0;border-color:#2E7D32;color:#2E7D32;}
 .detail-pill.open-no{background:#FBE4E1;border-color:var(--red);color:var(--red);}
 
-/* Baris alamat & telepon ringkas (ikon + teks satu baris), tampil di atas tombol aksi */
-.detail-quickline{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);margin-bottom:5px;}
-.detail-quickline .dq-icon{flex-shrink:0;color:var(--muted);}
-
-/* 4 tombol aksi utama: Rute / Telepon / Simpan / Bagikan */
+/* 4 tombol aksi utama: Rute / Telepon / Wishlist / Laporkan */
 .detail-cta-row{display:flex;gap:8px;margin:14px 0 4px;}
 .detail-cta-btn{
   flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;
@@ -657,12 +651,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
 /* Tab Ringkasan / Menu / Ulasan / Foto */
 .detail-tabs{
-  display:flex;gap:4px;border-bottom:1px solid var(--line);margin:16px 0 14px;overflow-x:auto;
+  display:flex;justify-content:space-between;border-bottom:1px solid var(--line);margin:16px 0 14px;overflow-x:auto;
   scrollbar-width:none;
 }
 .detail-tabs::-webkit-scrollbar{display:none;}
 .detail-tab-btn{
-  flex:0 0 auto;background:none;border:none;padding:8px 4px;margin-right:14px;font-size:13px;
+  flex:0 0 auto;background:none;border:none;padding:8px 4px;font-size:13px;
   font-weight:700;color:var(--muted);cursor:pointer;border-bottom:2.5px solid transparent;
   font-family:'Work Sans',sans-serif;white-space:nowrap;
 }
@@ -1286,10 +1280,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     <div id="detailHero">
       <img id="detailHeroImg" src="" alt="">
       <button type="button" class="detail-hero-back" id="detailHeroBackBtn" title="Kembali">‹</button>
-      <div class="detail-hero-actions">
-        <button type="button" class="detail-hero-icon-btn" id="detailHeroShareBtn" title="Bagikan">⤴</button>
-        <button type="button" class="detail-hero-icon-btn" id="detailHeroHeartBtn" title="Wishlist">🤍</button>
-      </div>
+      <button type="button" class="detail-hero-visit-btn" id="detailHeroVisitBtn"></button>
     </div>
     <div id="detailContent"></div>
   </div>
@@ -3931,17 +3922,16 @@ function openDetail(id, showAllTesti){
   const isVisited = visitedIds.has(r.id);
   const isWishlisted = wishlistIds.has(r.id);
 
-  // ---------- Hero photo + tombol overlay (back/share/wishlist) ----------
+  // ---------- Hero photo + tombol overlay (back/tandai dikunjungi) ----------
   const heroImgs = imgs.length ? imgs : (r.photos && r.photos.length ? [photoPublicUrl(r.photos[0].storagePath)] : []);
   document.getElementById('detailHeroImg').src = heroImgs[0] || 'icons/icon-512.png';
   document.getElementById('detailHeroBackBtn').onclick = closeDetail;
-  const heroHeartBtn = document.getElementById('detailHeroHeartBtn');
-  heroHeartBtn.textContent = isWishlisted ? '❤️' : '🤍';
-  heroHeartBtn.classList.toggle('is-wishlisted', isWishlisted);
-  heroHeartBtn.onclick = async ()=>{ await toggleWishlist(r.id); openDetail(id, showAllTesti); };
-  document.getElementById('detailHeroShareBtn').onclick = ()=> shareResto(r);
+  const heroVisitBtn = document.getElementById('detailHeroVisitBtn');
+  heroVisitBtn.textContent = isVisited ? '✅ Dikunjungi' : '🆕 Belum';
+  heroVisitBtn.classList.toggle('is-visited', isVisited);
+  heroVisitBtn.onclick = async ()=>{ await toggleVisited(r.id); openDetail(id, showAllTesti); };
 
-  // ---------- Pill kategori/harga/status + baris alamat-telepon ringkas ----------
+  // ---------- Status buka/tutup, sejajar dengan nama resto ----------
   let closeTimeText = '';
   const isOpenNow = r.hoursByDay ? isOpenAt(r.hoursByDay, today, currentTimeStr()) : false;
   if(isOpenNow && r.hoursByDay && r.hoursByDay[today] && !r.hoursByDay[today].closed){
@@ -3950,26 +3940,18 @@ function openDetail(id, showAllTesti){
   const openStatusPillHtml = r.hoursByDay
     ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}">${isOpenNow ? 'Buka' : 'Tutup'}${closeTimeText}</span>`
     : '';
-  const pillRowHtml = `<div class="detail-pill-row">
-    <span class="detail-pill">${t.emoji} ${escapeHtml(r.type)}</span>
-    ${r.priceRange ? `<span class="detail-pill">${escapeHtml(r.priceRange)}</span>` : ''}
-    ${openStatusPillHtml}
-  </div>`;
-  const quickAddressHtml = r.address ? `<div class="detail-quickline"><span class="dq-icon">📍</span><span>${escapeHtml(r.address)}</span></div>` : '';
 
   document.getElementById('detailContent').innerHTML = `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
       <h3 class="detail-name" style="margin:0;">${escapeHtml(r.name)}${r.isVerified ? '<span class="verified-badge" title="Diverifikasi admin">✓</span>' : ''}</h3>
-      <button id="visitToggleBtn" class="visit-toggle-btn ${isVisited ? 'is-visited' : ''}">${isVisited ? '✅ Dikunjungi' : '🆕 Belum'}</button>
+      ${openStatusPillHtml}
     </div>
-    ${pillRowHtml}
-    ${quickAddressHtml}
     ${ratingSummaryHtml}
     <div class="detail-cta-row">
       <button type="button" class="detail-cta-btn cta-primary" id="directionBtn"><span class="cta-icon">🧭</span>Rute</button>
       <button type="button" class="detail-cta-btn" id="telpCtaBtn" ${r.phone ? '' : 'disabled'}><span class="cta-icon">📞</span>Telepon</button>
+      <button type="button" class="detail-cta-btn ${isWishlisted ? 'cta-active' : ''}" id="simpanCtaBtn"><span class="cta-icon">${isWishlisted ? '🔖' : '🏷️'}</span>${isWishlisted ? 'Tersimpan' : 'Wishlist'}</button>
       <button type="button" class="detail-cta-btn" id="reportCtaBtn"><span class="cta-icon">🚩</span>Laporkan</button>
-      <button type="button" class="detail-cta-btn" id="bagikanCtaBtn"><span class="cta-icon">⤴</span>Bagikan</button>
     </div>
 
     <div class="detail-tabs">
@@ -4073,8 +4055,8 @@ function openDetail(id, showAllTesti){
     };
   });
   document.getElementById('telpCtaBtn').onclick = ()=>{ if(r.phone) window.location.href = `tel:${r.phone.replace(/[^0-9+]/g,'')}`; };
+  document.getElementById('simpanCtaBtn').onclick = async ()=>{ await toggleWishlist(r.id); openDetail(id, showAllTesti); };
   document.getElementById('reportCtaBtn').onclick = ()=>{ openReportModal(r.id, r.name); };
-  document.getElementById('bagikanCtaBtn').onclick = ()=> shareResto(r);
   if(myRatingEntry){
     setTimeout(()=>{
       document.querySelectorAll('#ratingSection .star-picker').forEach(picker=>{
@@ -4084,10 +4066,6 @@ function openDetail(id, showAllTesti){
       });
     }, 0);
   }
-  document.getElementById('visitToggleBtn').onclick = async ()=>{
-    await toggleVisited(r.id);
-    openDetail(id, showAllTesti);
-  };
   document.getElementById('directionBtn').onclick = ()=>{
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`, '_blank');
   };
