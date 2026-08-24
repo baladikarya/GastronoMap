@@ -194,11 +194,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   display:flex;align-items:center;justify-content:center;padding:20px;
 }
 #faceBlurConfirmOverlay.hidden{display:none;}
-.report-resto-link{
-  display:block;width:100%;text-align:center;background:none;border:none;
-  color:var(--muted);font-size:12px;font-weight:600;padding:8px 0 2px 0;cursor:pointer;
-  font-family:'Work Sans',sans-serif;text-decoration:underline;
-}
 #reportContextLabel{font-size:12px;color:var(--teal-dark);background:var(--paper);border-radius:8px;padding:8px 10px;margin-bottom:12px;}
 #adminReportsOverlay{
   position:fixed;inset:0;z-index:4500;background:rgba(20,25,24,0.6);
@@ -598,14 +593,19 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 /* Hero photo full-bleed di atas panel, dengan tombol back/share/wishlist mengambang */
 #detailHero{position:relative;flex-shrink:0;width:100%;height:220px;background:var(--paper);overflow:hidden;}
 #detailHeroImg{width:100%;height:100%;object-fit:cover;display:block;}
-.detail-hero-back, .detail-hero-icon-btn{
-  position:absolute;top:calc(12px + env(safe-area-inset-top));width:34px;height:34px;border-radius:50%;
+.detail-hero-back{
+  position:absolute;top:calc(12px + env(safe-area-inset-top));left:12px;width:34px;height:34px;border-radius:50%;
   background:rgba(255,255,255,0.92);border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);
   display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--ink);
 }
-.detail-hero-back{left:12px;}
 .detail-hero-actions{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;display:flex;gap:8px;}
-.detail-hero-icon-btn.is-wishlisted{color:#C2185B;}
+.detail-hero-icon-btn{
+  width:34px;height:34px;border-radius:50%;
+  background:rgba(255,255,255,0.92);border:none;box-shadow:0 2px 8px rgba(0,0,0,0.25);
+  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--ink);
+  text-shadow:0 0 1px rgba(0,0,0,0.35),0 1px 2px rgba(0,0,0,0.25); /* biar heart putih tetap kelihatan di atas tombol putih */
+}
+.detail-hero-icon-btn.is-wishlisted{color:#C2185B;text-shadow:none;}
 
 #detailContent{overflow-y:auto;padding:16px 20px 90px 20px;}
 .visit-toggle-btn{
@@ -653,9 +653,9 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .detail-cta-btn .cta-icon{font-size:16px;}
 .detail-cta-btn.cta-primary{background:var(--ink);border-color:var(--ink);color:#fff;}
 .detail-cta-btn.cta-active{background:#FCE4EC;border-color:#C2185B;color:#C2185B;}
-.detail-cta-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.detail-cta-btn:disabled{opacity:0.45;filter:grayscale(1);cursor:not-allowed;}
 
-/* Tab Ringkasan / Menu Rekomendasi / Ulasan / Foto */
+/* Tab Ringkasan / Menu / Ulasan / Foto */
 .detail-tabs{
   display:flex;gap:4px;border-bottom:1px solid var(--line);margin:16px 0 14px;overflow-x:auto;
   scrollbar-width:none;
@@ -682,10 +682,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .detail-fields .df-colon2{grid-column:4;color:var(--muted);}
 .detail-fields .df-time{grid-column:5;color:var(--ink);white-space:nowrap;}
 .detail-fields .df-today .df-day, .detail-fields .df-today .df-time{font-weight:700;color:var(--teal-dark);}
-.phone-call-btn{
-  background:var(--teal-dark);color:#fff;text-decoration:none;padding:3px 10px;border-radius:12px;
-  font-size:11px;font-weight:700;white-space:nowrap;
-}
 .detail-desc{font-size:13.5px;line-height:1.55;margin-top:6px;color:#333;}
 .action-row{display:flex;gap:10px;margin-top:18px;}
 .btn{
@@ -3960,7 +3956,6 @@ function openDetail(id, showAllTesti){
     ${openStatusPillHtml}
   </div>`;
   const quickAddressHtml = r.address ? `<div class="detail-quickline"><span class="dq-icon">📍</span><span>${escapeHtml(r.address)}</span></div>` : '';
-  const quickPhoneHtml = r.phone ? `<div class="detail-quickline"><span class="dq-icon">📞</span><span>${escapeHtml(r.phone)}</span></div>` : '';
 
   document.getElementById('detailContent').innerHTML = `
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
@@ -3969,19 +3964,17 @@ function openDetail(id, showAllTesti){
     </div>
     ${pillRowHtml}
     ${quickAddressHtml}
-    ${quickPhoneHtml}
     ${ratingSummaryHtml}
     <div class="detail-cta-row">
       <button type="button" class="detail-cta-btn cta-primary" id="directionBtn"><span class="cta-icon">🧭</span>Rute</button>
       <button type="button" class="detail-cta-btn" id="telpCtaBtn" ${r.phone ? '' : 'disabled'}><span class="cta-icon">📞</span>Telepon</button>
-      <button type="button" class="detail-cta-btn ${isWishlisted ? 'cta-active' : ''}" id="simpanCtaBtn"><span class="cta-icon">${isWishlisted ? '🔖' : '🏷️'}</span>${isWishlisted ? 'Tersimpan' : 'Simpan'}</button>
+      <button type="button" class="detail-cta-btn" id="reportCtaBtn"><span class="cta-icon">🚩</span>Laporkan</button>
       <button type="button" class="detail-cta-btn" id="bagikanCtaBtn"><span class="cta-icon">⤴</span>Bagikan</button>
     </div>
-    <button class="report-resto-link" id="reportRestoBtn">🚩 Laporkan resto ini</button>
 
     <div class="detail-tabs">
       <button type="button" class="detail-tab-btn active" data-tab="ringkasan">Ringkasan</button>
-      <button type="button" class="detail-tab-btn" data-tab="menu">Menu Rekomendasi</button>
+      <button type="button" class="detail-tab-btn" data-tab="menu">Menu</button>
       <button type="button" class="detail-tab-btn" data-tab="ulasan">Ulasan</button>
       <button type="button" class="detail-tab-btn" data-tab="foto">Foto</button>
     </div>
@@ -3991,7 +3984,6 @@ function openDetail(id, showAllTesti){
       ${platformsHtml}
       <div class="detail-fields">
         ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
-        ${r.phone ? `<div class="df-row"><span class="df-label">TELEPON</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.phone)} <a href="tel:${escapeAttr(r.phone.replace(/[^0-9+]/g,''))}" class="phone-call-btn" title="Telepon sekarang">☎️</a></span></div>` : ''}
         <div class="df-row"><span class="df-label">HARGA</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.priceRange||'-')}</span></div>
         ${r.hoursByDay ? scheduleRowsHtml : `<div class="df-row"><span class="df-label">JAM BUKA</span><span class="df-colon1">:</span><span class="df-value" style="color:var(--muted);">Jam buka belum diisi</span></div>`}
       </div>
@@ -4081,7 +4073,7 @@ function openDetail(id, showAllTesti){
     };
   });
   document.getElementById('telpCtaBtn').onclick = ()=>{ if(r.phone) window.location.href = `tel:${r.phone.replace(/[^0-9+]/g,'')}`; };
-  document.getElementById('simpanCtaBtn').onclick = async ()=>{ await toggleWishlist(r.id); openDetail(id, showAllTesti); };
+  document.getElementById('reportCtaBtn').onclick = ()=>{ openReportModal(r.id, r.name); };
   document.getElementById('bagikanCtaBtn').onclick = ()=> shareResto(r);
   if(myRatingEntry){
     setTimeout(()=>{
@@ -4098,9 +4090,6 @@ function openDetail(id, showAllTesti){
   };
   document.getElementById('directionBtn').onclick = ()=>{
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`, '_blank');
-  };
-  document.getElementById('reportRestoBtn').onclick = ()=>{
-    openReportModal(r.id, r.name);
   };
   document.querySelectorAll('.platform-chip-add-link').forEach(chip=>{
     chip.onclick = ()=>{
