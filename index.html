@@ -2227,6 +2227,8 @@ async function loadAndRenderLeaderboard(){
   let q = sb.from('leaderboard_points').select('user_id, points, city_id, created_at');
   if(startDate) q = q.gte('created_at', startDate);
   const { data, error } = await q;
+  console.log('[LEADERBOARD DEBUG] currentUser (myUserId):', myUserId, 'isAdmin:', isAdmin);
+  console.log('[LEADERBOARD DEBUG] leaderboard_points query -> error:', error, 'data:', data);
   if(error){ wrap.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat: ${escapeHtml(error.message)}</div>`; return; }
 
   const byCity = {};
@@ -2235,6 +2237,7 @@ async function loadAndRenderLeaderboard(){
     if(!byCity[key]) byCity[key] = {};
     byCity[key][row.user_id] = (byCity[key][row.user_id]||0) + row.points;
   });
+  console.log('[LEADERBOARD DEBUG] byCity:', JSON.parse(JSON.stringify(byCity)));
 
   const cityIds = Object.keys(byCity).filter(k=> k !== '__no_city__');
   let cityNameById = {};
@@ -2244,13 +2247,20 @@ async function loadAndRenderLeaderboard(){
   }
 
   const allUserIds = [...new Set((data||[]).map(row=> row.user_id))];
+  console.log('[LEADERBOARD DEBUG] allUserIds:', allUserIds);
   let profileById = {};
   if(allUserIds.length){
-    const { data: profilesData } = await sb.from('public_contributor_profiles')
+    const { data: profilesData, error: profilesError } = await sb.from('public_contributor_profiles')
       .select('id, username, is_verified_contributor')
       .in('id', allUserIds);
+    console.log('[LEADERBOARD DEBUG] public_contributor_profiles query -> error:', profilesError, 'data:', profilesData);
+    if(profilesError){
+      wrap.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat data kontributor: ${escapeHtml(profilesError.message)}</div>`;
+      return;
+    }
     (profilesData||[]).forEach(p=> profileById[p.id] = p);
   }
+  console.log('[LEADERBOARD DEBUG] profileById:', profileById);
 
   // Progres unlock milik user yang sedang login, ditampilkan terpisah di atas (bukan per kota)
   if(myUserId && !isAdmin){
@@ -2276,6 +2286,7 @@ async function loadAndRenderLeaderboard(){
       .map(([uid, pts])=> ({ uid, pts, profile: profileById[uid] }))
       .filter(row=> row.profile && row.profile.is_verified_contributor)
       .sort((a,b)=> b.pts - a.pts);
+    console.log(`[LEADERBOARD DEBUG] kota "${cityKey}" -- baris sebelum filter:`, Object.entries(byCity[cityKey]).map(([uid,pts])=>({uid, pts, profile: profileById[uid]})), '-- setelah filter is_verified_contributor:', rows);
 
     if(rows.length === 0){
       return `<div class="leaderboard-city-block">
