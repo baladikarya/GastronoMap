@@ -232,7 +232,12 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;
 }
 #routeViewTopbar .rv-title{font-family:'Fraunces',serif;font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
-#routeMapEl{flex:1;min-height:0;width:100%;background:#e6e1d6;}
+#routeMapWrap{flex:1;min-height:0;position:relative;}
+#routeMapEl{width:100%;height:100%;background:#e6e1d6;}
+#routeLocateBtn{
+  position:absolute;bottom:14px;right:14px;z-index:1000;width:42px;height:42px;border-radius:50%;
+  background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);cursor:pointer;font-size:18px;
+}
 #routeViewBottombar{
   flex-shrink:0;background:var(--card);padding:12px 14px calc(14px + env(safe-area-inset-bottom));
   box-shadow:0 -4px 16px rgba(13,39,25,0.12);
@@ -1203,7 +1208,10 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <button type="button" class="rv-close" id="routeViewCloseBtn">✕</button>
       <div class="rv-title" id="routeViewTitle">Rute</div>
     </div>
-    <div id="routeMapEl"></div>
+    <div id="routeMapWrap">
+      <div id="routeMapEl"></div>
+      <button type="button" id="routeLocateBtn" title="Ke posisi saya">🧭</button>
+    </div>
     <div id="routeViewBottombar">
       <div id="routeViewInfo">Mencari lokasi Anda...</div>
       <button type="button" class="btn btn-secondary" id="routeViewGmapsBtn">📍 Buka di Google Maps Saja</button>
@@ -2159,6 +2167,10 @@ let routeControl = null;
 let routeWatchId = null;
 let routeUserLayer = null;
 let routeDestMarker = null;
+let routeFullCoords = null;
+let routeTotalDistance = 0;
+let routeTotalTime = 0;
+let routeLastUserLatLng = null;
 
 function openDirectionChoice(lat, lng, name){
   directionTarget = { lat, lng, name: name || 'Resto' };
@@ -2176,8 +2188,35 @@ function closeRouteView(){
   if(routeWatchId !== null){ navigator.geolocation.clearWatch(routeWatchId); routeWatchId = null; }
   if(routeUserLayer){ routeUserLayer.remove(); routeUserLayer = null; }
   routeDestMarker = null;
+  routeFullCoords = null; routeTotalDistance = 0; routeTotalTime = 0; routeLastUserLatLng = null;
   if(routeControl && routeMap){ try{ routeMap.removeControl(routeControl); }catch(e){} routeControl = null; }
   if(routeMap){ try{ routeMap.remove(); }catch(e){} routeMap = null; }
+}
+
+// Hitung sisa jarak & waktu berdasarkan titik terdekat di jalur rute ke posisi user saat ini,
+// tanpa panggil ulang OSRM (hemat kuota server demo & baterai).
+function updateRouteProgress(userLatLng){
+  if(!routeFullCoords || !routeFullCoords.length) return;
+  const infoEl = document.getElementById('routeViewInfo');
+  let nearestIdx = 0, nearestDist = Infinity;
+  for(let i=0;i<routeFullCoords.length;i++){
+    const d = userLatLng.distanceTo(routeFullCoords[i]);
+    if(d < nearestDist){ nearestDist = d; nearestIdx = i; }
+  }
+  let remaining = nearestDist;
+  for(let i=nearestIdx; i<routeFullCoords.length-1; i++){
+    remaining += routeFullCoords[i].distanceTo(routeFullCoords[i+1]);
+  }
+  const avgSpeed = routeTotalTime > 0 ? (routeTotalDistance / routeTotalTime) : 0; // meter/detik
+  const remainingTime = avgSpeed > 0 ? remaining / avgSpeed : 0;
+  infoEl.classList.remove('rv-error');
+  if(remaining < 40){
+    infoEl.textContent = '🎉 Anda sudah sampai di lokasi tujuan!';
+  }else{
+    const km = (remaining/1000).toFixed(1);
+    const mins = Math.max(1, Math.round(remainingTime/60));
+    infoEl.textContent = `🧭 ${km} km · ⏱️ sekitar ${mins} menit lagi (mobil/motor)`;
+  }
 }
 
 function openRouteView(target){
@@ -2199,8 +2238,11 @@ function openRouteView(target){
       if(!routeMap){
         initRouteMap(from, target);
       }else if(routeUserLayer){
+        routeLastUserLatLng = L.latLng(from.lat, from.lng);
         routeUserLayer.update(from.lat, from.lng, pos.coords.accuracy);
-        routeMap.panTo([from.lat, from.lng], { animate: true });
+        // TIDAK auto-pan/zoom ke posisi user di sini, biar user bebas geser/zoom peta sendiri.
+        // Untuk kembali ke posisi user, tekan tombol kompas di peta rute.
+        updateRouteProgress(routeLastUserLatLng);
       }
     },
     (err)=>{
@@ -2232,6 +2274,7 @@ function initRouteMap(from, target){
   // Titik lokasi user, live & bisa gerak mengikuti pergerakan sebenarnya
   routeUserLayer = createUserLocationLayer(routeMap);
   routeUserLayer.update(from.lat, from.lng, 30);
+  routeLastUserLatLng = L.latLng(from.lat, from.lng);
 
   let routeFinished = false;
   routeControl = L.Routing.control({
@@ -2245,7 +2288,7 @@ function initRouteMap(from, target){
     lineOptions: { styles: [
       { color: '#0D2719', opacity: 0.15, weight: 9 },
       { color: '#ffffff', opacity: 0.8, weight: 6 },
-      { color: '#155C51', opacity: 1, weight: 4 }
+      { color: '#5AB8F5', opacity: 1, weight: 4 } // biru muda, sengaja beda dari warna titik lokasi user (teal)
     ]},
     createMarker: ()=> null // marker start/tujuan kita gambar sendiri di atas, biar sesuai desain & bisa live update
   }).addTo(routeMap);
@@ -2253,10 +2296,10 @@ function initRouteMap(from, target){
   routeControl.on('routesfound', (e)=>{
     routeFinished = true;
     const r = e.routes[0];
-    const km = (r.summary.totalDistance / 1000).toFixed(1);
-    const mins = Math.round(r.summary.totalTime / 60);
-    infoEl.classList.remove('rv-error');
-    infoEl.textContent = `🧭 ${km} km · ⏱️ sekitar ${mins} menit (mobil/motor)`;
+    routeFullCoords = r.coordinates;
+    routeTotalDistance = r.summary.totalDistance;
+    routeTotalTime = r.summary.totalTime;
+    updateRouteProgress(routeLastUserLatLng);
   });
   routeControl.on('routingerror', ()=>{
     infoEl.classList.add('rv-error');
@@ -2283,6 +2326,9 @@ document.getElementById('directionChoiceOverlay').onclick = (e)=>{
   if(e.target.id === 'directionChoiceOverlay') closeDirectionChoice();
 };
 document.getElementById('routeViewCloseBtn').onclick = closeRouteView;
+document.getElementById('routeLocateBtn').onclick = ()=>{
+  if(routeMap && routeLastUserLatLng) routeMap.setView(routeLastUserLatLng, routeMap.getZoom());
+};
 document.getElementById('routeViewGmapsBtn').onclick = ()=>{
   if(directionTarget) openGoogleMapsDirections(directionTarget);
 };
