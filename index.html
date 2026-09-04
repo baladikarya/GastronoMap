@@ -2211,11 +2211,11 @@ function updateRouteProgress(userLatLng){
   const remainingTime = avgSpeed > 0 ? remaining / avgSpeed : 0;
   infoEl.classList.remove('rv-error');
   if(remaining < 40){
-    infoEl.textContent = '🎉 Anda sudah sampai di lokasi tujuan!';
+    infoEl.textContent = '🎉 Anda sudah sampai!';
   }else{
     const km = (remaining/1000).toFixed(1);
     const mins = Math.max(1, Math.round(remainingTime/60));
-    infoEl.textContent = `🧭 ${km} km · ⏱️ sekitar ${mins} menit lagi (mobil/motor)`;
+    infoEl.textContent = `🧭 ${km} km · ⏱️ sekitar ${mins} menit berkendara`;
   }
 }
 
