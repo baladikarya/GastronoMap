@@ -563,6 +563,23 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   border:1px solid var(--line);box-shadow:var(--shadow);cursor:pointer;
   display:flex;align-items:center;justify-content:center;font-size:18px;
 }
+#locateBtn.locate-active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
+
+/* ---------- TITIK LOKASI LIVE (mirip Google Maps blue dot) ---------- */
+.ull-core{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:16px;height:16px;border-radius:50%;background:var(--teal-dark);border:3px solid #fff;
+  box-shadow:0 1px 5px rgba(0,0,0,0.45);z-index:2;
+}
+.ull-pulse{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:16px;height:16px;border-radius:50%;background:rgba(21,92,81,0.35);
+  animation:ullPulseAnim 1.8s ease-out infinite;
+}
+@keyframes ullPulseAnim{
+  0%{width:16px;height:16px;opacity:0.7;}
+  100%{width:50px;height:50px;opacity:0;}
+}
 
 /* ---------- BOTTOM NAVIGATION ---------- */
 #bottomNav{
@@ -2110,10 +2127,38 @@ async function openAdminReportsPanel(){
   await loadAndRenderAdminReports();
 }
 
+/* ================= TITIK LOKASI LIVE (dipakai di peta utama & tampilan rute) ================= */
+function createUserLocationLayer(mapInstance){
+  const dotIcon = L.divIcon({
+    className: '', html: '<div class="ull-pulse"></div><div class="ull-core"></div>',
+    iconSize: [16,16], iconAnchor: [8,8]
+  });
+  const marker = L.marker([0,0], { icon: dotIcon, zIndexOffset: 1000, interactive: false }).addTo(mapInstance);
+  const accuracyCircle = L.circle([0,0], {
+    radius: 30, color: '#155C51', weight: 1,
+    fillColor: '#155C51', fillOpacity: 0.10, opacity: 0.25, interactive: false
+  }).addTo(mapInstance);
+  return {
+    marker, accuracyCircle,
+    update(lat, lng, accuracy){
+      marker.setLatLng([lat, lng]);
+      accuracyCircle.setLatLng([lat, lng]);
+      accuracyCircle.setRadius(Math.max(accuracy || 30, 15));
+    },
+    remove(){
+      try{ mapInstance.removeLayer(marker); }catch(e){}
+      try{ mapInstance.removeLayer(accuracyCircle); }catch(e){}
+    }
+  };
+}
+
 /* ================= RUTE: pilihan Di Aplikasi (OSM+OSRM) vs Google Maps ================= */
 let directionTarget = null;
 let routeMap = null;
 let routeControl = null;
+let routeWatchId = null;
+let routeUserLayer = null;
+let routeDestMarker = null;
 
 function openDirectionChoice(lat, lng, name){
   directionTarget = { lat, lng, name: name || 'Resto' };
@@ -2128,6 +2173,9 @@ function openGoogleMapsDirections(target){
 
 function closeRouteView(){
   document.getElementById('routeViewOverlay').classList.add('hidden');
+  if(routeWatchId !== null){ navigator.geolocation.clearWatch(routeWatchId); routeWatchId = null; }
+  if(routeUserLayer){ routeUserLayer.remove(); routeUserLayer = null; }
+  routeDestMarker = null;
   if(routeControl && routeMap){ try{ routeMap.removeControl(routeControl); }catch(e){} routeControl = null; }
   if(routeMap){ try{ routeMap.remove(); }catch(e){} routeMap = null; }
 }
@@ -2144,16 +2192,22 @@ function openRouteView(target){
     infoEl.textContent = 'Perangkat tidak mendukung deteksi lokasi. Coba Google Maps saja.';
     return;
   }
-  navigator.geolocation.getCurrentPosition(
+  // watchPosition dipakai (bukan sekali ambil) supaya posisi user ikut bergerak live selama menuju resto
+  routeWatchId = navigator.geolocation.watchPosition(
     (pos)=>{
       const from = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      initRouteMap(from, target);
+      if(!routeMap){
+        initRouteMap(from, target);
+      }else if(routeUserLayer){
+        routeUserLayer.update(from.lat, from.lng, pos.coords.accuracy);
+        routeMap.panTo([from.lat, from.lng], { animate: true });
+      }
     },
     (err)=>{
       infoEl.classList.add('rv-error');
       infoEl.textContent = 'Tidak bisa akses lokasi Anda (izin ditolak/nonaktif). Coba Google Maps saja.';
     },
-    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
   );
 }
 
@@ -2161,11 +2215,23 @@ function initRouteMap(from, target){
   const infoEl = document.getElementById('routeViewInfo');
   infoEl.textContent = 'Menghitung rute jalan...';
 
-  if(routeMap){ try{ routeMap.remove(); }catch(e){} routeMap = null; }
-  routeMap = L.map('routeMapEl', { zoomControl: true }).setView([from.lat, from.lng], 14);
+  routeMap = L.map('routeMapEl', { zoomControl: true }).setView([from.lat, from.lng], 15);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '© OpenStreetMap contributors'
   }).addTo(routeMap);
+
+  // Marker tujuan (statis, resto)
+  routeDestMarker = L.marker([target.lat, target.lng], {
+    icon: L.divIcon({
+      className: '', iconSize: [30,30], iconAnchor: [15,28],
+      html: `<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;background:#C4691A;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;">
+        <span style="transform:rotate(45deg);font-size:14px;">🍽️</span></div>`
+    })
+  }).addTo(routeMap);
+
+  // Titik lokasi user, live & bisa gerak mengikuti pergerakan sebenarnya
+  routeUserLayer = createUserLocationLayer(routeMap);
+  routeUserLayer.update(from.lat, from.lng, 30);
 
   let routeFinished = false;
   routeControl = L.Routing.control({
@@ -2176,16 +2242,12 @@ function initRouteMap(from, target){
     addWaypoints: false,
     fitSelectedRoutes: true,
     show: false,
-    createMarker: (i, wp)=>{
-      const isStart = i === 0;
-      return L.marker(wp.latLng, {
-        icon: L.divIcon({
-          className: '',
-          html: `<div style="width:28px;height:28px;border-radius:50%;background:${isStart ? '#155C51' : '#C4691A'};display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid #fff;">${isStart ? '🧍' : '🍽️'}</div>`,
-          iconSize: [28,28], iconAnchor: [14,14]
-        })
-      });
-    }
+    lineOptions: { styles: [
+      { color: '#0D2719', opacity: 0.15, weight: 9 },
+      { color: '#ffffff', opacity: 0.8, weight: 6 },
+      { color: '#155C51', opacity: 1, weight: 4 }
+    ]},
+    createMarker: ()=> null // marker start/tujuan kita gambar sendiri di atas, biar sesuai desain & bisa live update
   }).addTo(routeMap);
 
   routeControl.on('routesfound', (e)=>{
@@ -4961,10 +5023,37 @@ document.getElementById('filterResetAllBtn').onclick = ()=>{
   renderMarkers();
   showToast('Semua filter direset');
 };
+let mainLiveTracking = null; // {watchId, layer}
 document.getElementById('locateBtn').onclick = ()=>{
-  navigator.geolocation && navigator.geolocation.getCurrentPosition(pos=>{
-    map.setView([pos.coords.latitude, pos.coords.longitude], 15);
-  }, ()=> showToast('Tidak bisa mengambil lokasi'));
+  const btn = document.getElementById('locateBtn');
+  if(mainLiveTracking){
+    navigator.geolocation.clearWatch(mainLiveTracking.watchId);
+    mainLiveTracking.layer.remove();
+    mainLiveTracking = null;
+    btn.classList.remove('locate-active');
+    showToast('Pelacakan lokasi dimatikan');
+    return;
+  }
+  if(!navigator.geolocation){ showToast('HP/browser ini tidak mendukung deteksi lokasi'); return; }
+  const layer = createUserLocationLayer(map);
+  let firstFix = true;
+  const watchId = navigator.geolocation.watchPosition(
+    (pos)=>{
+      const { latitude, longitude, accuracy } = pos.coords;
+      layer.update(latitude, longitude, accuracy);
+      if(firstFix){ map.setView([latitude, longitude], 16); firstFix = false; }
+    },
+    ()=>{
+      showToast('Tidak bisa mengambil lokasi');
+      layer.remove();
+      mainLiveTracking = null;
+      btn.classList.remove('locate-active');
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+  );
+  mainLiveTracking = { watchId, layer };
+  btn.classList.add('locate-active');
+  showToast('Melacak lokasi Anda secara live 📍');
 };
 document.getElementById('logo').onclick = refreshAllData;
 document.getElementById('accountOverlay').onclick = (e)=>{ if(e.target.id === 'accountOverlay') document.getElementById('accountOverlay').classList.add('hidden'); };
