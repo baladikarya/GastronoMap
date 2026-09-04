@@ -1260,7 +1260,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   <div id="leaderboardOverlay" class="hidden">
     <div id="leaderboardPanel">
       <button class="plain-close-btn" id="closeLeaderboardBtn">✕</button>
-      <h2>🏆 Leaderboard Kontributor</h2>
+      <h2>🏆 Kontributor</h2>
       <p id="leaderboardIntro">Kontributor teraktif per kota. Namamu tampil setelah 3 resto disetujui atau 5 review lengkap (rating + testimoni + foto kunjungan pada resto yang sama).</p>
       <div class="leaderboard-period-tabs" id="leaderboardPeriodTabs">
         <button class="leaderboard-period-tab active" data-period="month">Bulanan</button>
@@ -1391,7 +1391,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <span class="nav-icon">🤍</span><span class="nav-label">Favorit</span>
     </button>
     <button type="button" class="nav-item" id="navLeaderboardBtn">
-      <span class="nav-icon">🏆</span><span class="nav-label">Leaderboard</span>
+      <span class="nav-icon">🏆</span><span class="nav-label">Kontributor</span>
     </button>
   </div>
 
@@ -2584,7 +2584,7 @@ async function loadAndRenderLeaderboard(){
     if(myProfile && !myProfile.is_verified_contributor){
       const restoProgress = Math.min(myProfile.resto_approved_count || 0, 3);
       const reviewProgress = Math.min(myProfile.full_review_count || 0, 5);
-      progressWrap.innerHTML = `<div class="leaderboard-progress-card">🔒 Namamu tampil setelah ${restoProgress}/3 resto disetujui atau ${reviewProgress}/5 review lengkap.</div>`;
+      progressWrap.innerHTML = `<div class="leaderboard-progress-card">🔒 Namamu tampil setelah ${restoProgress}/3 Verified Resto atau ${reviewProgress}/5 review lengkap.</div>`;
     }
   }
 
