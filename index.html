@@ -997,6 +997,26 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 #splashActions.ready{opacity:1;transform:translateY(0);pointer-events:auto;}
 .btn-splash-primary{background:var(--amber);color:#fff;width:100%;padding:13px 14px;font-size:14.5px;}
+
+/* Loading dots -- tampil selama splash menunggu (cek sesi + jeda baca tagline),
+   supaya jeda ~3 detik terasa "hidup", bukan diam/macet. Hilang begitu splash
+   selesai (baik lanjut ke home maupun saat tombol pilihan sudah siap). */
+#splashLoader{
+  position:relative;display:flex;align-items:center;justify-content:center;gap:7px;
+  margin-top:26px;height:8px;opacity:1;transition:opacity 0.25s ease;
+}
+#splashLoader.hidden{opacity:0;pointer-events:none;}
+#splashLoader span{
+  width:8px;height:8px;border-radius:50%;background:var(--amber);
+  animation:splashDotBounce 1.1s ease-in-out infinite;
+}
+#splashLoader span:nth-child(2){animation-delay:0.15s;}
+#splashLoader span:nth-child(3){animation-delay:0.3s;}
+@keyframes splashDotBounce{
+  0%,60%,100%{transform:translateY(0);opacity:0.45;}
+  30%{transform:translateY(-7px);opacity:1;}
+}
+#splashOverlay.auth-mode #splashLoader{display:none;}
 .btn-splash-outline{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,0.8);width:100%;padding:13px 14px;font-size:14.5px;}
 
 /* Form Masuk/Daftar yang ditanam LANGSUNG di splash (bukan modal terpisah) */
@@ -1027,6 +1047,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
       <div id="splashLogoBadge"><img src="icons/icon-192.png" alt="GastronoMap"></div>
       <div id="splashWordmark"><span class="sw-white">Gastrono</span><span class="sw-amber">Map</span></div>
       <p id="splashTagline">Peta tempat makan,<br>dibangun bersama.</p>
+      <div id="splashLoader"><span></span><span></span><span></span></div>
     </div>
     <div id="splashActions">
       <button type="button" id="splashStartBtn" class="btn btn-splash-primary">Mulai Jelajah</button>
@@ -5188,6 +5209,9 @@ document.getElementById('linkSubmitOverlay').onclick = (e)=>{ if(e.target.id ===
 function hideSplash(){
   document.getElementById('splashOverlay').classList.add('hidden');
 }
+function hideSplashLoader(){
+  document.getElementById('splashLoader').classList.add('hidden');
+}
 document.getElementById('splashStartBtn').onclick = hideSplash;
 document.getElementById('splashLoginBtn').onclick = ()=>{
   // Form Masuk/Daftar ditanam di splash sendiri -- BUKAN buka modal #loginOverlay.
@@ -5208,7 +5232,7 @@ document.getElementById('splashGoogleBtn').onclick = signInWithGoogle;
 // - Belum login / sudah logout          -> splash tetap tampil dengan pilihan "Mulai Jelajah" / "Masuk & Daftar".
 // Timeout dipasang supaya kalau koneksi lemot, splash tidak nyangkut selamanya di posisi "mengecek".
 async function runSplashSessionCheck(){
-  const MIN_DISPLAY_MS = 550; // splash tetap terlihat sebentar walau sesi kedetek instan, biar tidak "kedip"
+  const MIN_DISPLAY_MS = 3000; // splash tetap terlihat ~3 detik biar tagline sempat kebaca, tidak langsung "kedip" lewat
   const started = Date.now();
   let session = null;
   try{
@@ -5220,6 +5244,7 @@ async function runSplashSessionCheck(){
   const elapsed = Date.now() - started;
   if(elapsed < MIN_DISPLAY_MS) await new Promise(r => setTimeout(r, MIN_DISPLAY_MS - elapsed));
 
+  hideSplashLoader(); // titik tunggu selesai -> matikan animasi loading dots
   if(session && session.user){
     hideSplash(); // sudah login -> langsung ke home, tanpa perlu pilih apa pun
   }else{
