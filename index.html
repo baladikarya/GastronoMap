@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <style>
@@ -194,6 +195,52 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   display:flex;align-items:center;justify-content:center;padding:20px;
 }
 #faceBlurConfirmOverlay.hidden{display:none;}
+
+/* ---------- PILIHAN RUTE: Di Aplikasi vs Google Maps ---------- */
+#directionChoiceOverlay{
+  position:fixed;inset:0;z-index:5600;background:rgba(20,25,24,0.72);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#directionChoiceOverlay.hidden{display:none;}
+.dirchoice-btn{
+  width:100%;display:flex;align-items:center;gap:12px;text-align:left;
+  background:var(--paper);border:1px solid var(--line);border-radius:12px;
+  padding:14px;margin-bottom:10px;cursor:pointer;font-family:'Work Sans',sans-serif;
+}
+.dirchoice-btn:last-of-type{margin-bottom:0;}
+.dirchoice-btn .dc-icon{font-size:22px;flex-shrink:0;}
+.dirchoice-btn .dc-title{font-weight:600;font-size:14px;color:var(--ink);}
+.dirchoice-btn .dc-sub{font-size:11.5px;color:var(--muted);margin-top:1px;}
+.dirchoice-btn:active{background:#f0ece2;}
+#dirChoiceCancelBtn{
+  width:100%;margin-top:12px;background:none;border:none;color:var(--muted);
+  font-size:13px;text-decoration:underline;cursor:pointer;padding:6px;
+}
+
+/* ---------- TAMPILAN RUTE IN-APP (basemap OSM + OSRM) ---------- */
+#routeViewOverlay{
+  position:fixed;inset:0;z-index:5700;background:var(--paper);
+  display:flex;flex-direction:column;
+}
+#routeViewOverlay.hidden{display:none;}
+#routeViewTopbar{
+  flex-shrink:0;background:var(--ink);color:var(--paper);padding:12px 14px;
+  display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);z-index:2;
+}
+#routeViewTopbar .rv-close{
+  background:rgba(255,255,255,0.14);border:none;color:var(--paper);width:32px;height:32px;
+  border-radius:50%;font-size:16px;cursor:pointer;flex-shrink:0;
+}
+#routeViewTopbar .rv-title{font-family:'Fraunces',serif;font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
+#routeMapEl{flex:1;min-height:0;width:100%;background:#e6e1d6;}
+#routeViewBottombar{
+  flex-shrink:0;background:var(--card);padding:12px 14px calc(14px + env(safe-area-inset-bottom));
+  box-shadow:0 -4px 16px rgba(13,39,25,0.12);
+}
+#routeViewInfo{font-size:13px;color:var(--ink);margin-bottom:10px;min-height:18px;display:flex;align-items:center;gap:6px;}
+#routeViewInfo.rv-error{color:var(--amber-dark);}
+#routeViewGmapsBtn{width:100%;}
+.leaflet-routing-container{display:none !important;}
 #reportContextLabel{font-size:12px;color:var(--teal-dark);background:var(--paper);border-radius:8px;padding:8px 10px;margin-bottom:12px;}
 #adminReportsOverlay{
   position:fixed;inset:0;z-index:4500;background:rgba(20,25,24,0.6);
@@ -1113,6 +1160,39 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     </div>
   </div>
 
+  <div id="directionChoiceOverlay" class="hidden">
+    <div class="popup-box" style="max-width:340px;">
+      <div class="popup-box-title">Mau Rute <span>Lewat Mana?</span></div>
+      <button type="button" class="dirchoice-btn" id="dirChoiceAppBtn">
+        <span class="dc-icon">🗺️</span>
+        <span>
+          <div class="dc-title">Rute di Aplikasi</div>
+          <div class="dc-sub">Pakai peta OSM kita, langsung di sini</div>
+        </span>
+      </button>
+      <button type="button" class="dirchoice-btn" id="dirChoiceGmapsBtn">
+        <span class="dc-icon">📍</span>
+        <span>
+          <div class="dc-title">Buka Google Maps</div>
+          <div class="dc-sub">Navigasi lengkap di aplikasi Google Maps</div>
+        </span>
+      </button>
+      <button type="button" id="dirChoiceCancelBtn">Batalkan</button>
+    </div>
+  </div>
+
+  <div id="routeViewOverlay" class="hidden">
+    <div id="routeViewTopbar">
+      <button type="button" class="rv-close" id="routeViewCloseBtn">✕</button>
+      <div class="rv-title" id="routeViewTitle">Rute</div>
+    </div>
+    <div id="routeMapEl"></div>
+    <div id="routeViewBottombar">
+      <div id="routeViewInfo">Mencari lokasi Anda...</div>
+      <button type="button" class="btn btn-secondary" id="routeViewGmapsBtn">📍 Buka di Google Maps Saja</button>
+    </div>
+  </div>
+
   <div id="adminReportsOverlay" class="hidden">
     <div id="adminReportsPanel">
       <button class="plain-close-btn" id="closeAdminReportsBtn">✕</button>
@@ -1460,6 +1540,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.js"></script>
 <script>
 /* ================= CONFIG: TIPE RESTO ================= */
 const TYPES = {
@@ -2028,6 +2109,121 @@ async function openAdminReportsPanel(){
   document.querySelectorAll('.report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
   await loadAndRenderAdminReports();
 }
+
+/* ================= RUTE: pilihan Di Aplikasi (OSM+OSRM) vs Google Maps ================= */
+let directionTarget = null;
+let routeMap = null;
+let routeControl = null;
+
+function openDirectionChoice(lat, lng, name){
+  directionTarget = { lat, lng, name: name || 'Resto' };
+  document.getElementById('directionChoiceOverlay').classList.remove('hidden');
+}
+function closeDirectionChoice(){
+  document.getElementById('directionChoiceOverlay').classList.add('hidden');
+}
+function openGoogleMapsDirections(target){
+  window.open(`https://www.google.com/maps/dir/?api=1&destination=${target.lat},${target.lng}`, '_blank');
+}
+
+function closeRouteView(){
+  document.getElementById('routeViewOverlay').classList.add('hidden');
+  if(routeControl && routeMap){ try{ routeMap.removeControl(routeControl); }catch(e){} routeControl = null; }
+  if(routeMap){ try{ routeMap.remove(); }catch(e){} routeMap = null; }
+}
+
+function openRouteView(target){
+  document.getElementById('routeViewTitle').textContent = `Rute ke ${target.name}`;
+  const infoEl = document.getElementById('routeViewInfo');
+  infoEl.classList.remove('rv-error');
+  infoEl.textContent = 'Mencari lokasi Anda...';
+  document.getElementById('routeViewOverlay').classList.remove('hidden');
+
+  if(!navigator.geolocation){
+    infoEl.classList.add('rv-error');
+    infoEl.textContent = 'Perangkat tidak mendukung deteksi lokasi. Coba Google Maps saja.';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      const from = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      initRouteMap(from, target);
+    },
+    (err)=>{
+      infoEl.classList.add('rv-error');
+      infoEl.textContent = 'Tidak bisa akses lokasi Anda (izin ditolak/nonaktif). Coba Google Maps saja.';
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+  );
+}
+
+function initRouteMap(from, target){
+  const infoEl = document.getElementById('routeViewInfo');
+  infoEl.textContent = 'Menghitung rute jalan...';
+
+  if(routeMap){ try{ routeMap.remove(); }catch(e){} routeMap = null; }
+  routeMap = L.map('routeMapEl', { zoomControl: true }).setView([from.lat, from.lng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap contributors'
+  }).addTo(routeMap);
+
+  let routeFinished = false;
+  routeControl = L.Routing.control({
+    waypoints: [ L.latLng(from.lat, from.lng), L.latLng(target.lat, target.lng) ],
+    router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: 'driving' }),
+    routeWhileDragging: false,
+    draggableWaypoints: false,
+    addWaypoints: false,
+    fitSelectedRoutes: true,
+    show: false,
+    createMarker: (i, wp)=>{
+      const isStart = i === 0;
+      return L.marker(wp.latLng, {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="width:28px;height:28px;border-radius:50%;background:${isStart ? '#155C51' : '#C4691A'};display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid #fff;">${isStart ? '🧍' : '🍽️'}</div>`,
+          iconSize: [28,28], iconAnchor: [14,14]
+        })
+      });
+    }
+  }).addTo(routeMap);
+
+  routeControl.on('routesfound', (e)=>{
+    routeFinished = true;
+    const r = e.routes[0];
+    const km = (r.summary.totalDistance / 1000).toFixed(1);
+    const mins = Math.round(r.summary.totalTime / 60);
+    infoEl.classList.remove('rv-error');
+    infoEl.textContent = `🧭 ${km} km · ⏱️ sekitar ${mins} menit (mobil/motor)`;
+  });
+  routeControl.on('routingerror', ()=>{
+    infoEl.classList.add('rv-error');
+    infoEl.textContent = 'Gagal memuat rute (server rute lagi sibuk). Coba Google Maps saja.';
+  });
+  setTimeout(()=>{
+    if(!routeFinished){
+      infoEl.classList.add('rv-error');
+      infoEl.textContent = 'Rute lama muncul, server rute mungkin sibuk. Coba Google Maps saja.';
+    }
+  }, 10000);
+}
+
+document.getElementById('dirChoiceGmapsBtn').onclick = ()=>{
+  closeDirectionChoice();
+  if(directionTarget) openGoogleMapsDirections(directionTarget);
+};
+document.getElementById('dirChoiceAppBtn').onclick = ()=>{
+  closeDirectionChoice();
+  if(directionTarget) openRouteView(directionTarget);
+};
+document.getElementById('dirChoiceCancelBtn').onclick = closeDirectionChoice;
+document.getElementById('directionChoiceOverlay').onclick = (e)=>{
+  if(e.target.id === 'directionChoiceOverlay') closeDirectionChoice();
+};
+document.getElementById('routeViewCloseBtn').onclick = closeRouteView;
+document.getElementById('routeViewGmapsBtn').onclick = ()=>{
+  if(directionTarget) openGoogleMapsDirections(directionTarget);
+};
 
 /* ================= LINK KETERSEDIAAN ONLINE (submit oleh user, approval admin) ================= */
 let linkSubmitContext = { restoId: null };
@@ -4068,7 +4264,7 @@ function openDetail(id, showAllTesti){
     }, 0);
   }
   document.getElementById('directionBtn').onclick = ()=>{
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lng}`, '_blank');
+    openDirectionChoice(r.lat, r.lng, r.name);
   };
   document.querySelectorAll('.platform-chip-add-link').forEach(chip=>{
     chip.onclick = ()=>{
