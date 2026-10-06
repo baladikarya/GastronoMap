@@ -496,12 +496,8 @@ let activePriceFilters = new Set();
 let homeView = 'map'; // 'map' | 'list'
 let openNowFilter = false;
 let currentPreviewRestoId = null;
-const NEARBY_RADIUS_STORAGE_KEY = 'gmNearbyRadiusKm';
-let nearbyRadiusKm = 5;
-try{
-  const storedNearbyRadius = Number(localStorage.getItem(NEARBY_RADIUS_STORAGE_KEY));
-  if(Number.isFinite(storedNearbyRadius)) nearbyRadiusKm = Math.max(1, Math.min(10, Math.round(storedNearbyRadius)));
-}catch(e){ /* localStorage dapat diblokir pada mode privat tertentu; gunakan default 5 km */ }
+const DEFAULT_NEARBY_RADIUS_KM = 5;
+let nearbyRadiusKm = DEFAULT_NEARBY_RADIUS_KM;
 
 function renderFilterChips(){
   const wrap = document.getElementById('filters');
@@ -535,6 +531,8 @@ function updateHomeViewControls(){
 
 function setHomeView(view){
   if(view !== 'map' && view !== 'list') return;
+  const openingList = view === 'list' && homeView !== 'list';
+  if(openingList) nearbyRadiusKm = DEFAULT_NEARBY_RADIUS_KM;
   homeView = view;
   const listEl = document.getElementById('listView');
   listEl.classList.toggle('hidden', view !== 'list');
@@ -592,10 +590,9 @@ function bindNearbyPanelControls(){
   const range = list.querySelector('#nearbyRadiusRange');
   if(range){
     range.oninput = ()=>{
-      nearbyRadiusKm = Math.max(1, Math.min(10, Number(range.value) || 5));
+      nearbyRadiusKm = Math.max(1, Math.min(10, Number(range.value) || DEFAULT_NEARBY_RADIUS_KM));
       const valueEl = document.getElementById('nearbyRadiusValue');
       if(valueEl) valueEl.textContent = `${nearbyRadiusKm} km`;
-      try{ localStorage.setItem(NEARBY_RADIUS_STORAGE_KEY, String(nearbyRadiusKm)); }catch(e){}
       renderNearbyListResults(getFilteredRestos());
     };
   }

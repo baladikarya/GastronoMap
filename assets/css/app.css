@@ -1,15 +1,27 @@
 /* Design tokens moved to design-system.css */
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;color:var(--ink);background:var(--paper);}
-#app{position:relative;height:100vh;height:100dvh;width:100vw;overflow:hidden;}
+html,body{
+  margin:0;padding:0;width:100%;height:100%;overflow:hidden;overscroll-behavior:none;
+  font-family:'Work Sans',sans-serif;color:var(--ink);background:var(--paper);
+}
+body{
+  position:fixed;inset:0;width:100%;height:100%;overflow:hidden;
+  -webkit-overflow-scrolling:auto;
+}
+#app{
+  position:fixed;inset:0;width:100%;height:100vh;height:100dvh;overflow:hidden;
+  overscroll-behavior:none;
+}
 
 /* ---------- HEADER ---------- */
 #header{
-  position:absolute;top:0;left:0;right:0;z-index:1000;
+  position:fixed;top:0;left:0;right:0;width:100%;z-index:1300;
   background:var(--ink);color:var(--paper);
-  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+  padding:calc(12px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left));
   display:flex;align-items:center;gap:12px;
   box-shadow:var(--shadow);
+  transform:translateZ(0);-webkit-transform:translateZ(0);
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
 }
 #logo{flex-shrink:0;display:flex;align-items:center;background:none;border:none;padding:0;cursor:pointer;}
 #logo img{width:34px;height:34px;border-radius:9px;display:block;transition:transform 0.5s ease;}
@@ -649,8 +661,10 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 
 /* ---------- BOTTOM NAVIGATION ---------- */
 #bottomNav{
-  position:absolute;left:0;right:0;bottom:0;z-index:1000;
+  position:fixed;left:0;right:0;bottom:0;width:100%;z-index:1200;
   background:var(--card);border-top:1px solid var(--line);
+  transform:translateZ(0);-webkit-transform:translateZ(0);
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
   display:flex;align-items:flex-end;justify-content:space-around;
   padding:8px 4px calc(8px + env(safe-area-inset-bottom));
   box-shadow:0 -4px 16px rgba(13,39,25,0.10);
