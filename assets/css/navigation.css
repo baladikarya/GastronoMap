@@ -1,5 +1,6 @@
 /* Primary navigation shell — P0 foundation */
 #bottomNav{
+  z-index:1200;
   min-height:var(--bottom-nav-height);
   box-sizing:border-box;
 }
@@ -41,7 +42,7 @@
 
 .primary-view{
   position:absolute;
-  z-index:950;
+  z-index:1100;
   top:calc(60px + env(safe-area-inset-top));
   left:0;
   right:0;
