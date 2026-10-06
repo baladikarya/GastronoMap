@@ -430,7 +430,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 #openListBtn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
 #listView{
-  position:absolute;z-index:998;top:calc(108px + env(safe-area-inset-top));right:12px;
+  position:absolute;z-index:998;top:calc(108px + env(safe-area-inset-top));left:12px;
   bottom:calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 12px);
   width:min(380px,calc(100vw - 24px));overflow-y:auto;-webkit-overflow-scrolling:touch;
   background:rgba(244,245,241,0.97);border:1px solid rgba(30,42,40,0.12);border-radius:18px;
