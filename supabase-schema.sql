@@ -1,69 +1,67 @@
 -- ============================================================
--- SKEMA DATABASE GASTRONOMAP (Supabase / PostgreSQL) — VERSI FINAL
--- Cara pakai: buka project Supabase -> SQL Editor -> New query
--- -> tempel SELURUH isi file ini -> klik Run.
--- Aman dijalankan meski project sudah pernah ada sisa tabel lama
--- (bagian RESET di paling atas akan membersihkannya dulu).
+-- GASTRONOMAP DATABASE SCHEMA — CANONICAL NON-DESTRUCTIVE BASELINE
+-- ============================================================
+-- This file mirrors the latest repository migration baseline.
+-- For normal changes, apply files in supabase/migrations in filename order.
+-- Unlike the legacy schema, this baseline DOES NOT drop application tables
+-- and is intended to preserve existing data.
 -- ============================================================
 
--- ============================================================
--- RESET — bersihkan sisa tabel/trigger/policy lama (kalau ada)
--- ============================================================
-drop trigger if exists on_auth_user_created on auth.users;
-drop function if exists public.handle_new_user();
-drop table if exists visit_photos cascade;
-drop table if exists visited cascade;
-drop table if exists references_link cascade;
-drop table if exists favorite_menu cascade;
-drop table if exists testimonials cascade;
-drop table if exists ratings cascade;
-drop table if exists restos cascade;
-drop table if exists profiles cascade;
-drop policy if exists "visit-photos bucket: publik bisa lihat" on storage.objects;
-drop policy if exists "visit-photos bucket: user login bisa upload" on storage.objects;
-drop policy if exists "visit-photos bucket: hapus milik sendiri/admin" on storage.objects;
+-- GastronoMap P0 foundation schema sync
+-- Version: 2026-10-06
+-- Strategy: additive/non-destructive. Existing application data is preserved.
+-- This migration is the canonical database baseline for the current frontend.
 
--- ============================================================
--- PROFIL USER + ROLE (admin/user)
--- ============================================================
-create table profiles (
+create extension if not exists pgcrypto;
+
+-- ---------------------------------------------------------------------------
+-- Profiles
+-- ---------------------------------------------------------------------------
+create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
-  role text not null default 'user' check (role in ('user','admin')),
+  role text not null default 'user',
   created_at timestamptz not null default now()
 );
 
--- PENTING: fungsi ini pakai "set search_path = public" dan "public.profiles"
--- secara eksplisit. Tanpa ini, trigger akan GAGAL dengan error
--- 'relation "profiles" does not exist' walau tabelnya ada — ini bug umum
--- Supabase karena proses internal Auth punya jalur pencarian tabel berbeda.
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
+alter table public.profiles
+  add column if not exists username text,
+  add column if not exists gender text,
+  add column if not exists age integer,
+  add column if not exists avatar_url text,
+  add column if not exists is_verified_contributor boolean not null default false,
+  add column if not exists resto_approved_count integer not null default 0,
+  add column if not exists full_review_count integer not null default 0,
+  add column if not exists updated_at timestamptz not null default now();
+
+create unique index if not exists profiles_username_unique
+  on public.profiles (lower(username))
+  where username is not null;
+
+do $$
 begin
-  insert into public.profiles (id, display_name) values (new.id, new.email)
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'profiles_role_check_p0'
+      and conrelid = 'public.profiles'::regclass
+  ) then
+    alter table public.profiles
+      add constraint profiles_role_check_p0 check (role in ('user','admin'));
+  end if;
+end $$;
 
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-
--- ---------- RESTO (data inti) ----------
-create table restos (
+-- ---------------------------------------------------------------------------
+-- Restaurants and existing crowdsource data
+-- ---------------------------------------------------------------------------
+create table if not exists public.restos (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   address text,
   type text not null,
   price_range text,
-  hours_by_day jsonb,               -- {"Senin":{"closed":false,"open":"08:00","close":"22:00"}, ...}
-  menu_images jsonb default '[]',    -- ["https://...jpg", ...]
-  online_platforms jsonb default '[]', -- ["gofood","grabfood","shopeefood"]
+  hours_by_day jsonb,
+  menu_images jsonb not null default '[]'::jsonb,
+  online_platforms jsonb not null default '[]'::jsonb,
   lat double precision not null,
   lng double precision not null,
   created_by uuid references auth.users(id),
@@ -71,136 +69,501 @@ create table restos (
   updated_at timestamptz not null default now()
 );
 
--- ---------- RATING (1 per user per resto, bisa diedit -> upsert) ----------
-create table ratings (
-  resto_id uuid references restos(id) on delete cascade,
+alter table public.restos
+  add column if not exists phone text,
+  add column if not exists payment_methods jsonb not null default '[]'::jsonb,
+  add column if not exists no_online_sales boolean not null default false,
+  add column if not exists is_verified boolean not null default false,
+  add column if not exists city_id uuid,
+  add column if not exists gofood_locked_by uuid references auth.users(id),
+  add column if not exists grabfood_locked_by uuid references auth.users(id),
+  add column if not exists shopeefood_locked_by uuid references auth.users(id);
+
+create table if not exists public.ratings (
+  resto_id uuid references public.restos(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
-  overall int not null check (overall between 1 and 5),
-  harga int check (harga between 1 and 5),
-  porsi int check (porsi between 1 and 5),
-  rasa int check (rasa between 1 and 5),
-  suasana int check (suasana between 1 and 5),
-  pelayanan int check (pelayanan between 1 and 5),
+  overall numeric(3,2) not null check (overall between 1 and 5),
+  harga integer check (harga between 1 and 5),
+  porsi integer check (porsi between 1 and 5),
+  rasa integer check (rasa between 1 and 5),
+  suasana integer check (suasana between 1 and 5),
+  kebersihan integer check (kebersihan between 1 and 5),
+  pelayanan integer check (pelayanan between 1 and 5),
   created_at timestamptz not null default now(),
-  primary key (resto_id, user_id)   -- <- inilah yang menegakkan "1 rating per user"
+  updated_at timestamptz not null default now(),
+  primary key (resto_id,user_id)
 );
 
--- ---------- TESTIMONI (1 per user per resto, bisa diedit -> upsert) ----------
-create table testimonials (
-  resto_id uuid references restos(id) on delete cascade,
+alter table public.ratings add column if not exists kebersihan integer;
+alter table public.ratings add column if not exists updated_at timestamptz not null default now();
+alter table public.ratings drop constraint if exists ratings_overall_check;
+alter table public.ratings alter column overall type numeric(3,2) using overall::numeric;
+alter table public.ratings add constraint ratings_overall_check check (overall between 1 and 5);
+alter table public.ratings drop constraint if exists ratings_kebersihan_check;
+alter table public.ratings add constraint ratings_kebersihan_check check (kebersihan between 1 and 5);
+
+create table if not exists public.testimonials (
+  resto_id uuid references public.restos(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
   text text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  primary key (resto_id, user_id)
+  primary key (resto_id,user_id)
 );
 
--- ---------- MENU FAVORIT (boleh berkali-kali per user) ----------
-create table favorite_menu (
+create table if not exists public.favorite_menu (
   id uuid primary key default gen_random_uuid(),
-  resto_id uuid references restos(id) on delete cascade,
+  resto_id uuid references public.restos(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
   menu_name text not null,
   created_at timestamptz not null default now()
 );
 
--- ---------- REFERENSI (link reels/video, boleh berkali-kali) ----------
-create table references_link (
+create table if not exists public.references_link (
   id uuid primary key default gen_random_uuid(),
-  resto_id uuid references restos(id) on delete cascade,
+  resto_id uuid references public.restos(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
   url text not null,
   platform text not null default 'other',
   created_at timestamptz not null default now()
 );
 
--- ---------- KUNJUNGAN (personal, tidak terlihat user lain) ----------
-create table visited (
-  resto_id uuid references restos(id) on delete cascade,
+create table if not exists public.visited (
+  resto_id uuid references public.restos(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
   created_at timestamptz not null default now(),
-  primary key (resto_id, user_id)
+  primary key (resto_id,user_id)
 );
 
--- ---------- FOTO KUNJUNGAN (dari kamera/galeri user) ----------
-create table visit_photos (
-  id uuid primary key default gen_random_uuid(),
-  resto_id uuid references restos(id) on delete cascade,
+create table if not exists public.wishlist (
+  resto_id uuid references public.restos(id) on delete cascade,
   user_id uuid references auth.users(id) on delete cascade,
-  storage_path text not null,   -- path di storage bucket; URL publik dihitung otomatis dari path ini
+  created_at timestamptz not null default now(),
+  primary key (resto_id,user_id)
+);
+
+create table if not exists public.seen_restos (
+  resto_id uuid references public.restos(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (resto_id,user_id)
+);
+
+create table if not exists public.visit_photos (
+  id uuid primary key default gen_random_uuid(),
+  resto_id uuid references public.restos(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  storage_path text not null,
   created_at timestamptz not null default now()
 );
 
--- ============================================================
--- ROW LEVEL SECURITY (aturan siapa boleh apa, ditegakkan di server)
--- ============================================================
-alter table profiles enable row level security;
-alter table restos enable row level security;
-alter table ratings enable row level security;
-alter table testimonials enable row level security;
-alter table favorite_menu enable row level security;
-alter table references_link enable row level security;
-alter table visited enable row level security;
-alter table visit_photos enable row level security;
+create table if not exists public.menu_photos (
+  id uuid primary key default gen_random_uuid(),
+  resto_id uuid references public.restos(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  storage_path text not null,
+  created_at timestamptz not null default now()
+);
 
--- Semua orang (termasuk yang belum login) boleh MELIHAT data resto & crowdsource-nya
-create policy "restos: publik bisa lihat" on restos for select using (true);
-create policy "ratings: publik bisa lihat" on ratings for select using (true);
-create policy "testimonials: publik bisa lihat" on testimonials for select using (true);
-create policy "favorite_menu: publik bisa lihat" on favorite_menu for select using (true);
-create policy "references: publik bisa lihat" on references_link for select using (true);
-create policy "profiles: publik bisa lihat role" on profiles for select using (true);
-create policy "visit_photos: publik bisa lihat" on visit_photos for select using (true);
+-- ---------------------------------------------------------------------------
+-- Reports, online-link review, leaderboard
+-- ---------------------------------------------------------------------------
+create table if not exists public.reports (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  resto_id uuid references public.restos(id) on delete set null,
+  type text not null default 'other',
+  message text not null,
+  status text not null default 'pending',
+  admin_note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
--- Tambah resto baru: siapa saja yang sudah login
-create policy "restos: user login bisa tambah" on restos for insert
-  with check (auth.uid() is not null);
+create table if not exists public.online_link_submissions (
+  id uuid primary key default gen_random_uuid(),
+  resto_id uuid not null references public.restos(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
+  platforms jsonb not null default '[]'::jsonb,
+  no_online_sales boolean not null default false,
+  status text not null default 'pending',
+  admin_note text,
+  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
 
--- Edit/hapus resto: KHUSUS ADMIN
-create policy "restos: admin bisa edit" on restos for update
-  using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
-create policy "restos: admin bisa hapus" on restos for delete
-  using (exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+create table if not exists public.cities (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
 
--- Rating & testimoni: hanya boleh isi/ubah baris MILIK SENDIRI (userId = auth.uid())
-create policy "ratings: isi/ubah milik sendiri" on ratings for insert with check (auth.uid() = user_id);
-create policy "ratings: update milik sendiri" on ratings for update using (auth.uid() = user_id);
-create policy "testimonials: isi/ubah milik sendiri" on testimonials for insert with check (auth.uid() = user_id);
-create policy "testimonials: update milik sendiri" on testimonials for update using (auth.uid() = user_id);
+create table if not exists public.leaderboard_points (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  city_id uuid references public.cities(id) on delete set null,
+  resto_id uuid references public.restos(id) on delete set null,
+  points integer not null,
+  reason text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
 
--- Menu favorit & referensi: boleh tambah (login), hapus hanya milik sendiri atau admin
-create policy "favorite_menu: user login bisa tambah" on favorite_menu for insert with check (auth.uid() = user_id);
-create policy "favorite_menu: hapus milik sendiri/admin" on favorite_menu for delete
-  using (auth.uid() = user_id or exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
-create policy "references: user login bisa tambah" on references_link for insert with check (auth.uid() = user_id);
-create policy "references: hapus milik sendiri/admin" on references_link for delete
-  using (auth.uid() = user_id or exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+create index if not exists leaderboard_points_period_idx on public.leaderboard_points (created_at desc);
+create index if not exists leaderboard_points_city_idx on public.leaderboard_points (city_id,user_id);
+create index if not exists reports_status_created_idx on public.reports (status,created_at desc);
+create index if not exists online_link_submissions_status_created_idx on public.online_link_submissions (status,created_at desc);
+create index if not exists restos_created_at_idx on public.restos (created_at desc);
 
--- Kunjungan: PRIVATE, hanya pemiliknya sendiri yang boleh lihat/ubah
-create policy "visited: hanya milik sendiri" on visited for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- Add FK after cities exists; tolerate databases that already use a different city model.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'restos_city_id_fkey_p0'
+      and conrelid = 'public.restos'::regclass
+  ) then
+    alter table public.restos
+      add constraint restos_city_id_fkey_p0
+      foreign key (city_id) references public.cities(id) on delete set null;
+  end if;
+end $$;
 
--- Foto kunjungan: publik boleh lihat, user login boleh tambah, hapus hanya milik sendiri/admin
-create policy "visit_photos: user login bisa tambah" on visit_photos for insert with check (auth.uid() = user_id);
-create policy "visit_photos: hapus milik sendiri/admin" on visit_photos for delete
-  using (auth.uid() = user_id or exists (select 1 from profiles where id = auth.uid() and role = 'admin'));
+-- ---------------------------------------------------------------------------
+-- Safe public profile projection
+-- ---------------------------------------------------------------------------
+drop view if exists public.public_contributor_profiles;
+create view public.public_contributor_profiles as
+select
+  id,
+  username,
+  avatar_url,
+  is_verified_contributor,
+  resto_approved_count,
+  full_review_count
+from public.profiles;
 
--- ============================================================
--- STORAGE BUCKET UNTUK FOTO
--- PENTING: sebelum menjalankan 3 policy di bawah ini, buat dulu bucket-nya lewat
--- Dashboard -> Storage -> New bucket -> nama: "visit-photos" -> Public bucket: ON
--- (nama bucket HARUS persis "visit-photos", sesuai yang dipakai di kode aplikasi)
--- Kalau bucket belum dibuat, 3 baris policy ini akan GAGAL — buat bucket dulu,
--- baru jalankan bagian ini secara terpisah (blok saja 3 baris ini, klik Run).
--- ============================================================
-create policy "visit-photos bucket: publik bisa lihat" on storage.objects for select
-  using (bucket_id = 'visit-photos');
-create policy "visit-photos bucket: user login bisa upload" on storage.objects for insert
-  with check (bucket_id = 'visit-photos' and auth.uid() is not null);
-create policy "visit-photos bucket: hapus milik sendiri/admin" on storage.objects for delete
-  using (bucket_id = 'visit-photos' and (owner = auth.uid() or exists (select 1 from profiles where id = auth.uid() and role = 'admin')));
+grant select on public.public_contributor_profiles to anon, authenticated;
 
--- ============================================================
--- CARA MENJADIKAN AKUN ANDA SEBAGAI ADMIN (jalankan setelah Anda login sekali di app):
--- update profiles set role = 'admin' where id = (select id from auth.users where email = 'email_anda@gmail.com');
--- ============================================================
+-- ---------------------------------------------------------------------------
+-- Shared helpers
+-- ---------------------------------------------------------------------------
+create or replace function public.is_admin(p_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = p_user_id and role = 'admin'
+  );
+$$;
+
+revoke all on function public.is_admin(uuid) from public;
+grant execute on function public.is_admin(uuid) to authenticated;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.profiles (id,display_name)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data->>'full_name',new.email)
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists restos_set_updated_at on public.restos;
+create trigger restos_set_updated_at before update on public.restos
+for each row execute function public.set_updated_at();
+
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at before update on public.profiles
+for each row execute function public.set_updated_at();
+
+drop trigger if exists reports_set_updated_at on public.reports;
+create trigger reports_set_updated_at before update on public.reports
+for each row execute function public.set_updated_at();
+
+drop trigger if exists online_link_submissions_set_updated_at on public.online_link_submissions;
+create trigger online_link_submissions_set_updated_at before update on public.online_link_submissions
+for each row execute function public.set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Online link moderation RPC used by the frontend
+-- ---------------------------------------------------------------------------
+create or replace function public.approve_online_link_submission(p_submission_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_submission public.online_link_submissions%rowtype;
+  v_platforms jsonb;
+begin
+  if not public.is_admin(auth.uid()) then
+    raise exception 'admin only';
+  end if;
+
+  select * into v_submission
+  from public.online_link_submissions
+  where id = p_submission_id
+  for update;
+
+  if not found then raise exception 'submission not found'; end if;
+  if v_submission.status <> 'pending' then raise exception 'submission already reviewed'; end if;
+
+  if v_submission.no_online_sales then
+    update public.restos
+    set online_platforms = '[]'::jsonb,
+        no_online_sales = true
+    where id = v_submission.resto_id;
+  else
+    select coalesce(jsonb_agg(existing_item),'[]'::jsonb)
+      into v_platforms
+    from jsonb_array_elements(coalesce(
+      (select online_platforms from public.restos where id = v_submission.resto_id),
+      '[]'::jsonb
+    )) existing_item
+    where not exists (
+      select 1
+      from jsonb_array_elements(coalesce(v_submission.platforms,'[]'::jsonb)) new_item
+      where lower(coalesce(new_item->>'platform','')) =
+            lower(coalesce(existing_item->>'platform',''))
+    );
+
+    v_platforms := coalesce(v_platforms,'[]'::jsonb) || coalesce(v_submission.platforms,'[]'::jsonb);
+
+    update public.restos
+    set online_platforms = v_platforms,
+        no_online_sales = false,
+        gofood_locked_by = case
+          when exists (select 1 from jsonb_array_elements(coalesce(v_submission.platforms,'[]'::jsonb)) x where lower(x->>'platform')='gofood')
+            then coalesce(gofood_locked_by,v_submission.user_id)
+          else gofood_locked_by end,
+        grabfood_locked_by = case
+          when exists (select 1 from jsonb_array_elements(coalesce(v_submission.platforms,'[]'::jsonb)) x where lower(x->>'platform')='grabfood')
+            then coalesce(grabfood_locked_by,v_submission.user_id)
+          else grabfood_locked_by end,
+        shopeefood_locked_by = case
+          when exists (select 1 from jsonb_array_elements(coalesce(v_submission.platforms,'[]'::jsonb)) x where lower(x->>'platform')='shopeefood')
+            then coalesce(shopeefood_locked_by,v_submission.user_id)
+          else shopeefood_locked_by end
+    where id = v_submission.resto_id;
+  end if;
+
+  update public.online_link_submissions
+  set status='approved',
+      reviewed_by=auth.uid(),
+      reviewed_at=now()
+  where id=p_submission_id;
+end;
+$$;
+
+create or replace function public.reject_online_link_submission(
+  p_submission_id uuid,
+  p_note text default ''
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin(auth.uid()) then
+    raise exception 'admin only';
+  end if;
+
+  update public.online_link_submissions
+  set status='rejected',
+      admin_note=nullif(trim(coalesce(p_note,'')),''),
+      reviewed_by=auth.uid(),
+      reviewed_at=now()
+  where id=p_submission_id
+    and status='pending';
+
+  if not found then
+    raise exception 'submission not found or already reviewed';
+  end if;
+end;
+$$;
+
+revoke all on function public.approve_online_link_submission(uuid) from public;
+revoke all on function public.reject_online_link_submission(uuid,text) from public;
+grant execute on function public.approve_online_link_submission(uuid) to authenticated;
+grant execute on function public.reject_online_link_submission(uuid,text) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- RLS: rebuild app policies from one canonical source.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  p record;
+begin
+  for p in
+    select schemaname,tablename,policyname
+    from pg_policies
+    where schemaname='public'
+      and tablename = any(array[
+        'profiles','restos','ratings','testimonials','favorite_menu','references_link',
+        'visited','wishlist','seen_restos','visit_photos','menu_photos','reports',
+        'online_link_submissions','cities','leaderboard_points'
+      ])
+  loop
+    execute format('drop policy if exists %I on %I.%I',p.policyname,p.schemaname,p.tablename);
+  end loop;
+end $$;
+
+alter table public.profiles enable row level security;
+alter table public.restos enable row level security;
+alter table public.ratings enable row level security;
+alter table public.testimonials enable row level security;
+alter table public.favorite_menu enable row level security;
+alter table public.references_link enable row level security;
+alter table public.visited enable row level security;
+alter table public.wishlist enable row level security;
+alter table public.seen_restos enable row level security;
+alter table public.visit_photos enable row level security;
+alter table public.menu_photos enable row level security;
+alter table public.reports enable row level security;
+alter table public.online_link_submissions enable row level security;
+alter table public.cities enable row level security;
+alter table public.leaderboard_points enable row level security;
+
+create policy profiles_read_self_or_admin on public.profiles
+for select to authenticated
+using (id=auth.uid() or public.is_admin());
+
+create policy profiles_update_self on public.profiles
+for update to authenticated
+using (id=auth.uid())
+with check (id=auth.uid());
+
+create policy restos_public_read on public.restos for select to anon,authenticated using (true);
+create policy restos_authenticated_insert on public.restos for insert to authenticated
+with check (created_by=auth.uid());
+create policy restos_admin_update on public.restos for update to authenticated
+using (public.is_admin()) with check (public.is_admin());
+create policy restos_admin_delete on public.restos for delete to authenticated
+using (public.is_admin());
+
+create policy ratings_public_read on public.ratings for select to anon,authenticated using (true);
+create policy ratings_own_insert on public.ratings for insert to authenticated with check (user_id=auth.uid());
+create policy ratings_own_update on public.ratings for update to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
+create policy ratings_own_delete on public.ratings for delete to authenticated using (user_id=auth.uid());
+
+create policy testimonials_public_read on public.testimonials for select to anon,authenticated using (true);
+create policy testimonials_own_insert on public.testimonials for insert to authenticated with check (user_id=auth.uid());
+create policy testimonials_own_update on public.testimonials for update to authenticated using (user_id=auth.uid()) with check (user_id=auth.uid());
+create policy testimonials_own_delete on public.testimonials for delete to authenticated using (user_id=auth.uid());
+
+create policy favorite_menu_public_read on public.favorite_menu for select to anon,authenticated using (true);
+create policy favorite_menu_own_insert on public.favorite_menu for insert to authenticated with check (user_id=auth.uid());
+create policy favorite_menu_own_delete on public.favorite_menu for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+
+create policy references_public_read on public.references_link for select to anon,authenticated using (true);
+create policy references_own_insert on public.references_link for insert to authenticated with check (user_id=auth.uid());
+create policy references_own_delete on public.references_link for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+
+create policy visited_private on public.visited for all to authenticated
+using (user_id=auth.uid()) with check (user_id=auth.uid());
+create policy wishlist_private on public.wishlist for all to authenticated
+using (user_id=auth.uid()) with check (user_id=auth.uid());
+create policy seen_restos_private on public.seen_restos for all to authenticated
+using (user_id=auth.uid()) with check (user_id=auth.uid());
+
+create policy visit_photos_public_read on public.visit_photos for select to anon,authenticated using (true);
+create policy visit_photos_own_insert on public.visit_photos for insert to authenticated with check (user_id=auth.uid());
+create policy visit_photos_own_delete on public.visit_photos for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+
+create policy menu_photos_public_read on public.menu_photos for select to anon,authenticated using (true);
+create policy menu_photos_own_insert on public.menu_photos for insert to authenticated with check (user_id=auth.uid());
+create policy menu_photos_own_delete on public.menu_photos for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+
+create policy reports_own_insert on public.reports for insert to authenticated with check (user_id=auth.uid());
+create policy reports_own_or_admin_read on public.reports for select to authenticated
+using (user_id=auth.uid() or public.is_admin());
+create policy reports_admin_update on public.reports for update to authenticated
+using (public.is_admin()) with check (public.is_admin());
+
+create policy online_links_own_insert on public.online_link_submissions for insert to authenticated
+with check (user_id=auth.uid());
+create policy online_links_own_or_admin_read on public.online_link_submissions for select to authenticated
+using (user_id=auth.uid() or public.is_admin());
+
+create policy cities_public_read on public.cities for select to anon,authenticated using (true);
+create policy leaderboard_public_read on public.leaderboard_points for select to anon,authenticated using (true);
+
+-- Column-level protection for profile roles / verification fields.
+revoke all on public.profiles from anon;
+grant select on public.profiles to authenticated;
+revoke update on public.profiles from authenticated;
+grant update (display_name,username,gender,age,avatar_url) on public.profiles to authenticated;
+
+grant select on public.restos,public.ratings,public.testimonials,public.favorite_menu,
+  public.references_link,public.visit_photos,public.menu_photos,public.cities,
+  public.leaderboard_points to anon,authenticated;
+
+grant insert on public.restos,public.ratings,public.testimonials,public.favorite_menu,
+  public.references_link,public.visit_photos,public.menu_photos,public.reports,
+  public.online_link_submissions to authenticated;
+
+grant select on public.visited,public.wishlist,public.seen_restos,public.reports,
+  public.online_link_submissions to authenticated;
+
+grant insert,update,delete on public.visited,public.wishlist,public.seen_restos to authenticated;
+grant update,delete on public.restos,public.ratings,public.testimonials,public.reports to authenticated;
+grant delete on public.favorite_menu,public.references_link,public.visit_photos,public.menu_photos to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Storage bucket used by visit photos, menu photos and avatars
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id,name,public)
+values ('visit-photos','visit-photos',true)
+on conflict (id) do update set public=excluded.public;
+
+drop policy if exists "visit-photos bucket: publik bisa lihat" on storage.objects;
+drop policy if exists "visit-photos bucket: user login bisa upload" on storage.objects;
+drop policy if exists "visit-photos bucket: hapus milik sendiri/admin" on storage.objects;
+drop policy if exists gm_visit_photos_public_read on storage.objects;
+drop policy if exists gm_visit_photos_authenticated_insert on storage.objects;
+drop policy if exists gm_visit_photos_owner_or_admin_delete on storage.objects;
+
+create policy gm_visit_photos_public_read on storage.objects
+for select to anon,authenticated
+using (bucket_id='visit-photos');
+
+create policy gm_visit_photos_authenticated_insert on storage.objects
+for insert to authenticated
+with check (bucket_id='visit-photos' and auth.uid() is not null);
+
+create policy gm_visit_photos_owner_or_admin_delete on storage.objects
+for delete to authenticated
+using (bucket_id='visit-photos' and (owner=auth.uid() or public.is_admin()));
