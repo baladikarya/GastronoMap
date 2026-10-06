@@ -34,7 +34,7 @@ alter table public.profiles
   add column if not exists full_review_count integer not null default 0,
   add column if not exists updated_at timestamptz not null default now();
 
-create unique index if not exists profiles_username_unique
+create index if not exists profiles_username_idx
   on public.profiles (lower(username))
   where username is not null;
 
@@ -227,7 +227,7 @@ begin
   ) then
     alter table public.restos
       add constraint restos_city_id_fkey_p0
-      foreign key (city_id) references public.cities(id) on delete set null;
+      foreign key (city_id) references public.cities(id) on delete set null not valid;
   end if;
 end $$;
 
