@@ -390,12 +390,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
   #locateBtn{bottom:82px;right:18px;width:38px;height:38px;}
   .ref-card{width:64px;}
   #detailContent{padding:16px 14px 90px 14px;}
-  #listView{top:calc(101px + env(safe-area-inset-top));padding-left:10px;padding-right:10px;}
-  .home-resto-list{grid-template-columns:1fr;}
-  .home-resto-photo{width:94px;height:90px;flex-basis:94px;}
-  #mapPreviewCard{left:10px;right:76px;bottom:calc(16px + env(safe-area-inset-bottom));}
-  #mapPreviewCard .home-resto-photo{width:78px;height:78px;flex-basis:78px;}
-  #mapPreviewCard .home-resto-tags{display:none;}
 }
 
 /* ---------- FILTER CHIPS ---------- */
@@ -414,84 +408,6 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 .chip.time-chip{background:var(--ink);color:#fff;border-color:var(--ink);}
 .chip.time-chip.active{background:var(--amber);color:var(--ink);border-color:var(--amber);}
 .chip.visit-chip.active{background:var(--teal-dark);color:#fff;border-color:var(--teal-dark);}
-
-/* ---------- HOME: MAP/LIST + PREVIEW RESTO ---------- */
-.home-view-toggle{
-  display:flex;align-items:center;flex:0 0 auto;background:var(--card);border:1px solid var(--line);
-  border-radius:18px;padding:2px;box-shadow:0 2px 6px rgba(0,0,0,0.08);
-}
-.home-view-btn{
-  border:none;background:transparent;color:var(--muted);padding:5px 10px;border-radius:14px;
-  font:700 11.5px 'Work Sans',sans-serif;cursor:pointer;white-space:nowrap;
-}
-.home-view-btn.active{background:var(--ink);color:#fff;}
-#openNowFilterBtn{
-  flex:0 0 auto;padding:6px 12px;border-radius:16px;background:var(--card);border:1px solid var(--line);
-  font:700 12px 'Work Sans',sans-serif;color:var(--ink);cursor:pointer;white-space:nowrap;
-  box-shadow:0 2px 6px rgba(0,0,0,0.08);
-}
-#openNowFilterBtn.active{background:#E4F3E0;color:#2E7D32;border-color:#8BC48B;}
-#homeResultCount{
-  flex:0 0 auto;align-self:center;padding:5px 9px;border-radius:14px;background:rgba(255,255,255,0.9);
-  border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap;
-}
-#listView{
-  position:absolute;top:calc(108px + env(safe-area-inset-top));left:0;right:0;bottom:0;z-index:2;
-  overflow-y:auto;-webkit-overflow-scrolling:touch;background:var(--paper);
-  padding:8px 12px calc(96px + env(safe-area-inset-bottom));
-}
-#listView.hidden{display:none;}
-.home-list-head{
-  display:flex;align-items:end;justify-content:space-between;gap:12px;padding:6px 2px 10px;
-}
-.home-list-title{font-family:'Fraunces',serif;font-size:20px;font-weight:700;}
-.home-list-sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
-.home-resto-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;}
-.home-resto-card{
-  width:100%;display:flex;gap:11px;background:var(--card);border:1px solid var(--line);border-radius:15px;
-  padding:10px;box-shadow:0 3px 12px rgba(30,42,40,0.08);cursor:pointer;text-align:left;color:var(--ink);
-}
-.home-resto-card:active{transform:scale(0.995);}
-.home-resto-photo{
-  width:104px;height:98px;flex:0 0 104px;border-radius:11px;overflow:hidden;background:#E8EAE5;
-  display:flex;align-items:center;justify-content:center;font-size:34px;
-}
-.home-resto-photo img{width:100%;height:100%;object-fit:cover;display:block;}
-.home-resto-body{min-width:0;flex:1;display:flex;flex-direction:column;}
-.home-resto-name-row{display:flex;align-items:flex-start;gap:5px;}
-.home-resto-name{
-  font-family:'Fraunces',serif;font-size:17px;font-weight:700;line-height:1.16;
-  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
-}
-.home-resto-verified{font-size:12px;color:#1877F2;flex:0 0 auto;}
-.home-resto-address{
-  margin-top:3px;font-size:11.5px;line-height:1.35;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.home-resto-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:7px;font-size:11.5px;font-weight:700;}
-.home-resto-rating{color:var(--amber-dark);}
-.home-resto-dot{color:#B1B5B0;}
-.home-resto-status{display:inline-flex;align-items:center;gap:4px;}
-.home-resto-status.open{color:#2E7D32;}
-.home-resto-status.closed{color:var(--red);}
-.home-resto-status.unknown{color:var(--muted);}
-.home-resto-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:auto;padding-top:7px;}
-.home-resto-tag{
-  max-width:140px;padding:3px 7px;border-radius:10px;background:var(--paper);font-size:10.5px;
-  color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.home-empty{
-  margin:26px auto;max-width:340px;text-align:center;color:var(--muted);font-size:13px;line-height:1.55;
-  background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 18px;
-}
-#mapPreviewCard{
-  position:absolute;left:12px;right:88px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:998;
-  max-width:520px;
-}
-#mapPreviewCard.hidden{display:none;}
-#mapPreviewCard .home-resto-card{box-shadow:var(--shadow);border-color:rgba(30,42,40,0.18);}
-#mapPreviewCard .home-resto-photo{width:92px;height:88px;flex-basis:92px;}
-#mapPreviewCard .home-resto-name{font-size:16px;}
-#mapPreviewCard .home-resto-address{max-width:260px;}
 
 /* ---------- TIME FILTER POPOVER ---------- */
 /* ---------- PANEL FILTER TERPADU (bottom sheet) ---------- */
@@ -1117,9 +1033,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
     </div>
   </div>
   <div id="map"></div>
-  <div id="listView" class="hidden" aria-live="polite"></div>
-  <div id="mapPreviewCard" class="hidden" aria-live="polite"></div>
-  <div id="locateBtn" title="Lokasi saya" aria-label="Gunakan lokasi saya">🧭</div>
+  <div id="locateBtn" title="Lokasi saya">🧭</div>
   <button id="fab" title="Tambah resto">+</button>
 
   <div id="detailPanel" class="hidden">
@@ -1271,9 +1185,6 @@ const DEFAULT_TYPE_META = {emoji:"📍", color:"#555555"}; // fallback untuk tip
 const DAYS = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
 
 let map, markersLayer, allRestos = {}, activeTypeFilters = new Set(), pickedLatLng = null, editingId = null, tempMarker = null;
-let homeView = 'map'; // 'map' | 'list'
-let openNowFilter = false;
-let currentMapPreviewId = null;
 let pickingLocationMode = false; // true selama alur tambah/edit resto aktif (form terbuka ATAU sedang di mode "pastikan pin")
 let quickPinMarker = null; // pin sementara dari tap-tahan di peta utama (sebelum form Tambah Resto dibuka)
 let pendingNewRestoLatLng = null; // lokasi dari quickPinMarker yang dibawa masuk ke openForm() saat pin-nya ditekan
@@ -2729,16 +2640,6 @@ function renderFilterChips(){
   const wrap = document.getElementById('filters');
   wrap.innerHTML = '';
 
-  const viewToggle = document.createElement('div');
-  viewToggle.className = 'home-view-toggle';
-  viewToggle.setAttribute('role','group');
-  viewToggle.setAttribute('aria-label','Mode eksplorasi resto');
-  viewToggle.innerHTML = `<button type="button" class="home-view-btn" data-view="map">🗺️ Map</button><button type="button" class="home-view-btn" data-view="list">☰ List</button>`;
-  viewToggle.querySelectorAll('.home-view-btn').forEach(btn=>{
-    btn.onclick = ()=> setHomeView(btn.dataset.view);
-  });
-  wrap.appendChild(viewToggle);
-
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.id = 'openFilterBtn';
@@ -2746,51 +2647,10 @@ function renderFilterChips(){
   btn.onclick = openFilterPanel;
   wrap.appendChild(btn);
 
-  const openNowBtn = document.createElement('button');
-  openNowBtn.type = 'button';
-  openNowBtn.id = 'openNowFilterBtn';
-  openNowBtn.innerHTML = '● Buka sekarang';
-  openNowBtn.onclick = ()=>{
-    openNowFilter = !openNowFilter;
-    openNowBtn.classList.toggle('active', openNowFilter);
-    renderMarkers();
-  };
-  wrap.appendChild(openNowBtn);
-
-  const count = document.createElement('span');
-  count.id = 'homeResultCount';
-  count.textContent = '0 resto';
-  wrap.appendChild(count);
-
   renderTypeCheckList();
   renderPlatformCheckList();
   renderPriceCheckList();
   updateFilterBtnLabel();
-  updateHomeViewControls();
-}
-
-function updateHomeViewControls(){
-  document.querySelectorAll('.home-view-btn').forEach(btn=>{
-    const active = btn.dataset.view === homeView;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
-  const openNowBtn = document.getElementById('openNowFilterBtn');
-  if(openNowBtn){
-    openNowBtn.classList.toggle('active', openNowFilter);
-    openNowBtn.setAttribute('aria-pressed', openNowFilter ? 'true' : 'false');
-  }
-}
-
-function setHomeView(view){
-  if(view !== 'map' && view !== 'list') return;
-  homeView = view;
-  document.getElementById('map').classList.toggle('hidden', view === 'list');
-  document.getElementById('listView').classList.toggle('hidden', view !== 'list');
-  document.getElementById('locateBtn').classList.toggle('hidden', view === 'list');
-  if(view === 'list') hideMapPreview();
-  updateHomeViewControls();
-  if(view === 'map' && map) requestAnimationFrame(()=> map.invalidateSize());
 }
 
 function openFilterPanel(){
@@ -2838,7 +2698,6 @@ function updateFilterBtnLabel(){
   const count = activeTypeFilters.size + activePlatformFilters.size + activePriceFilters.size + (timeFilter ? 1 : 0) + (visitFilter ? 1 : 0) + (wishlistFilter ? 1 : 0);
   btn.innerHTML = count > 0 ? `🔧 Filter <span class="filter-count-badge">${count}</span>` : '🔧 Filter';
   btn.classList.toggle('active', count > 0);
-  updateHomeViewControls();
 }
 
 function populateTypeSelect(){
@@ -3111,121 +2970,29 @@ function makeIcon(type, visited, isNew, isVerified){
 
 function matchesSearch(r, q){
   if(!q) return true;
-  const testiText = (r.testimonials||[]).map(t=>t.text||'').join(' ');
-  const menuText = (r.favoriteMenu||[]).join(' ');
-  const haystack = [r.name, r.address, r.type, r.priceRange, menuText, testiText].filter(Boolean).join(' ').toLowerCase();
-  return q.split(/\s+/).filter(Boolean).every(token=> haystack.includes(token));
-}
-
-function getFilteredRestos(){
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  const nowDay = currentDayName();
-  const nowTime = currentTimeStr();
-  return Object.values(allRestos).filter(r=>{
-    if(activeTypeFilters.size > 0 && !activeTypeFilters.has(r.type)) return false;
-    if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(typeof p === 'string' ? p : p.platform))) return false;
-    if(activePriceFilters.size > 0 && !activePriceFilters.has(r.priceRange)) return false;
-    if(!matchesSearch(r, q)) return false;
-    if(openNowFilter && !isOpenAt(r.hoursByDay, nowDay, nowTime)) return false;
-    if(timeFilter && !isOpenAt(r.hoursByDay, timeFilter.day, timeFilter.time)) return false;
-    const isVisited = visitedIds.has(r.id);
-    if(visitFilter === 'visited' && !isVisited) return false;
-    if(visitFilter === 'unvisited' && isVisited) return false;
-    if(wishlistFilter === 'wishlist' && !wishlistIds.has(r.id)) return false;
-    return true;
-  });
-}
-
-function getHomeRestoPhoto(r){
-  const menuImage = (r.menuImages||[]).find(Boolean);
-  if(menuImage) return menuImage;
-  const menuPhoto = (r.menuPhotos||[])[0];
-  if(menuPhoto && menuPhoto.storagePath) return photoPublicUrl(menuPhoto.storagePath);
-  const visitPhoto = (r.photos||[])[0];
-  if(visitPhoto && visitPhoto.storagePath) return photoPublicUrl(visitPhoto.storagePath);
-  return '';
-}
-
-function getHomeOpenStatus(r){
-  const day = currentDayName();
-  const d = r.hoursByDay && r.hoursByDay[day];
-  if(!d) return {label:'Jam belum tersedia', cls:'unknown'};
-  if(d.closed) return {label:'Tutup', cls:'closed'};
-  const isOpen = isOpenAt(r.hoursByDay, day, currentTimeStr());
-  if(isOpen) return {label: d.close ? `Buka · sampai ${d.close}` : 'Buka sekarang', cls:'open'};
-  const hours = (d.open && d.close) ? `${d.open}–${d.close}` : 'di luar jam buka';
-  return {label:`Tutup · ${hours}`, cls:'closed'};
-}
-
-function buildHomeRestoCardHtml(r, compact=false){
-  const t = TYPES[r.type] || DEFAULT_TYPE_META;
-  const summary = computeRatingSummary(r.ratings||[]);
-  const rating = summary.overallCount > 0 ? `${summary.overall.toFixed(1)} ★` : 'Belum ada rating';
-  const status = getHomeOpenStatus(r);
-  const photo = getHomeRestoPhoto(r);
-  const platforms = (r.onlinePlatforms||[]).map(p=> typeof p === 'string' ? p : p.platform).filter(Boolean);
-  const tags = [r.type, r.priceRange, platforms.length ? `${platforms.length} layanan online` : null].filter(Boolean);
-  const photoHtml = photo ? `<img src="${escapeAttr(photo)}" loading="lazy" alt="Foto ${escapeAttr(r.name)}" onerror="this.remove()">` : `<span aria-hidden="true">${t.emoji}</span>`;
-  return `<button type="button" class="home-resto-card${compact ? ' compact' : ''}" data-resto-id="${escapeAttr(r.id)}">
-    <span class="home-resto-photo">${photoHtml}</span>
-    <span class="home-resto-body">
-      <span class="home-resto-name-row"><span class="home-resto-name">${escapeHtml(r.name)}</span>${r.isVerified ? '<span class="home-resto-verified" title="Verified">●</span>' : ''}</span>
-      <span class="home-resto-address">${escapeHtml(r.address || 'Alamat belum tersedia')}</span>
-      <span class="home-resto-meta"><span class="home-resto-rating">${rating}</span><span class="home-resto-dot">•</span><span class="home-resto-status ${status.cls}">${escapeHtml(status.label)}</span></span>
-      <span class="home-resto-tags">${tags.map(tag=>`<span class="home-resto-tag">${escapeHtml(tag)}</span>`).join('')}</span>
-    </span>
-  </button>`;
-}
-
-function bindHomeRestoCards(container, onSelect){
-  container.querySelectorAll('.home-resto-card').forEach(card=>{
-    card.onclick = ()=> onSelect(card.dataset.restoId);
-  });
-}
-
-function renderListView(restos){
-  const list = document.getElementById('listView');
-  const sorted = restos.slice().sort((a,b)=> a.name.localeCompare(b.name, 'id'));
-  if(sorted.length === 0){
-    list.innerHTML = '<div class="home-empty"><b>Tidak ada resto yang cocok.</b><br>Ubah kata pencarian atau kurangi filter yang aktif.</div>';
-    return;
-  }
-  list.innerHTML = `<div class="home-list-head"><div><div class="home-list-title">Jelajahi resto</div><div class="home-list-sub">${sorted.length} hasil sesuai pencarian dan filter</div></div></div><div class="home-resto-list">${sorted.map(r=>buildHomeRestoCardHtml(r)).join('')}</div>`;
-  bindHomeRestoCards(list, id=> openDetail(id));
-}
-
-function showMapPreview(restoId){
-  const r = allRestos[restoId];
-  const wrap = document.getElementById('mapPreviewCard');
-  if(!r || homeView !== 'map'){ hideMapPreview(); return; }
-  currentMapPreviewId = restoId;
-  wrap.innerHTML = buildHomeRestoCardHtml(r, true);
-  wrap.classList.remove('hidden');
-  bindHomeRestoCards(wrap, id=> openDetail(id));
-}
-
-function hideMapPreview(){
-  currentMapPreviewId = null;
-  const wrap = document.getElementById('mapPreviewCard');
-  if(wrap){ wrap.classList.add('hidden'); wrap.innerHTML = ''; }
+  const testiText = (r.testimonials||[]).map(t=>t.text||'').join(' ').toLowerCase();
+  return r.name.toLowerCase().includes(q) || (r.address||'').toLowerCase().includes(q) || testiText.includes(q) || (r.description||'').toLowerCase().includes(q);
 }
 
 function renderMarkers(){
   markersLayer.clearLayers();
-  const filtered = getFilteredRestos();
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
   const markersToAdd = [];
-  filtered.forEach(r=>{
-    if(!Number.isFinite(Number(r.lat)) || !Number.isFinite(Number(r.lng))) return;
+  Object.values(allRestos).forEach(r=>{
+    if(activeTypeFilters.size > 0 && !activeTypeFilters.has(r.type)) return;
+    if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(typeof p === 'string' ? p : p.platform))) return;
+    if(activePriceFilters.size > 0 && !activePriceFilters.has(r.priceRange)) return;
+    if(!matchesSearch(r, q)) return;
+    if(timeFilter && !isOpenAt(r.hoursByDay, timeFilter.day, timeFilter.time)) return;
     const isVisited = visitedIds.has(r.id);
+    if(visitFilter === 'visited' && !isVisited) return;
+    if(visitFilter === 'unvisited' && isVisited) return;
+    if(wishlistFilter === 'wishlist' && !wishlistIds.has(r.id)) return;
     const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r), r.isVerified)});
-    m.on('click', ()=> showMapPreview(r.id));
+    m.on('click', ()=> openDetail(r.id));
     markersToAdd.push(m);
   });
-  markersLayer.addLayers(markersToAdd);
-  renderListView(filtered);
-  const count = document.getElementById('homeResultCount');
-  if(count) count.textContent = `${filtered.length} resto`;
-  if(currentMapPreviewId && !filtered.some(r=>r.id === currentMapPreviewId)) hideMapPreview();
+  markersLayer.addLayers(markersToAdd); // tambah semua sekaligus (jauh lebih cepat daripada satu-satu untuk ratusan pin)
 }
 
 /* ================= SUGGESTION PENCARIAN ================= */
@@ -3234,7 +3001,7 @@ function renderSearchSuggestions(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   if(!q){ box.classList.add('hidden'); box.innerHTML=''; return; }
   const matches = Object.values(allRestos)
-    .filter(r => matchesSearch(r, q))
+    .filter(r => r.name.toLowerCase().includes(q))
     .slice(0, 6);
   if(matches.length === 0){ box.classList.add('hidden'); box.innerHTML=''; return; }
   box.innerHTML = matches.map(r=>{
@@ -3247,9 +3014,8 @@ function renderSearchSuggestions(){
       document.getElementById('searchInput').value = r.name;
       box.classList.add('hidden');
       renderMarkers();
-      setHomeView('map');
       map.setView([r.lat, r.lng], 17);
-      showMapPreview(r.id);
+      openDetail(r.id);
     };
   });
   box.classList.remove('hidden');
@@ -4487,7 +4253,6 @@ document.getElementById('filterResetAllBtn').onclick = ()=>{
   activeTypeFilters = new Set();
   activePlatformFilters = new Set();
   activePriceFilters = new Set();
-  openNowFilter = false;
   timeFilter = null;
   visitFilter = null;
   wishlistFilter = null;
@@ -4632,7 +4397,6 @@ if('serviceWorker' in navigator){
 /* ================= START ================= */
 initMap();
 renderFilterChips();
-setHomeView('map');
 populateTypeSelect();
 initPlatformPicker();
 refreshMyGpsLocation();
