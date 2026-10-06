@@ -606,25 +606,169 @@ function renderNearbyLocationState(message, loading=false){
   if(locationBtn) locationBtn.onclick = refreshNearbyListLocation;
 }
 
+function setFilterAccordionSection(sectionName){
+  document.querySelectorAll('#filterPanel .filter-section').forEach(section=>{
+    const shouldOpen = section.dataset.filterSection === sectionName;
+    section.classList.toggle('expanded', shouldOpen);
+    const head = section.querySelector('.filter-section-head');
+    if(head) head.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+  });
+}
+
+function initFilterPanelInteractions(){
+  const panel = document.getElementById('filterPanel');
+  if(!panel || panel.dataset.interactionsReady === '1') return;
+  panel.dataset.interactionsReady = '1';
+
+  panel.querySelectorAll('.filter-section-head').forEach(head=>{
+    head.onclick = ()=>{
+      const section = head.closest('.filter-section');
+      const isOpen = section.classList.contains('expanded');
+      if(isOpen){
+        section.classList.remove('expanded');
+        head.setAttribute('aria-expanded','false');
+      }else{
+        setFilterAccordionSection(section.dataset.filterSection);
+      }
+    };
+  });
+
+  panel.querySelectorAll('[data-hours-mode]').forEach(btn=>{
+    btn.onclick = ()=> setFilterHoursMode(btn.dataset.hoursMode);
+  });
+
+  document.getElementById('tf_day').onchange = updateFilterDraftUI;
+  document.getElementById('tf_time').oninput = updateFilterDraftUI;
+
+  panel.querySelectorAll('[data-visit-value]').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.getElementById('visitFilterSelect').value = btn.dataset.visitValue;
+      updateFilterDraftUI();
+    };
+  });
+
+  document.getElementById('wishlistFilterChip').onclick = ()=>{
+    const select = document.getElementById('wishlistFilterSelect');
+    select.value = select.value === 'wishlist' ? '' : 'wishlist';
+    updateFilterDraftUI();
+  };
+
+  panel.querySelectorAll('[data-clear-filter]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const kind = btn.dataset.clearFilter;
+      const selector = kind === 'type' ? '#typeCheckList input'
+        : kind === 'online' ? '#platformCheckList input'
+        : '#priceCheckList input';
+      document.querySelectorAll(selector).forEach(input=>{
+        input.checked = false;
+        input.closest('.filter-check-chip')?.classList.remove('checked');
+      });
+      updateFilterDraftUI();
+    };
+  });
+}
+
+function setFilterHoursMode(mode){
+  const openNowInput = document.getElementById('openNowFilterInput');
+  const customInput = document.getElementById('tf_enable');
+  openNowInput.checked = mode === 'now';
+  customInput.checked = mode === 'custom';
+  document.getElementById('customTimeFields').classList.toggle('hidden', mode !== 'custom');
+  updateFilterDraftUI();
+}
+
+function getFilterHoursMode(){
+  if(document.getElementById('openNowFilterInput').checked) return 'now';
+  if(document.getElementById('tf_enable').checked) return 'custom';
+  return 'any';
+}
+
+function summarizeChecked(containerId){
+  const checked = Array.from(document.querySelectorAll(`#${containerId} input:checked`));
+  if(checked.length === 0) return 'Semua';
+  if(checked.length === 1) return checked[0].value;
+  return `${checked.length} dipilih`;
+}
+
+function countFilterDraft(){
+  const typeCount = document.querySelectorAll('#typeCheckList input:checked').length;
+  const platformCount = document.querySelectorAll('#platformCheckList input:checked').length;
+  const priceCount = document.querySelectorAll('#priceCheckList input:checked').length;
+  const hoursCount = getFilterHoursMode() === 'any' ? 0 : 1;
+  const visitCount = document.getElementById('visitFilterSelect').value ? 1 : 0;
+  const wishlistCount = document.getElementById('wishlistFilterSelect').value ? 1 : 0;
+  return typeCount + platformCount + priceCount + hoursCount + visitCount + wishlistCount;
+}
+
+function updateFilterDraftUI(){
+  const hoursMode = getFilterHoursMode();
+  document.querySelectorAll('[data-hours-mode]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.hoursMode === hoursMode);
+  });
+  document.getElementById('customTimeFields').classList.toggle('hidden', hoursMode !== 'custom');
+
+  const hoursSummary = hoursMode === 'now'
+    ? 'Buka sekarang'
+    : hoursMode === 'custom'
+      ? `${document.getElementById('tf_day').value} ${document.getElementById('tf_time').value || currentTimeStr()}`
+      : 'Kapan saja';
+  document.getElementById('filterHoursSummary').textContent = hoursSummary;
+  document.getElementById('filterTypeSummary').textContent = summarizeChecked('typeCheckList');
+  document.getElementById('filterOnlineSummary').textContent = summarizeChecked('platformCheckList');
+  document.getElementById('filterPriceSummary').textContent = summarizeChecked('priceCheckList');
+
+  const visitValue = document.getElementById('visitFilterSelect').value;
+  const wishlistValue = document.getElementById('wishlistFilterSelect').value;
+  document.querySelectorAll('[data-visit-value]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.visitValue === visitValue);
+  });
+  const wishlistBtn = document.getElementById('wishlistFilterChip');
+  wishlistBtn.classList.toggle('active', wishlistValue === 'wishlist');
+  wishlistBtn.textContent = wishlistValue === 'wishlist' ? '♥ Wishlist' : '♡ Wishlist';
+
+  const statusParts = [];
+  if(visitValue === 'visited') statusParts.push('Sudah dikunjungi');
+  if(visitValue === 'unvisited') statusParts.push('Belum dikunjungi');
+  if(wishlistValue === 'wishlist') statusParts.push('Wishlist');
+  document.getElementById('filterStatusSummary').textContent = statusParts.length ? statusParts.join(' + ') : 'Semua';
+
+  ['typeCheckList','platformCheckList','priceCheckList'].forEach(id=>{
+    document.querySelectorAll(`#${id} .filter-check-chip`).forEach(chip=>{
+      const input = chip.querySelector('input');
+      chip.classList.toggle('checked', !!input?.checked);
+    });
+  });
+
+  const count = countFilterDraft();
+  document.getElementById('filterApplyAllBtn').textContent = count > 0 ? `Terapkan Filter (${count})` : 'Terapkan Filter';
+}
+
 function openFilterPanel(){
-  // sinkronkan checklist dengan state aktif sebelum ditampilkan
   renderTypeCheckList();
   renderPlatformCheckList();
   renderPriceCheckList();
+  initFilterPanelInteractions();
+
   document.getElementById('openNowFilterInput').checked = !!openNowFilter;
-  document.getElementById('tf_enable').checked = !!timeFilter;
+  document.getElementById('tf_enable').checked = !!timeFilter && !openNowFilter;
   document.getElementById('tf_day').value = timeFilter ? timeFilter.day : currentDayName();
   document.getElementById('tf_time').value = timeFilter ? timeFilter.time : currentTimeStr();
   document.getElementById('visitFilterSelect').value = visitFilter || '';
   document.getElementById('wishlistFilterSelect').value = wishlistFilter || '';
+
+  setFilterAccordionSection('hours');
+  updateFilterDraftUI();
   document.getElementById('filterOverlay').classList.remove('hidden');
 }
 
 function makeCheckChip(container, value, label, checkedSet){
   const chip = document.createElement('label');
   chip.className = 'filter-check-chip' + (checkedSet.has(value) ? ' checked' : '');
-  chip.innerHTML = `<input type="checkbox" value="${escapeAttr(value)}" ${checkedSet.has(value) ? 'checked' : ''}> ${label}`;
-  chip.querySelector('input').onchange = (e)=> chip.classList.toggle('checked', e.target.checked);
+  chip.innerHTML = `<input type="checkbox" value="${escapeAttr(value)}" ${checkedSet.has(value) ? 'checked' : ''}> <span>${label}</span>`;
+  chip.querySelector('input').onchange = (e)=>{
+    chip.classList.toggle('checked', e.target.checked);
+    updateFilterDraftUI();
+  };
   container.appendChild(chip);
 }
 

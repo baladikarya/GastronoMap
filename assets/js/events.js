@@ -181,6 +181,7 @@ document.getElementById('tf_time').value = currentTimeStr();
 document.getElementById('filterOverlay').onclick = (e)=>{
   if(e.target.id === 'filterOverlay') document.getElementById('filterOverlay').classList.add('hidden');
 };
+document.getElementById('filterCloseBtn').onclick = ()=> document.getElementById('filterOverlay').classList.add('hidden');
 
 document.getElementById('filterApplyAllBtn').onclick = ()=>{
   activeTypeFilters = new Set(Array.from(document.querySelectorAll('#typeCheckList input:checked')).map(el=>el.value));
@@ -196,7 +197,7 @@ document.getElementById('filterApplyAllBtn').onclick = ()=>{
   }
   visitFilter = document.getElementById('visitFilterSelect').value || null;
   wishlistFilter = document.getElementById('wishlistFilterSelect').value || null;
-  renderFilterChips(); // sinkronkan chip kategori cepat dengan checkbox tipe yang baru diterapkan
+  renderFilterChips();
   document.getElementById('filterOverlay').classList.add('hidden');
   renderMarkers();
   showToast('Filter diterapkan');
@@ -210,17 +211,24 @@ document.getElementById('filterResetAllBtn').onclick = ()=>{
   timeFilter = null;
   visitFilter = null;
   wishlistFilter = null;
+
+  renderTypeCheckList();
+  renderPlatformCheckList();
+  renderPriceCheckList();
   document.getElementById('openNowFilterInput').checked = false;
   document.getElementById('tf_enable').checked = false;
   document.getElementById('tf_day').value = currentDayName();
   document.getElementById('tf_time').value = currentTimeStr();
   document.getElementById('visitFilterSelect').value = '';
   document.getElementById('wishlistFilterSelect').value = '';
-  renderFilterChips(); // sinkronkan chip kategori cepat setelah reset
-  document.getElementById('filterOverlay').classList.add('hidden');
+  setFilterAccordionSection('hours');
+  updateFilterDraftUI();
+
+  renderFilterChips();
   renderMarkers();
   showToast('Semua filter direset');
 };
+
 let mainLiveTracking = null; // {watchId, layer}
 document.getElementById('locateBtn').onclick = ()=>{
   const btn = document.getElementById('locateBtn');

@@ -300,66 +300,109 @@
   </div>
   <div id="filters"></div>
   <div id="filterOverlay" class="hidden">
-    <div id="filterPanel">
-      <h2>Filter</h2>
-
-      <div class="filter-section">
-        <label class="filter-section-label">🕐 Jam Buka</label>
-        <label class="filter-check-row filter-open-now-row"><input type="checkbox" id="openNowFilterInput"> Buka sekarang</label>
-        <div class="field-row">
-          <div class="field">
-            <select id="tf_day">
-              <option value="Senin">Senin</option>
-              <option value="Selasa">Selasa</option>
-              <option value="Rabu">Rabu</option>
-              <option value="Kamis">Kamis</option>
-              <option value="Jumat">Jumat</option>
-              <option value="Sabtu">Sabtu</option>
-              <option value="Minggu">Minggu</option>
-            </select>
-          </div>
-          <div class="field">
-            <input type="time" id="tf_time">
-          </div>
+    <div id="filterPanel" role="dialog" aria-modal="true" aria-labelledby="filterTitle">
+      <div class="filter-panel-header">
+        <h2 id="filterTitle">Filter</h2>
+        <div class="filter-header-actions">
+          <button type="button" id="filterResetAllBtn" class="filter-reset-btn">Reset</button>
+          <button type="button" id="filterCloseBtn" class="filter-close-btn" aria-label="Tutup filter">✕</button>
         </div>
-        <label class="filter-check-row"><input type="checkbox" id="tf_enable"> Aktifkan filter jam buka</label>
       </div>
 
-      <div class="filter-section">
-        <label class="filter-section-label">🍽️ Tipe Resto</label>
-        <div id="typeCheckList" class="filter-check-grid"></div>
+      <div id="filterBody" class="filter-body">
+        <section class="filter-section expanded" data-filter-section="hours">
+          <button type="button" class="filter-section-head" aria-expanded="true">
+            <span class="filter-section-title">🕐 Jam Buka</span>
+            <span class="filter-section-summary" id="filterHoursSummary">Kapan saja</span>
+            <span class="filter-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="filter-section-content">
+            <div class="filter-choice-row filter-hours-modes">
+              <button type="button" class="filter-choice-btn" data-hours-mode="any">Kapan saja</button>
+              <button type="button" class="filter-choice-btn" data-hours-mode="now">Buka sekarang</button>
+              <button type="button" class="filter-choice-btn" data-hours-mode="custom">Atur waktu</button>
+            </div>
+            <input type="checkbox" id="openNowFilterInput" class="hidden">
+            <input type="checkbox" id="tf_enable" class="hidden">
+            <div id="customTimeFields" class="filter-custom-time hidden">
+              <select id="tf_day" aria-label="Hari">
+                <option value="Senin">Senin</option>
+                <option value="Selasa">Selasa</option>
+                <option value="Rabu">Rabu</option>
+                <option value="Kamis">Kamis</option>
+                <option value="Jumat">Jumat</option>
+                <option value="Sabtu">Sabtu</option>
+                <option value="Minggu">Minggu</option>
+              </select>
+              <input type="time" id="tf_time" aria-label="Jam">
+            </div>
+          </div>
+        </section>
+
+        <section class="filter-section" data-filter-section="type">
+          <button type="button" class="filter-section-head" aria-expanded="false">
+            <span class="filter-section-title">🍽️ Tipe Resto</span>
+            <span class="filter-section-summary" id="filterTypeSummary">Semua</span>
+            <span class="filter-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="filter-section-content">
+            <button type="button" class="filter-clear-selection" data-clear-filter="type">Hapus pilihan</button>
+            <div id="typeCheckList" class="filter-check-grid filter-grid-2"></div>
+          </div>
+        </section>
+
+        <section class="filter-section" data-filter-section="online">
+          <button type="button" class="filter-section-head" aria-expanded="false">
+            <span class="filter-section-title">🛵 Ketersediaan Online</span>
+            <span class="filter-section-summary" id="filterOnlineSummary">Semua</span>
+            <span class="filter-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="filter-section-content">
+            <button type="button" class="filter-clear-selection" data-clear-filter="online">Hapus pilihan</button>
+            <div id="platformCheckList" class="filter-check-grid filter-grid-2"></div>
+          </div>
+        </section>
+
+        <section class="filter-section" data-filter-section="price">
+          <button type="button" class="filter-section-head" aria-expanded="false">
+            <span class="filter-section-title">💰 Range Harga</span>
+            <span class="filter-section-summary" id="filterPriceSummary">Semua</span>
+            <span class="filter-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="filter-section-content">
+            <button type="button" class="filter-clear-selection" data-clear-filter="price">Hapus pilihan</button>
+            <div id="priceCheckList" class="filter-check-grid filter-grid-2"></div>
+          </div>
+        </section>
+
+        <section class="filter-section" data-filter-section="status">
+          <button type="button" class="filter-section-head" aria-expanded="false">
+            <span class="filter-section-title">🎯 Status Kunjungan</span>
+            <span class="filter-section-summary" id="filterStatusSummary">Semua</span>
+            <span class="filter-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div class="filter-section-content">
+            <select id="visitFilterSelect" class="hidden" aria-hidden="true">
+              <option value="">Semua</option>
+              <option value="unvisited">Belum Dikunjungi</option>
+              <option value="visited">Sudah Dikunjungi</option>
+            </select>
+            <select id="wishlistFilterSelect" class="hidden" aria-hidden="true">
+              <option value="">Semua</option>
+              <option value="wishlist">Wishlist Saja</option>
+            </select>
+            <div class="filter-check-grid filter-grid-2 filter-status-grid">
+              <button type="button" class="filter-choice-chip" data-visit-value="">Semua</button>
+              <button type="button" class="filter-choice-chip" data-visit-value="unvisited">Belum dikunjungi</button>
+              <button type="button" class="filter-choice-chip" data-visit-value="visited">Sudah dikunjungi</button>
+              <button type="button" class="filter-choice-chip" id="wishlistFilterChip">♡ Wishlist</button>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div class="filter-section">
-        <label class="filter-section-label">🛵 Ketersediaan Online</label>
-        <div id="platformCheckList" class="filter-check-grid"></div>
-      </div>
-
-      <div class="filter-section">
-        <label class="filter-section-label">💰 Range Harga</label>
-        <div id="priceCheckList" class="filter-check-grid"></div>
-      </div>
-
-      <div class="filter-section">
-        <label class="filter-section-label">🎯 Kunjungan</label>
-        <select id="visitFilterSelect" style="width:100%;">
-          <option value="">Semua</option>
-          <option value="unvisited">🆕 Belum Dikunjungi</option>
-          <option value="visited">✅ Sudah Dikunjungi</option>
-        </select>
-      </div>
-
-      <div class="filter-section">
-        <label class="filter-section-label">❤️ Wishlist</label>
-        <select id="wishlistFilterSelect" style="width:100%;">
-          <option value="">Semua</option>
-          <option value="wishlist">❤️ Wishlist Saja</option>
-        </select>
-      </div>
-
-      <div class="popRow" style="margin-top:18px;">
-        <button class="btn btn-secondary" id="filterResetAllBtn">Reset Semua</button>
-        <button class="btn btn-primary" id="filterApplyAllBtn">Terapkan</button>
+      <div class="filter-panel-footer">
+        <button class="btn btn-primary" id="filterApplyAllBtn">Terapkan Filter</button>
       </div>
     </div>
   </div>
