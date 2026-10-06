@@ -501,59 +501,15 @@ function renderFilterChips(){
   const wrap = document.getElementById('filters');
   wrap.innerHTML = '';
 
-  const viewToggle = document.createElement('div');
-  viewToggle.className = 'home-view-toggle';
-  viewToggle.setAttribute('role','group');
-  viewToggle.setAttribute('aria-label','Mode eksplorasi resto');
-  viewToggle.innerHTML = '<button type="button" class="home-view-btn" data-view="map">🗺️ Map</button><button type="button" class="home-view-btn" data-view="list">☰ List</button>';
-  viewToggle.querySelectorAll('.home-view-btn').forEach(btn=>{
-    btn.onclick = ()=> setHomeView(btn.dataset.view);
-  });
-  wrap.appendChild(viewToggle);
+  const listBtn = document.createElement('button');
+  listBtn.type = 'button';
+  listBtn.id = 'openListBtn';
+  listBtn.innerHTML = '☰ <span>List</span>';
+  listBtn.onclick = toggleNearbyList;
+  wrap.appendChild(listBtn);
 
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.id = 'openFilterBtn';
-  btn.innerHTML = '🔧 Filter';
-  btn.onclick = openFilterPanel;
-  wrap.appendChild(btn);
-
-  const openNowBtn = document.createElement('button');
-  openNowBtn.type = 'button';
-  openNowBtn.id = 'openNowFilterBtn';
-  openNowBtn.textContent = '● Buka sekarang';
-  openNowBtn.onclick = ()=>{
-    openNowFilter = !openNowFilter;
-    updateHomeViewControls();
-    renderMarkers();
-  };
-  wrap.appendChild(openNowBtn);
-
-  const resultCount = document.createElement('span');
-  resultCount.id = 'homeResultCount';
-  resultCount.textContent = '0 resto';
-  wrap.appendChild(resultCount);
-
-  const isSingleType = activeTypeFilters.size === 1;
-  const allChip = document.createElement('button');
-  allChip.type = 'button';
-  allChip.className = 'type-chip' + (activeTypeFilters.size === 0 ? ' active' : '');
-  allChip.innerHTML = '<span class="type-chip-icon">▦</span> Semua';
-  allChip.onclick = ()=>{ activeTypeFilters = new Set(); renderFilterChips(); renderMarkers(); };
-  wrap.appendChild(allChip);
-
-  Object.keys(TYPES).forEach(t=>{
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = 'type-chip' + (isSingleType && activeTypeFilters.has(t) ? ' active' : '');
-    chip.innerHTML = `<span class="type-chip-icon">${TYPES[t].emoji}</span> ${t}`;
-    chip.onclick = ()=>{
-      activeTypeFilters = (isSingleType && activeTypeFilters.has(t)) ? new Set() : new Set([t]);
-      renderFilterChips();
-      renderMarkers();
-    };
-    wrap.appendChild(chip);
-  });
+  const filterBtn = document.getElementById('searchFilterBtn');
+  if(filterBtn) filterBtn.onclick = openFilterPanel;
 
   renderTypeCheckList();
   renderPlatformCheckList();
@@ -563,30 +519,62 @@ function renderFilterChips(){
 }
 
 function updateHomeViewControls(){
-  document.querySelectorAll('.home-view-btn').forEach(btn=>{
-    const active = btn.dataset.view === homeView;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
-  const openNowBtn = document.getElementById('openNowFilterBtn');
-  if(openNowBtn){
-    openNowBtn.classList.toggle('active', openNowFilter);
-    openNowBtn.setAttribute('aria-pressed', openNowFilter ? 'true' : 'false');
+  const listBtn = document.getElementById('openListBtn');
+  if(listBtn){
+    const active = homeView === 'list';
+    listBtn.classList.toggle('active', active);
+    listBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
   }
 }
 
 function setHomeView(view){
   if(view !== 'map' && view !== 'list') return;
   homeView = view;
-  const mapEl = document.getElementById('map');
   const listEl = document.getElementById('listView');
-  const locateBtn = document.getElementById('locateBtn');
-  mapEl.classList.toggle('hidden', view === 'list');
   listEl.classList.toggle('hidden', view !== 'list');
-  locateBtn.classList.toggle('hidden', view === 'list');
-  if(view === 'list') closePreviewCard();
+  if(view === 'list'){
+    closePreviewCard();
+    renderNearbyList(getFilteredRestos());
+  }
   updateHomeViewControls();
-  if(view === 'map' && map) requestAnimationFrame(()=> map.invalidateSize());
+  if(map) requestAnimationFrame(()=> map.invalidateSize());
+}
+
+function toggleNearbyList(){
+  if(homeView === 'list'){
+    setHomeView('map');
+    return;
+  }
+  setHomeView('list');
+  refreshNearbyListLocation();
+}
+
+function refreshNearbyListLocation(){
+  if(!navigator.geolocation){
+    renderNearbyLocationState('Perangkat ini tidak mendukung deteksi lokasi.');
+    return;
+  }
+  if(!myGpsLatLng) renderNearbyLocationState('Mencari posisi Anda…', true);
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      myGpsLatLng = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+      if(homeView === 'list') renderNearbyList(getFilteredRestos());
+    },
+    ()=>{
+      if(homeView === 'list' && !myGpsLatLng){
+        renderNearbyLocationState('Aktifkan izin lokasi untuk melihat resto dalam radius 5 km dari posisi Anda.');
+      }
+    },
+    {enableHighAccuracy:true, timeout:12000, maximumAge:60000}
+  );
+}
+
+function renderNearbyLocationState(message, loading=false){
+  const list = document.getElementById('listView');
+  list.innerHTML = `<div class="home-list-head"><div><div class="home-list-title">Resto terdekat</div><div class="home-list-sub">Radius maksimum 5 km</div></div><button type="button" class="home-list-close" aria-label="Tutup list">✕</button></div><div class="home-empty"><b>${escapeHtml(message)}</b>${loading ? '' : '<br><button type="button" class="home-location-btn">Gunakan Lokasi Saya</button>'}</div>`;
+  list.querySelector('.home-list-close').onclick = ()=> setHomeView('map');
+  const locationBtn = list.querySelector('.home-location-btn');
+  if(locationBtn) locationBtn.onclick = refreshNearbyListLocation;
 }
 
 function openFilterPanel(){
@@ -594,6 +582,7 @@ function openFilterPanel(){
   renderTypeCheckList();
   renderPlatformCheckList();
   renderPriceCheckList();
+  document.getElementById('openNowFilterInput').checked = !!openNowFilter;
   document.getElementById('tf_enable').checked = !!timeFilter;
   document.getElementById('tf_day').value = timeFilter ? timeFilter.day : currentDayName();
   document.getElementById('tf_time').value = timeFilter ? timeFilter.time : currentTimeStr();
@@ -629,11 +618,14 @@ function renderPriceCheckList(){
 }
 
 function updateFilterBtnLabel(){
-  const btn = document.getElementById('openFilterBtn');
-  if(!btn) return;
-  const count = activeTypeFilters.size + activePlatformFilters.size + activePriceFilters.size + (timeFilter ? 1 : 0) + (visitFilter ? 1 : 0) + (wishlistFilter ? 1 : 0);
-  btn.innerHTML = count > 0 ? `🔧 Filter <span class="filter-count-badge">${count}</span>` : '🔧 Filter';
+  const btn = document.getElementById('searchFilterBtn');
+  const badge = document.getElementById('searchFilterCount');
+  if(!btn || !badge) return;
+  const count = activeTypeFilters.size + activePlatformFilters.size + activePriceFilters.size + (openNowFilter ? 1 : 0) + (timeFilter ? 1 : 0) + (visitFilter ? 1 : 0) + (wishlistFilter ? 1 : 0);
   btn.classList.toggle('active', count > 0);
+  badge.textContent = count;
+  badge.classList.toggle('hidden', count === 0);
+  btn.setAttribute('aria-label', count > 0 ? `Buka filter, ${count} aktif` : 'Buka filter');
 }
 
 function populateTypeSelect(){
@@ -1001,32 +993,52 @@ function getFilteredRestos(){
   });
 }
 
-function buildHomeRestoCardHtml(r){
+function formatNearbyDistance(distanceM){
+  return distanceM < 1000 ? `${Math.round(distanceM)} m` : `${(distanceM/1000).toFixed(1)} km`;
+}
+
+function buildHomeRestoCardHtml(r, distanceM){
   const summary = computeRatingSummary(r.ratings||[]);
   const rating = summary.overallCount > 0 ? `${summary.overall.toFixed(1)} ★` : 'Belum ada rating';
   const status = getHomeOpenStatus(r);
   const photo = getHomeRestoPhoto(r);
   const platforms = (r.onlinePlatforms||[]).map(p=> typeof p === 'string' ? p : p.platform).filter(Boolean);
   const tags = [r.type, r.priceRange, platforms.length ? `${platforms.length} layanan online` : null].filter(Boolean);
+  const distanceHtml = Number.isFinite(distanceM) ? `<span class="home-resto-distance">${formatNearbyDistance(distanceM)}</span><span class="home-resto-dot">•</span>` : '';
   return `<button type="button" class="home-resto-card" data-resto-id="${escapeAttr(r.id)}" aria-label="Buka detail ${escapeAttr(r.name)}">
     <span class="home-resto-photo"><img src="${escapeAttr(photo)}" loading="lazy" alt="Foto ${escapeAttr(r.name)}" onerror="this.src='icons/icon-192.png';this.onerror=null;"></span>
     <span class="home-resto-body">
       <span class="home-resto-name-row"><span class="home-resto-name">${escapeHtml(r.name)}</span>${r.isVerified ? '<span class="home-resto-verified" title="Verified">●</span>' : ''}</span>
       <span class="home-resto-address">${escapeHtml(r.address || 'Alamat belum tersedia')}</span>
-      <span class="home-resto-meta"><span class="home-resto-rating">${rating}</span><span class="home-resto-dot">•</span><span class="home-resto-status ${status.cls}">${escapeHtml(status.label)}</span></span>
+      <span class="home-resto-meta"><span class="home-resto-rating">${rating}</span><span class="home-resto-dot">•</span>${distanceHtml}<span class="home-resto-status ${status.cls}">${escapeHtml(status.label)}</span></span>
       <span class="home-resto-tags">${tags.map(tag=>`<span class="home-resto-tag">${escapeHtml(tag)}</span>`).join('')}</span>
     </span>
   </button>`;
 }
 
-function renderListView(restos){
-  const list = document.getElementById('listView');
-  const sorted = restos.slice().sort((a,b)=> a.name.localeCompare(b.name, 'id'));
-  if(sorted.length === 0){
-    list.innerHTML = '<div class="home-empty"><b>Tidak ada resto yang cocok.</b><br>Ubah kata pencarian atau kurangi filter yang aktif.</div>';
+function renderNearbyList(restos){
+  if(homeView !== 'list') return;
+  if(!myGpsLatLng){
+    renderNearbyLocationState('Aktifkan lokasi untuk melihat resto terdekat dalam radius 5 km.');
     return;
   }
-  list.innerHTML = `<div class="home-list-head"><div><div class="home-list-title">Jelajahi resto</div><div class="home-list-sub">${sorted.length} hasil sesuai pencarian dan filter</div></div></div><div class="home-resto-list">${sorted.map(buildHomeRestoCardHtml).join('')}</div>`;
+  const nearby = restos
+    .filter(r=> Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng)))
+    .map(r=>({
+      resto:r,
+      distanceM:distanceMetersBetween(myGpsLatLng.lat, myGpsLatLng.lng, Number(r.lat), Number(r.lng))
+    }))
+    .filter(item=> item.distanceM <= 5000)
+    .sort((a,b)=> a.distanceM - b.distanceM);
+
+  const list = document.getElementById('listView');
+  const header = `<div class="home-list-head"><div><div class="home-list-title">Resto terdekat</div><div class="home-list-sub">Diurutkan dari terdekat · maksimal 5 km</div></div><button type="button" class="home-list-close" aria-label="Tutup list">✕</button></div>`;
+  if(nearby.length === 0){
+    list.innerHTML = header + '<div class="home-empty"><b>Tidak ada resto yang cocok dalam radius 5 km.</b><br>Coba kurangi filter atau ubah pencarian.</div>';
+  }else{
+    list.innerHTML = header + `<div class="home-resto-list">${nearby.map(item=>buildHomeRestoCardHtml(item.resto,item.distanceM)).join('')}</div>`;
+  }
+  list.querySelector('.home-list-close').onclick = ()=> setHomeView('map');
   list.querySelectorAll('.home-resto-card').forEach(card=>{
     card.onclick = ()=> openDetail(card.dataset.restoId);
   });
@@ -1044,9 +1056,7 @@ function renderMarkers(){
     markersToAdd.push(m);
   });
   markersLayer.addLayers(markersToAdd);
-  renderListView(filtered);
-  const count = document.getElementById('homeResultCount');
-  if(count) count.textContent = `${filtered.length} resto`;
+  if(homeView === 'list') renderNearbyList(filtered);
   if(currentPreviewRestoId && !filtered.some(r=>r.id === currentPreviewRestoId)) closePreviewCard();
 }
 

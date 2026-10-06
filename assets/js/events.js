@@ -35,6 +35,7 @@ function hidePrimaryViews(){
 }
 
 function closeHomeOverlays(){
+  setHomeView('map');
   document.getElementById('detailPanel').classList.add('hidden');
   document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('wishlistOverlay').classList.add('hidden');
@@ -185,7 +186,10 @@ document.getElementById('filterApplyAllBtn').onclick = ()=>{
   activeTypeFilters = new Set(Array.from(document.querySelectorAll('#typeCheckList input:checked')).map(el=>el.value));
   activePlatformFilters = new Set(Array.from(document.querySelectorAll('#platformCheckList input:checked')).map(el=>el.value));
   activePriceFilters = new Set(Array.from(document.querySelectorAll('#priceCheckList input:checked')).map(el=>el.value));
-  if(document.getElementById('tf_enable').checked){
+  openNowFilter = document.getElementById('openNowFilterInput').checked;
+  if(openNowFilter){
+    timeFilter = null;
+  }else if(document.getElementById('tf_enable').checked){
     timeFilter = { day: document.getElementById('tf_day').value, time: document.getElementById('tf_time').value || currentTimeStr() };
   }else{
     timeFilter = null;
@@ -206,6 +210,7 @@ document.getElementById('filterResetAllBtn').onclick = ()=>{
   timeFilter = null;
   visitFilter = null;
   wishlistFilter = null;
+  document.getElementById('openNowFilterInput').checked = false;
   document.getElementById('tf_enable').checked = false;
   document.getElementById('tf_day').value = currentDayName();
   document.getElementById('tf_time').value = currentTimeStr();

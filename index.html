@@ -289,7 +289,11 @@
     <button id="logo" title="Tap untuk muat ulang data terbaru"><img src="icons/icon-192.png" alt="GastronoMap"></button>
     <div id="searchWrap">
       <input id="searchInput" type="text" placeholder="Eksplorasi rasa bersama GastronoMap">
-      <button id="searchClearBtn" class="hidden" title="Hapus pencarian">✕</button>
+      <button id="searchClearBtn" class="hidden" title="Hapus pencarian" aria-label="Hapus pencarian">✕</button>
+      <button id="searchFilterBtn" type="button" title="Filter resto" aria-label="Buka filter">
+        <svg class="search-filter-svg" aria-hidden="true"><use href="assets/icons/ui.svg#filter"></use></svg>
+        <span id="searchFilterCount" class="hidden"></span>
+      </button>
       <div id="searchSuggestions" class="hidden"></div>
     </div>
     <button id="userBadge" title="Akun"><img id="userBadgeAvatar" src="" alt="" class="hidden"><span id="userBadgeInitial">👤</span></button>
@@ -301,6 +305,7 @@
 
       <div class="filter-section">
         <label class="filter-section-label">🕐 Jam Buka</label>
+        <label class="filter-check-row filter-open-now-row"><input type="checkbox" id="openNowFilterInput"> Buka sekarang</label>
         <div class="field-row">
           <div class="field">
             <select id="tf_day">
@@ -359,7 +364,7 @@
     </div>
   </div>
   <div id="map"></div>
-  <section id="listView" class="hidden" aria-live="polite" aria-label="Daftar resto"></section>
+  <aside id="listView" class="hidden" aria-live="polite" aria-label="Resto terdekat"></aside>
   <div id="locateBtn" title="Lokasi saya">🧭</div>
   <button id="fab" title="Tambah resto">+</button>
 
