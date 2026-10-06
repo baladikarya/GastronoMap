@@ -1,0 +1,101 @@
+/* Primary navigation shell — P0 foundation */
+#bottomNav{
+  min-height:var(--bottom-nav-height);
+  box-sizing:border-box;
+}
+.nav-item{
+  min-width:0;
+  min-height:52px;
+  border-radius:10px;
+}
+.nav-item:focus-visible{
+  outline:2px solid var(--amber);
+  outline-offset:2px;
+}
+.nav-item .nav-svg{
+  width:22px;
+  height:22px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.nav-item-add{
+  min-height:60px;
+}
+.nav-item-add .nav-icon{
+  width:50px;
+  height:50px;
+}
+.nav-item-add .nav-svg{
+  width:25px;
+  height:25px;
+}
+.nav-item-add .nav-label{
+  display:block;
+  margin-top:1px;
+  font-size:9.5px;
+}
+.nav-item[aria-current="page"]{color:var(--ink);}
+
+.primary-view{
+  position:absolute;
+  z-index:950;
+  top:calc(60px + env(safe-area-inset-top));
+  left:0;
+  right:0;
+  bottom:calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  overflow:auto;
+  background:var(--paper);
+  padding:20px 16px 36px;
+  box-sizing:border-box;
+}
+.primary-view.hidden{display:none;}
+.primary-view__header{
+  max-width:720px;
+  margin:0 auto 18px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.primary-view__back{
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  border:1px solid var(--line);
+  background:var(--card);
+  color:var(--ink);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.primary-view__back .nav-svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;}
+.primary-view__title{
+  margin:0;
+  font:700 22px/1.2 var(--font-display);
+  color:var(--ink);
+}
+.primary-view__body{max-width:720px;margin:0 auto;}
+.primary-view__placeholder{
+  border:1px solid var(--line);
+  border-radius:16px;
+  background:var(--card);
+  padding:18px;
+}
+.primary-view__placeholder h3{
+  margin:0 0 8px;
+  font:700 17px/1.3 var(--font-display);
+  color:var(--ink);
+}
+.primary-view__placeholder p{
+  margin:0;
+  font:13px/1.55 var(--font-body);
+  color:var(--muted);
+}
+
+@media(max-width:420px){
+  .primary-view{top:calc(54px + env(safe-area-inset-top));padding:16px 14px 30px;}
+  .nav-item{font-size:9.5px;}
+}
