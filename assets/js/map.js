@@ -496,6 +496,12 @@ let activePriceFilters = new Set();
 let homeView = 'map'; // 'map' | 'list'
 let openNowFilter = false;
 let currentPreviewRestoId = null;
+const NEARBY_RADIUS_STORAGE_KEY = 'gmNearbyRadiusKm';
+let nearbyRadiusKm = 5;
+try{
+  const storedNearbyRadius = Number(localStorage.getItem(NEARBY_RADIUS_STORAGE_KEY));
+  if(Number.isFinite(storedNearbyRadius)) nearbyRadiusKm = Math.max(1, Math.min(10, Math.round(storedNearbyRadius)));
+}catch(e){ /* localStorage dapat diblokir pada mode privat tertentu; gunakan default 5 km */ }
 
 function renderFilterChips(){
   const wrap = document.getElementById('filters');
@@ -562,17 +568,43 @@ function refreshNearbyListLocation(){
     },
     ()=>{
       if(homeView === 'list' && !myGpsLatLng){
-        renderNearbyLocationState('Aktifkan izin lokasi untuk melihat resto dalam radius 5 km dari posisi Anda.');
+        renderNearbyLocationState(`Aktifkan izin lokasi untuk melihat resto dalam radius ${nearbyRadiusKm} km dari posisi Anda.`);
       }
     },
     {enableHighAccuracy:true, timeout:12000, maximumAge:60000}
   );
 }
 
+function buildNearbyPanelHeader(){
+  return `<div class="home-list-head"><div><div class="home-list-title">Resto terdekat</div><div class="home-list-sub">Diurutkan dari posisi Anda</div></div><button type="button" class="home-list-close" aria-label="Tutup list">✕</button></div>
+    <div class="home-radius-control">
+      <div class="home-radius-row"><span>Radius pencarian</span><strong id="nearbyRadiusValue">${nearbyRadiusKm} km</strong></div>
+      <input id="nearbyRadiusRange" class="home-radius-range" type="range" min="1" max="10" step="1" value="${nearbyRadiusKm}" aria-label="Radius resto terdekat dalam kilometer">
+      <div class="home-radius-scale"><span>1 km</span><span>10 km</span></div>
+    </div>`;
+}
+
+function bindNearbyPanelControls(){
+  const list = document.getElementById('listView');
+  const closeBtn = list.querySelector('.home-list-close');
+  if(closeBtn) closeBtn.onclick = ()=> setHomeView('map');
+
+  const range = list.querySelector('#nearbyRadiusRange');
+  if(range){
+    range.oninput = ()=>{
+      nearbyRadiusKm = Math.max(1, Math.min(10, Number(range.value) || 5));
+      const valueEl = document.getElementById('nearbyRadiusValue');
+      if(valueEl) valueEl.textContent = `${nearbyRadiusKm} km`;
+      try{ localStorage.setItem(NEARBY_RADIUS_STORAGE_KEY, String(nearbyRadiusKm)); }catch(e){}
+      renderNearbyListResults(getFilteredRestos());
+    };
+  }
+}
+
 function renderNearbyLocationState(message, loading=false){
   const list = document.getElementById('listView');
-  list.innerHTML = `<div class="home-list-head"><div><div class="home-list-title">Resto terdekat</div><div class="home-list-sub">Radius maksimum 5 km</div></div><button type="button" class="home-list-close" aria-label="Tutup list">✕</button></div><div class="home-empty"><b>${escapeHtml(message)}</b>${loading ? '' : '<br><button type="button" class="home-location-btn">Gunakan Lokasi Saya</button>'}</div>`;
-  list.querySelector('.home-list-close').onclick = ()=> setHomeView('map');
+  list.innerHTML = buildNearbyPanelHeader() + `<div id="nearbyListResults"><div class="home-empty"><b>${escapeHtml(message)}</b>${loading ? '' : '<br><button type="button" class="home-location-btn">Gunakan Lokasi Saya</button>'}</div></div>`;
+  bindNearbyPanelControls();
   const locationBtn = list.querySelector('.home-location-btn');
   if(locationBtn) locationBtn.onclick = refreshNearbyListLocation;
 }
@@ -1016,32 +1048,40 @@ function buildHomeRestoCardHtml(r, distanceM){
   </button>`;
 }
 
-function renderNearbyList(restos){
-  if(homeView !== 'list') return;
-  if(!myGpsLatLng){
-    renderNearbyLocationState('Aktifkan lokasi untuk melihat resto terdekat dalam radius 5 km.');
-    return;
-  }
+function renderNearbyListResults(restos){
+  if(homeView !== 'list' || !myGpsLatLng) return;
+  const radiusMeters = nearbyRadiusKm * 1000;
   const nearby = restos
     .filter(r=> Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng)))
     .map(r=>({
       resto:r,
       distanceM:distanceMetersBetween(myGpsLatLng.lat, myGpsLatLng.lng, Number(r.lat), Number(r.lng))
     }))
-    .filter(item=> item.distanceM <= 5000)
+    .filter(item=> item.distanceM <= radiusMeters)
     .sort((a,b)=> a.distanceM - b.distanceM);
 
-  const list = document.getElementById('listView');
-  const header = `<div class="home-list-head"><div><div class="home-list-title">Resto terdekat</div><div class="home-list-sub">Diurutkan dari terdekat · maksimal 5 km</div></div><button type="button" class="home-list-close" aria-label="Tutup list">✕</button></div>`;
+  const results = document.getElementById('nearbyListResults');
+  if(!results) return;
   if(nearby.length === 0){
-    list.innerHTML = header + '<div class="home-empty"><b>Tidak ada resto yang cocok dalam radius 5 km.</b><br>Coba kurangi filter atau ubah pencarian.</div>';
+    results.innerHTML = `<div class="home-empty"><b>Tidak ada resto yang cocok dalam radius ${nearbyRadiusKm} km.</b><br>Coba tambah radius, kurangi filter, atau ubah pencarian.</div>`;
   }else{
-    list.innerHTML = header + `<div class="home-resto-list">${nearby.map(item=>buildHomeRestoCardHtml(item.resto,item.distanceM)).join('')}</div>`;
+    results.innerHTML = `<div class="home-resto-list">${nearby.map(item=>buildHomeRestoCardHtml(item.resto,item.distanceM)).join('')}</div>`;
   }
-  list.querySelector('.home-list-close').onclick = ()=> setHomeView('map');
-  list.querySelectorAll('.home-resto-card').forEach(card=>{
+  results.querySelectorAll('.home-resto-card').forEach(card=>{
     card.onclick = ()=> openDetail(card.dataset.restoId);
   });
+}
+
+function renderNearbyList(restos){
+  if(homeView !== 'list') return;
+  if(!myGpsLatLng){
+    renderNearbyLocationState(`Aktifkan lokasi untuk melihat resto terdekat dalam radius ${nearbyRadiusKm} km.`);
+    return;
+  }
+  const list = document.getElementById('listView');
+  list.innerHTML = buildNearbyPanelHeader() + '<div id="nearbyListResults"></div>';
+  bindNearbyPanelControls();
+  renderNearbyListResults(restos);
 }
 
 function renderMarkers(){
