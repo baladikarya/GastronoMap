@@ -382,6 +382,7 @@ function setPinStatus(text, state){
    Untuk itu, form disembunyikan SEMENTARA (bukan ditutup -- semua isian tetap tersimpan di
    form) supaya peta terlihat penuh, lalu user tegas menekan "Lanjutkan" untuk kembali ke form. */
 function enterPinPeek(){
+  setHomeView('map');
   document.getElementById('modalOverlay').classList.add('hidden');
   document.getElementById('pinPeekBar').classList.remove('hidden');
   setTimeout(()=> map.invalidateSize(), 50);
@@ -492,19 +493,23 @@ const PRICE_RANGES = ['< Rp 25rb', 'Rp 25rb - 50rb', 'Rp 50rb - 100rb', 'Rp 100r
 
 let activePlatformFilters = new Set();
 let activePriceFilters = new Set();
+let homeView = 'map'; // 'map' | 'list'
+let openNowFilter = false;
+let currentPreviewRestoId = null;
 
 function renderFilterChips(){
   const wrap = document.getElementById('filters');
   wrap.innerHTML = '';
 
-  // Chip "Semua" -- reset kategori cepat (filter lain seperti harga/jam buka tidak ikut direset)
-  const isSingleType = activeTypeFilters.size === 1;
-  const allChip = document.createElement('button');
-  allChip.type = 'button';
-  allChip.className = 'type-chip' + (activeTypeFilters.size === 0 ? ' active' : '');
-  allChip.innerHTML = '<span class="type-chip-icon">▦</span> Semua';
-  allChip.onclick = ()=>{ activeTypeFilters = new Set(); renderFilterChips(); renderMarkers(); };
-  wrap.appendChild(allChip);
+  const viewToggle = document.createElement('div');
+  viewToggle.className = 'home-view-toggle';
+  viewToggle.setAttribute('role','group');
+  viewToggle.setAttribute('aria-label','Mode eksplorasi resto');
+  viewToggle.innerHTML = '<button type="button" class="home-view-btn" data-view="map">🗺️ Map</button><button type="button" class="home-view-btn" data-view="list">☰ List</button>';
+  viewToggle.querySelectorAll('.home-view-btn').forEach(btn=>{
+    btn.onclick = ()=> setHomeView(btn.dataset.view);
+  });
+  wrap.appendChild(viewToggle);
 
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -513,13 +518,36 @@ function renderFilterChips(){
   btn.onclick = openFilterPanel;
   wrap.appendChild(btn);
 
+  const openNowBtn = document.createElement('button');
+  openNowBtn.type = 'button';
+  openNowBtn.id = 'openNowFilterBtn';
+  openNowBtn.textContent = '● Buka sekarang';
+  openNowBtn.onclick = ()=>{
+    openNowFilter = !openNowFilter;
+    updateHomeViewControls();
+    renderMarkers();
+  };
+  wrap.appendChild(openNowBtn);
+
+  const resultCount = document.createElement('span');
+  resultCount.id = 'homeResultCount';
+  resultCount.textContent = '0 resto';
+  wrap.appendChild(resultCount);
+
+  const isSingleType = activeTypeFilters.size === 1;
+  const allChip = document.createElement('button');
+  allChip.type = 'button';
+  allChip.className = 'type-chip' + (activeTypeFilters.size === 0 ? ' active' : '');
+  allChip.innerHTML = '<span class="type-chip-icon">▦</span> Semua';
+  allChip.onclick = ()=>{ activeTypeFilters = new Set(); renderFilterChips(); renderMarkers(); };
+  wrap.appendChild(allChip);
+
   Object.keys(TYPES).forEach(t=>{
     const chip = document.createElement('button');
     chip.type = 'button';
     chip.className = 'type-chip' + (isSingleType && activeTypeFilters.has(t) ? ' active' : '');
     chip.innerHTML = `<span class="type-chip-icon">${TYPES[t].emoji}</span> ${t}`;
     chip.onclick = ()=>{
-      // tap ulang tipe yang sama -> balik ke "Semua"; tap tipe lain -> ganti single-select
       activeTypeFilters = (isSingleType && activeTypeFilters.has(t)) ? new Set() : new Set([t]);
       renderFilterChips();
       renderMarkers();
@@ -531,6 +559,34 @@ function renderFilterChips(){
   renderPlatformCheckList();
   renderPriceCheckList();
   updateFilterBtnLabel();
+  updateHomeViewControls();
+}
+
+function updateHomeViewControls(){
+  document.querySelectorAll('.home-view-btn').forEach(btn=>{
+    const active = btn.dataset.view === homeView;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  const openNowBtn = document.getElementById('openNowFilterBtn');
+  if(openNowBtn){
+    openNowBtn.classList.toggle('active', openNowFilter);
+    openNowBtn.setAttribute('aria-pressed', openNowFilter ? 'true' : 'false');
+  }
+}
+
+function setHomeView(view){
+  if(view !== 'map' && view !== 'list') return;
+  homeView = view;
+  const mapEl = document.getElementById('map');
+  const listEl = document.getElementById('listView');
+  const locateBtn = document.getElementById('locateBtn');
+  mapEl.classList.toggle('hidden', view === 'list');
+  listEl.classList.toggle('hidden', view !== 'list');
+  locateBtn.classList.toggle('hidden', view === 'list');
+  if(view === 'list') closePreviewCard();
+  updateHomeViewControls();
+  if(view === 'map' && map) requestAnimationFrame(()=> map.invalidateSize());
 }
 
 function openFilterPanel(){
@@ -837,22 +893,47 @@ async function deleteResto(id){
   renderMarkers();
 }
 
-/* ================= PREVIEW CARD (tap marker) ================= */
+/* ================= PREVIEW CARD + HOME EXPLORATION ================= */
+function getHomeRestoPhoto(r){
+  const menuImage = (r.menuImages||[]).find(Boolean);
+  if(menuImage) return menuImage;
+  const menuPhoto = (r.menuPhotos||[])[0];
+  if(menuPhoto && menuPhoto.storagePath) return photoPublicUrl(menuPhoto.storagePath);
+  const visitPhoto = (r.photos||[])[0];
+  if(visitPhoto && visitPhoto.storagePath) return photoPublicUrl(visitPhoto.storagePath);
+  return 'icons/icon-192.png';
+}
+
+function getHomeOpenStatus(r){
+  const day = currentDayName();
+  const d = r.hoursByDay && r.hoursByDay[day];
+  if(!d) return {label:'Jam belum tersedia', cls:'unknown'};
+  if(d.closed) return {label:'Tutup', cls:'closed'};
+  const isOpen = isOpenAt(r.hoursByDay, day, currentTimeStr());
+  if(isOpen) return {label:d.close ? `Buka · sampai ${d.close}` : 'Buka sekarang', cls:'open'};
+  return {label:(d.open && d.close) ? `Tutup · ${d.open}–${d.close}` : 'Tutup', cls:'closed'};
+}
+
 function openPreviewCard(id){
   const r = allRestos[id];
   if(!r) return;
-  document.getElementById('detailPanel').classList.add('hidden'); // pastikan detail lama (kalau ada) tertutup dulu
+  currentPreviewRestoId = id;
+  document.getElementById('detailPanel').classList.add('hidden');
   const t = TYPES[r.type] || DEFAULT_TYPE_META;
   const summary = computeRatingSummary(r.ratings);
-  const imgs = (r.menuImages||[]).filter(Boolean);
+  const status = getHomeOpenStatus(r);
 
-  document.getElementById('pcThumb').src = imgs[0] || 'icons/icon-192.png';
-  document.getElementById('pcName').textContent = r.name;
+  const thumb = document.getElementById('pcThumb');
+  thumb.src = getHomeRestoPhoto(r);
+  thumb.alt = `Foto ${r.name}`;
+  thumb.onerror = ()=>{ thumb.src='icons/icon-192.png'; thumb.onerror=null; };
+
+  document.getElementById('pcName').innerHTML = `${escapeHtml(r.name)}${r.isVerified ? '<span class="pc-verified" title="Verified">●</span>' : ''}`;
   document.getElementById('pcRating').innerHTML = summary.overallCount > 0
     ? `⭐ <b>${summary.overall.toFixed(1)}</b> · ${summary.overallCount} ulasan`
-    : `${t.emoji} ${escapeHtml(r.type)}`;
+    : `${t.emoji} Belum ada rating`;
 
-  const metaParts = [];
+  const metaParts = [status.label, r.type, r.priceRange].filter(Boolean);
   if(myGpsLatLng){
     const distM = distanceMetersBetween(myGpsLatLng.lat, myGpsLatLng.lng, r.lat, r.lng);
     metaParts.push(distM < 1000 ? `${Math.round(distM)} m` : `${(distM/1000).toFixed(1)} km`);
@@ -878,6 +959,7 @@ function openPreviewCard(id){
   card.classList.remove('hidden');
 }
 function closePreviewCard(){
+  currentPreviewRestoId = null;
   document.getElementById('previewCard').classList.add('hidden');
 }
 
@@ -894,29 +976,78 @@ function makeIcon(type, visited, isNew, isVerified){
 
 function matchesSearch(r, q){
   if(!q) return true;
-  const testiText = (r.testimonials||[]).map(t=>t.text||'').join(' ').toLowerCase();
-  return r.name.toLowerCase().includes(q) || (r.address||'').toLowerCase().includes(q) || testiText.includes(q) || (r.description||'').toLowerCase().includes(q);
+  const testiText = (r.testimonials||[]).map(t=>t.text||'').join(' ');
+  const menuText = (r.favoriteMenu||[]).join(' ');
+  const haystack = [r.name, r.address, r.type, r.priceRange, menuText, testiText].filter(Boolean).join(' ').toLowerCase();
+  return q.split(/\s+/).filter(Boolean).every(token=> haystack.includes(token));
+}
+
+function getFilteredRestos(){
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const nowDay = currentDayName();
+  const nowTime = currentTimeStr();
+  return Object.values(allRestos).filter(r=>{
+    if(activeTypeFilters.size > 0 && !activeTypeFilters.has(r.type)) return false;
+    if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(typeof p === 'string' ? p : p.platform))) return false;
+    if(activePriceFilters.size > 0 && !activePriceFilters.has(r.priceRange)) return false;
+    if(!matchesSearch(r, q)) return false;
+    if(openNowFilter && !isOpenAt(r.hoursByDay, nowDay, nowTime)) return false;
+    if(timeFilter && !isOpenAt(r.hoursByDay, timeFilter.day, timeFilter.time)) return false;
+    const isVisited = visitedIds.has(r.id);
+    if(visitFilter === 'visited' && !isVisited) return false;
+    if(visitFilter === 'unvisited' && isVisited) return false;
+    if(wishlistFilter === 'wishlist' && !wishlistIds.has(r.id)) return false;
+    return true;
+  });
+}
+
+function buildHomeRestoCardHtml(r){
+  const summary = computeRatingSummary(r.ratings||[]);
+  const rating = summary.overallCount > 0 ? `${summary.overall.toFixed(1)} ★` : 'Belum ada rating';
+  const status = getHomeOpenStatus(r);
+  const photo = getHomeRestoPhoto(r);
+  const platforms = (r.onlinePlatforms||[]).map(p=> typeof p === 'string' ? p : p.platform).filter(Boolean);
+  const tags = [r.type, r.priceRange, platforms.length ? `${platforms.length} layanan online` : null].filter(Boolean);
+  return `<button type="button" class="home-resto-card" data-resto-id="${escapeAttr(r.id)}" aria-label="Buka detail ${escapeAttr(r.name)}">
+    <span class="home-resto-photo"><img src="${escapeAttr(photo)}" loading="lazy" alt="Foto ${escapeAttr(r.name)}" onerror="this.src='icons/icon-192.png';this.onerror=null;"></span>
+    <span class="home-resto-body">
+      <span class="home-resto-name-row"><span class="home-resto-name">${escapeHtml(r.name)}</span>${r.isVerified ? '<span class="home-resto-verified" title="Verified">●</span>' : ''}</span>
+      <span class="home-resto-address">${escapeHtml(r.address || 'Alamat belum tersedia')}</span>
+      <span class="home-resto-meta"><span class="home-resto-rating">${rating}</span><span class="home-resto-dot">•</span><span class="home-resto-status ${status.cls}">${escapeHtml(status.label)}</span></span>
+      <span class="home-resto-tags">${tags.map(tag=>`<span class="home-resto-tag">${escapeHtml(tag)}</span>`).join('')}</span>
+    </span>
+  </button>`;
+}
+
+function renderListView(restos){
+  const list = document.getElementById('listView');
+  const sorted = restos.slice().sort((a,b)=> a.name.localeCompare(b.name, 'id'));
+  if(sorted.length === 0){
+    list.innerHTML = '<div class="home-empty"><b>Tidak ada resto yang cocok.</b><br>Ubah kata pencarian atau kurangi filter yang aktif.</div>';
+    return;
+  }
+  list.innerHTML = `<div class="home-list-head"><div><div class="home-list-title">Jelajahi resto</div><div class="home-list-sub">${sorted.length} hasil sesuai pencarian dan filter</div></div></div><div class="home-resto-list">${sorted.map(buildHomeRestoCardHtml).join('')}</div>`;
+  list.querySelectorAll('.home-resto-card').forEach(card=>{
+    card.onclick = ()=> openDetail(card.dataset.restoId);
+  });
 }
 
 function renderMarkers(){
   markersLayer.clearLayers();
-  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = getFilteredRestos();
   const markersToAdd = [];
-  Object.values(allRestos).forEach(r=>{
-    if(activeTypeFilters.size > 0 && !activeTypeFilters.has(r.type)) return;
-    if(activePlatformFilters.size > 0 && !(r.onlinePlatforms||[]).some(p=>activePlatformFilters.has(typeof p === 'string' ? p : p.platform))) return;
-    if(activePriceFilters.size > 0 && !activePriceFilters.has(r.priceRange)) return;
-    if(!matchesSearch(r, q)) return;
-    if(timeFilter && !isOpenAt(r.hoursByDay, timeFilter.day, timeFilter.time)) return;
+  filtered.forEach(r=>{
+    if(!Number.isFinite(Number(r.lat)) || !Number.isFinite(Number(r.lng))) return;
     const isVisited = visitedIds.has(r.id);
-    if(visitFilter === 'visited' && !isVisited) return;
-    if(visitFilter === 'unvisited' && isVisited) return;
-    if(wishlistFilter === 'wishlist' && !wishlistIds.has(r.id)) return;
     const m = L.marker([r.lat, r.lng], {icon: makeIcon(r.type, isVisited, isNewForMe(r), r.isVerified)});
     m.on('click', ()=> openPreviewCard(r.id));
     markersToAdd.push(m);
   });
-  markersLayer.addLayers(markersToAdd); // tambah semua sekaligus (jauh lebih cepat daripada satu-satu untuk ratusan pin)
+  markersLayer.addLayers(markersToAdd);
+  renderListView(filtered);
+  const count = document.getElementById('homeResultCount');
+  if(count) count.textContent = `${filtered.length} resto`;
+  if(currentPreviewRestoId && !filtered.some(r=>r.id === currentPreviewRestoId)) closePreviewCard();
 }
 
 /* ================= SUGGESTION PENCARIAN ================= */
@@ -925,7 +1056,7 @@ function renderSearchSuggestions(){
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   if(!q){ box.classList.add('hidden'); box.innerHTML=''; return; }
   const matches = Object.values(allRestos)
-    .filter(r => r.name.toLowerCase().includes(q))
+    .filter(r => matchesSearch(r, q))
     .slice(0, 6);
   if(matches.length === 0){ box.classList.add('hidden'); box.innerHTML=''; return; }
   box.innerHTML = matches.map(r=>{
@@ -938,8 +1069,9 @@ function renderSearchSuggestions(){
       document.getElementById('searchInput').value = r.name;
       box.classList.add('hidden');
       renderMarkers();
+      setHomeView('map');
       map.setView([r.lat, r.lng], 17);
-      openDetail(r.id);
+      openPreviewCard(r.id);
     };
   });
   box.classList.remove('hidden');

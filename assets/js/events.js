@@ -8,7 +8,7 @@ function showToast(msg){
 }
 
 /* ================= EVENTS ================= */
-document.getElementById('fab').onclick = ()=>{ refreshMyGpsLocation(); openForm(null); };
+document.getElementById('fab').onclick = ()=>{ setHomeView('map'); refreshMyGpsLocation(); openForm(null); };
 
 /* ---------- BOTTOM NAVIGATION ---------- */
 const NAV_VIEW_TO_BUTTON = {
@@ -84,6 +84,7 @@ function navigateBackHome(){
 document.getElementById('navHomeBtn').onclick = ()=> navigatePrimaryView('home');
 document.getElementById('navCommunityBtn').onclick = ()=> navigatePrimaryView('community');
 document.getElementById('navAddBtn').onclick = ()=>{
+  setHomeView('map');
   refreshMyGpsLocation();
   openForm(null);
 };
@@ -201,6 +202,7 @@ document.getElementById('filterResetAllBtn').onclick = ()=>{
   activeTypeFilters = new Set();
   activePlatformFilters = new Set();
   activePriceFilters = new Set();
+  openNowFilter = false;
   timeFilter = null;
   visitFilter = null;
   wishlistFilter = null;
