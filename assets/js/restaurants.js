@@ -584,12 +584,14 @@ function openDetail(id, showAllTesti){
                 const hasPhotos = !!(g.menuItemId && g.photoCount > 0);
                 return `<div class="menu-recommend-row${hasPhotos ? ' has-photos' : ''}"
                   ${g.menuItemId ? `data-menu-item-id="${escapeAttr(g.menuItemId)}"` : ''}
-                  ${hasPhotos ? `data-menu-photo-count="${g.photoCount}" role="button" tabindex="0" aria-label="Lihat ${g.photoCount} foto ${escapeAttr(g.canonical)}"` : ''}>
+                  ${hasPhotos ? `data-menu-photo-count="${g.photoCount}" role="button" tabindex="0" aria-label="${escapeAttr(g.canonical)}, ${g.count} rekomendasi, lihat ${g.photoCount} foto"` : ''}>
                   <span class="menu-recommend-rank">${idx + 1}</span>
-                  <span class="menu-recommend-name">${escapeHtml(g.canonical)}</span>
-                  <span class="menu-recommend-meta">
-                    <span class="menu-recommend-count" title="Jumlah rekomendasi">👍 ${g.count}</span>
-                    ${g.photoCount > 0 ? `<span class="menu-recommend-photo-count">${g.photoCount} foto</span>` : ''}
+                  <span class="menu-recommend-body">
+                    <span class="menu-recommend-name">${escapeHtml(g.canonical)}</span>
+                    <span class="menu-recommend-meta">
+                      <span class="menu-recommend-count" title="Jumlah rekomendasi">👍 ${g.count} rekomendasi</span>
+                      ${g.photoCount > 0 ? `<span class="menu-recommend-sep" aria-hidden="true">·</span><span class="menu-recommend-photo-count" title="Buka galeri foto menu">${g.photoCount} foto <span aria-hidden="true">›</span></span>` : ''}
+                    </span>
                   </span>
                 </div>`;
               }).join('')
@@ -790,24 +792,12 @@ function openDetail(id, showAllTesti){
       const blob = await prepareVisitPhotoBlob(file);
       if(!blob) return;
 
-      let selectedMenuItems = [];
-      if(kind === 'food'){
-        const picked = await openFoodPhotoMenuTagPicker(r, blob);
-        if(picked === null) return; // user membatalkan seluruh upload
-        selectedMenuItems = picked;
-      }
-
       let canonicalMenuItems = [];
-      if(kind === 'food' && selectedMenuItems.length){
+      if(kind === 'food'){
+        const picked = await openFoodPhotoMenuTagPicker(r, {blob, mode:'upload'});
+        if(picked === null) return; // user membatalkan seluruh upload
         try{
-          for(const selected of selectedMenuItems){
-            if(selected.id){
-              canonicalMenuItems.push(selected);
-            }else{
-              const item = await ensureMenuItem(r.id, selected.name);
-              if(item) canonicalMenuItems.push(item);
-            }
-          }
+          canonicalMenuItems = await resolveMenuTagSelection(r.id, picked);
         }catch(error){
           showToast('Gagal menyiapkan nama menu: ' + error.message);
           return;
@@ -817,19 +807,26 @@ function openDetail(id, showAllTesti){
       const uploaded = await uploadVisitPhotoBlob(blob, r.id, kind);
       if(!uploaded) return;
 
-      if(kind === 'food' && canonicalMenuItems.length){
-        try{
-          await tagFoodPhotoMenuItems(uploaded.id, canonicalMenuItems.map(item=>item.id));
-          showToast(`Foto ditautkan ke ${canonicalMenuItems.length} menu`);
-        }catch(error){
-          // Foto tetap dipertahankan walau tagging gagal; user tidak perlu upload ulang foto.
-          showToast('Foto terunggah, tetapi tag menu gagal disimpan');
-          console.error('Gagal menyimpan tag menu foto:', error);
+      if(kind === 'food'){
+        if(canonicalMenuItems.length){
+          try{
+            await tagFoodPhotoMenuItems(uploaded.id, canonicalMenuItems.map(item=>item.id));
+            showToast(`Foto berhasil ditambahkan · Menu: ${menuTagNamesSummary(canonicalMenuItems)}`);
+          }catch(error){
+            // Foto tetap dipertahankan walau tagging gagal; user tidak perlu upload ulang foto.
+            showToast('Foto berhasil ditambahkan, tetapi tag menu gagal disimpan. Kamu bisa mengeditnya lewat tombol •••.');
+            console.error('Gagal menyimpan tag menu foto:', error);
+          }
+        }else{
+          showToast('Foto berhasil ditambahkan · Belum ada tag menu. Kamu bisa menambahkannya lewat tombol •••.');
         }
+      }else{
+        showToast('Foto suasana berhasil ditambahkan');
       }
 
       await loadAllRestos();
       openDetail(id, showAllTesti);
+      activateDetailTab('referensi');
     };
     cameraInput.onchange = handlePick;
     galleryInput.onchange = handlePick;
@@ -849,7 +846,11 @@ function openDetail(id, showAllTesti){
     e.target.value = '';
     if(!file) return;
     const ok = await uploadMenuPhotoCrowd(file, r.id);
-    if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
+    if(ok){
+      await loadAllRestos();
+      openDetail(id, showAllTesti);
+      activateDetailTab('menu');
+    }
   };
   document.getElementById('menuPhotoDetailCameraInput').onchange = handleMenuPhotoDetailPick;
   document.getElementById('menuPhotoDetailGalleryInput').onchange = handleMenuPhotoDetailPick;
@@ -865,6 +866,14 @@ function openDetail(id, showAllTesti){
   wireReferencePhotoGrid('foodPhotoGrid', foodPhotos);
   wireReferencePhotoGrid('ambiencePhotoGrid', ambiencePhotos);
   wireReferencePhotoGrid('legacyPhotoGrid', legacyVisitPhotos);
+
+  document.querySelectorAll('#foodPhotoGrid .food-photo-more-btn').forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      const photo = foodPhotos.find(item=> item.id === btn.dataset.id);
+      if(photo) openFoodPhotoActionSheet(r, photo, showAllTesti);
+    };
+  });
 
   const openMenuLinkedPhotos = (menuItemId)=>{
     if(!menuItemId) return;
@@ -893,7 +902,11 @@ function openDetail(id, showAllTesti){
       e.stopPropagation();
       if(!confirm('Hapus foto ini?')) return;
       const ok = await deleteVisitPhoto(btn.dataset.id, btn.dataset.path);
-      if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
+      if(ok){
+        await loadAllRestos();
+        openDetail(id, showAllTesti);
+        activateDetailTab('referensi');
+      }
     };
   });
   document.querySelectorAll('.menu-photo-del-btn').forEach(btn=>{
@@ -905,7 +918,11 @@ function openDetail(id, showAllTesti){
       const ok = item.kind === 'crowd'
         ? await deleteMenuPhotoCrowd(item.id, item.storagePath)
         : await deleteLegacyMenuImage(r.id, item.url);
-      if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
+      if(ok){
+        await loadAllRestos();
+        openDetail(id, showAllTesti);
+        activateDetailTab('menu');
+      }
     };
   });
   document.querySelectorAll('.ref-del-btn').forEach(btn=>{
@@ -913,7 +930,12 @@ function openDetail(id, showAllTesti){
       e.preventDefault();
       if(!confirm('Hapus referensi ini?')) return;
       const ok = await deleteReference(btn.dataset.id);
-      if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); showToast('Referensi dihapus'); }
+      if(ok){
+        await loadAllRestos();
+        openDetail(id, showAllTesti);
+        activateDetailTab('referensi');
+        showToast('Referensi dihapus');
+      }
     };
   });
   document.getElementById('quickRefBtn').onclick = async ()=>{
@@ -929,6 +951,7 @@ function openDetail(id, showAllTesti){
     showToast('Referensi ditambahkan');
     await loadAllRestos();
     openDetail(id, showAllTesti);
+    activateDetailTab('referensi');
   };
   document.getElementById('quickFavBtn').onclick = async ()=>{
     if(!requireLogin()) return;
@@ -944,6 +967,7 @@ function openDetail(id, showAllTesti){
     showToast('Rekomendasi ditambahkan, terima kasih!');
     await loadAllRestos();
     openDetail(id, showAllTesti);
+    activateDetailTab('menu');
   };
   const showMoreBtn = document.getElementById('testiShowMoreBtn');
   if(showMoreBtn) showMoreBtn.onclick = ()=> openDetail(id, true);
