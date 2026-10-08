@@ -934,6 +934,92 @@ body{
 .detail-tab-panel{display:none;}
 .detail-tab-panel.active{display:block;}
 
+/* ---------- TAB RINGKASAN / INFORMASI UTAMA ---------- */
+.summary-main-section{margin:0 -2px;}
+.summary-section-title{
+  margin:0;padding:1px 0 10px;font-family:'Fraunces',serif;font-size:16px;line-height:1.3;
+  font-weight:700;color:var(--ink);
+}
+.summary-info-row{
+  position:relative;display:grid;grid-template-columns:28px 86px minmax(0,1fr) auto;
+  column-gap:9px;align-items:center;min-height:58px;padding:10px 0;border-bottom:1px solid #E8EBE9;
+}
+.summary-info-row:last-child{border-bottom:0;}
+.summary-info-icon{
+  width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+  color:#586461;
+}
+.summary-info-icon svg,.summary-row-action svg,.summary-expand-btn svg{
+  width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.summary-info-label{font-size:11px;line-height:1.35;font-weight:700;color:#515957;}
+.summary-info-value{
+  min-width:0;font-size:11.5px;line-height:1.48;color:#3D4542;overflow-wrap:anywhere;
+}
+.summary-value-suffix,.summary-muted-value{color:#868D89;font-weight:400;}
+.summary-row-action,.summary-expand-btn{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+  padding:0;border:0;border-radius:8px;background:transparent;color:#596460;cursor:pointer;
+}
+.summary-row-action:hover,.summary-expand-btn:hover{background:var(--paper);}
+.summary-row-action:active,.summary-expand-btn:active{transform:scale(.95);}
+
+.summary-hours-wrap{align-items:start;}
+.summary-hours-summary{padding-top:1px;}
+.summary-hours-today{display:flex;flex-direction:column;gap:2px;}
+.summary-hours-today strong{font-size:11.5px;color:var(--ink);}
+.summary-hours-actions{
+  display:flex;align-items:center;justify-content:flex-end;gap:5px;min-width:0;
+}
+.summary-hours-actions .detail-pill{
+  padding:4px 7px;font-size:9.5px;gap:4px;
+}
+.summary-hours-actions .detail-status-dot{width:12px;height:12px;font-size:8px;}
+.summary-expand-btn svg{transition:transform .18s ease;}
+.summary-expand-btn.expanded svg{transform:rotate(180deg);}
+.summary-hours-details{
+  grid-column:2/-1;margin:8px 0 1px;padding:8px 10px;border-radius:10px;
+  background:var(--paper);border:1px solid var(--line);
+}
+.summary-hours-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:6px 2px;font-size:10.5px;color:#626A66;
+}
+.summary-hours-row+ .summary-hours-row{border-top:1px solid rgba(0,0,0,.045);}
+.summary-hours-row strong{font-size:10.5px;color:#3D4542;font-weight:600;white-space:nowrap;}
+.summary-hours-row.is-today{color:var(--teal-dark);}
+.summary-hours-row.is-today strong{color:var(--teal-dark);}
+.summary-hours-row b{font-weight:700;color:var(--teal-dark);}
+
+.summary-platform-value{padding:1px 0;}
+.summary-platform-list{display:flex;align-items:center;flex-wrap:wrap;gap:5px;}
+.platform-chip.summary-platform-chip{
+  min-height:25px;display:inline-flex;align-items:center;gap:4px;padding:4px 7px;
+  border-radius:999px;border:1px solid color-mix(in srgb,var(--platform-color) 55%,white);
+  background:color-mix(in srgb,var(--platform-color) 9%,white);color:var(--platform-color);
+  font-family:'Work Sans',sans-serif;font-size:9.5px;font-weight:700;text-decoration:none;
+  cursor:pointer;box-sizing:border-box;
+}
+button.platform-chip.summary-platform-chip{appearance:none;}
+.summary-complete-link{
+  padding:0;border:0;background:none;color:var(--teal-dark);font-family:'Work Sans',sans-serif;
+  font-size:10.5px;font-weight:700;text-decoration:underline;text-underline-offset:2px;cursor:pointer;
+}
+.summary-admin-actions{margin-top:16px;}
+
+@media(max-width:380px){
+  .summary-info-row{grid-template-columns:26px 76px minmax(0,1fr) auto;column-gap:7px;}
+  .summary-info-label{font-size:10.5px;}
+  .summary-info-value{font-size:11px;}
+  .summary-hours-actions .detail-pill{max-width:78px;text-align:center;white-space:normal;line-height:1.15;}
+}
+@media(min-width:760px){
+  .summary-info-row{grid-template-columns:30px 96px minmax(0,1fr) auto;}
+  .summary-info-label{font-size:11.5px;}
+  .summary-info-value{font-size:12px;}
+}
+
 .detail-fields{
   display:grid;grid-template-columns:auto auto auto auto auto;
   row-gap:6px;column-gap:6px;font-size:13.5px;margin:8px 0;align-items:baseline;
