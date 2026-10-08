@@ -706,26 +706,82 @@ function openDetail(id, showAllTesti){
       </section>
     </div>
   `;
-  // Hero dan ringkasan awal scroll normal; title ringkas + tab sticky saat hero terlewati.
+  // Header tidak bergantung pada panjang konten tab: mode expanded/collapsed eksplisit.
   const detailPanelEl = document.getElementById('detailPanel');
   const compactBarEl = document.getElementById('detailCompactBar');
   const compactBackBtn = document.getElementById('detailCompactBackBtn');
+  const compactExpandBtn = document.getElementById('detailCompactExpandBtn');
+  const tabPanels = Array.from(detailPanelEl.querySelectorAll('.detail-tab-panel'));
   document.getElementById('detailCompactName').textContent = r.name;
   compactBackBtn.onclick = closeDetail;
-  const syncCompactHeader = ()=>{
-    const heroHeight = document.getElementById('detailHero').offsetHeight;
-    const compact = detailPanelEl.scrollTop >= Math.max(64, heroHeight - compactBarEl.offsetHeight);
-    detailPanelEl.classList.toggle('is-scrolled', compact);
-    compactBarEl.setAttribute('aria-hidden', String(!compact));
-    compactBackBtn.tabIndex = compact ? 0 : -1;
+
+  const setHeaderCollapsed = (collapsed)=>{
+    detailPanelEl.classList.toggle('is-collapsed', collapsed);
+    compactBarEl.setAttribute('aria-hidden', String(!collapsed));
+    compactBackBtn.tabIndex = collapsed ? 0 : -1;
+    compactExpandBtn.tabIndex = collapsed ? 0 : -1;
+    compactExpandBtn.setAttribute('aria-expanded', String(!collapsed));
+    if(!collapsed){
+      const activePanel = tabPanels.find(panel=> panel.classList.contains('active'));
+      if(activePanel) activePanel.scrollTop = 0;
+    }
   };
-  detailPanelEl.onscroll = syncCompactHeader;
+  compactExpandBtn.onclick = ()=> setHeaderCollapsed(false);
+
+  // Scroll panjang maupun gestur di tab kosong dapat mengecilkan header.
+  // Setelah collapsed, hanya panel tab aktif yang scroll secara independen.
+  tabPanels.forEach(panel=>{
+    panel.onscroll = ()=>{
+      if(panel.classList.contains('active') &&
+         !detailPanelEl.classList.contains('is-collapsed') &&
+         panel.scrollTop > 12){
+        setHeaderCollapsed(true);
+      }
+    };
+  });
+  detailPanelEl.onwheel = (event)=>{
+    if(event.deltaY > 8 && Math.abs(event.deltaY) > Math.abs(event.deltaX) &&
+       !detailPanelEl.classList.contains('is-collapsed')){
+      setHeaderCollapsed(true);
+    }
+  };
+  let gestureStart = null;
+  detailPanelEl.ontouchstart = (event)=>{
+    if(event.touches.length !== 1){ gestureStart = null; return; }
+    const touch = event.touches[0];
+    gestureStart = { x:touch.clientX, y:touch.clientY };
+  };
+  detailPanelEl.ontouchend = (event)=>{
+    if(!gestureStart || !event.changedTouches.length) return;
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - gestureStart.x;
+    const deltaY = touch.clientY - gestureStart.y;
+    gestureStart = null;
+    if(deltaY < -35 && Math.abs(deltaY) > Math.abs(deltaX) * 1.2 &&
+       !detailPanelEl.classList.contains('is-collapsed')){
+      setHeaderCollapsed(true);
+    }
+  };
+  detailPanelEl.onkeydown = (event)=>{
+    const target = event.target;
+    if((event.key === 'PageDown' || event.key === 'ArrowDown') &&
+       !['INPUT','TEXTAREA','SELECT'].includes(target.tagName) &&
+       !target.isContentEditable &&
+       !detailPanelEl.classList.contains('is-collapsed')){
+      setHeaderCollapsed(true);
+    }
+  };
 
   document.querySelectorAll('.detail-tab-btn').forEach(btn=>{
     btn.onclick = ()=>{
       document.querySelectorAll('.detail-tab-btn').forEach(b=> b.classList.toggle('active', b === btn));
-      document.querySelectorAll('.detail-tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tabPanel === btn.dataset.tab));
-      syncCompactHeader();
+      tabPanels.forEach(panel=>{
+        const active = panel.dataset.tabPanel === btn.dataset.tab;
+        panel.classList.toggle('active', active);
+        if(active) panel.scrollTop = 0;
+      });
+      // Pindah tab selalu memakai header ringkas, meski tab tujuan tidak punya konten.
+      setHeaderCollapsed(true);
     };
   });
   const hoursToggleEl = document.getElementById('summaryHoursToggle');
@@ -1089,14 +1145,11 @@ function openDetail(id, showAllTesti){
     await loadAllRestos();
     openDetail(id, showAllTesti);
   };
+  setHeaderCollapsed(false);
   detailPanelEl.classList.remove('hidden');
-  detailPanelEl.scrollTop = 0;
-  syncCompactHeader();
 }
 function closeDetail(){
-  const panel = document.getElementById('detailPanel');
-  panel.classList.add('hidden');
-  panel.classList.remove('is-scrolled');
+  document.getElementById('detailPanel').classList.add('hidden');
 }
 
 /* ================= FORM MODAL ================= */
