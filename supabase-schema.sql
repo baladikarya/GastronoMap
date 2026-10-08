@@ -459,7 +459,7 @@ alter table public.leaderboard_points enable row level security;
 
 create policy profiles_read_self_or_admin on public.profiles
 for select to authenticated
-using (id=auth.uid() or public.is_admin());
+using (id=auth.uid() or public.is_admin(auth.uid()));
 
 create policy profiles_update_self on public.profiles
 for update to authenticated
@@ -470,9 +470,9 @@ create policy restos_public_read on public.restos for select to anon,authenticat
 create policy restos_authenticated_insert on public.restos for insert to authenticated
 with check (created_by=auth.uid());
 create policy restos_admin_update on public.restos for update to authenticated
-using (public.is_admin()) with check (public.is_admin());
+using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 create policy restos_admin_delete on public.restos for delete to authenticated
-using (public.is_admin());
+using (public.is_admin(auth.uid()));
 
 create policy ratings_public_read on public.ratings for select to anon,authenticated using (true);
 create policy ratings_own_insert on public.ratings for insert to authenticated with check (user_id=auth.uid());
@@ -486,11 +486,11 @@ create policy testimonials_own_delete on public.testimonials for delete to authe
 
 create policy favorite_menu_public_read on public.favorite_menu for select to anon,authenticated using (true);
 create policy favorite_menu_own_insert on public.favorite_menu for insert to authenticated with check (user_id=auth.uid());
-create policy favorite_menu_own_delete on public.favorite_menu for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+create policy favorite_menu_own_delete on public.favorite_menu for delete to authenticated using (user_id=auth.uid() or public.is_admin(auth.uid()));
 
 create policy references_public_read on public.references_link for select to anon,authenticated using (true);
 create policy references_own_insert on public.references_link for insert to authenticated with check (user_id=auth.uid());
-create policy references_own_delete on public.references_link for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+create policy references_own_delete on public.references_link for delete to authenticated using (user_id=auth.uid() or public.is_admin(auth.uid()));
 
 create policy visited_private on public.visited for all to authenticated
 using (user_id=auth.uid()) with check (user_id=auth.uid());
@@ -501,22 +501,22 @@ using (user_id=auth.uid()) with check (user_id=auth.uid());
 
 create policy visit_photos_public_read on public.visit_photos for select to anon,authenticated using (true);
 create policy visit_photos_own_insert on public.visit_photos for insert to authenticated with check (user_id=auth.uid());
-create policy visit_photos_own_delete on public.visit_photos for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+create policy visit_photos_own_delete on public.visit_photos for delete to authenticated using (user_id=auth.uid() or public.is_admin(auth.uid()));
 
 create policy menu_photos_public_read on public.menu_photos for select to anon,authenticated using (true);
 create policy menu_photos_own_insert on public.menu_photos for insert to authenticated with check (user_id=auth.uid());
-create policy menu_photos_own_delete on public.menu_photos for delete to authenticated using (user_id=auth.uid() or public.is_admin());
+create policy menu_photos_own_delete on public.menu_photos for delete to authenticated using (user_id=auth.uid() or public.is_admin(auth.uid()));
 
 create policy reports_own_insert on public.reports for insert to authenticated with check (user_id=auth.uid());
 create policy reports_own_or_admin_read on public.reports for select to authenticated
-using (user_id=auth.uid() or public.is_admin());
+using (user_id=auth.uid() or public.is_admin(auth.uid()));
 create policy reports_admin_update on public.reports for update to authenticated
-using (public.is_admin()) with check (public.is_admin());
+using (public.is_admin(auth.uid())) with check (public.is_admin(auth.uid()));
 
 create policy online_links_own_insert on public.online_link_submissions for insert to authenticated
 with check (user_id=auth.uid());
 create policy online_links_own_or_admin_read on public.online_link_submissions for select to authenticated
-using (user_id=auth.uid() or public.is_admin());
+using (user_id=auth.uid() or public.is_admin(auth.uid()));
 
 create policy cities_public_read on public.cities for select to anon,authenticated using (true);
 create policy leaderboard_public_read on public.leaderboard_points for select to anon,authenticated using (true);
@@ -566,7 +566,7 @@ with check (bucket_id='visit-photos' and auth.uid() is not null);
 
 create policy gm_visit_photos_owner_or_admin_delete on storage.objects
 for delete to authenticated
-using (bucket_id='visit-photos' and (owner=auth.uid() or public.is_admin()));
+using (bucket_id='visit-photos' and (owner=auth.uid() or public.is_admin(auth.uid())));
 
 -- P1 / Tahap 4: canonical menu entities + food-photo tagging foundation
 -- Backward-compatible with the current favorite_menu.menu_name and visit_photos model.
@@ -786,12 +786,12 @@ with check (created_by=auth.uid());
 
 create policy menu_items_admin_update on public.menu_items
 for update to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_admin(auth.uid()))
+with check (public.is_admin(auth.uid()));
 
 create policy menu_items_admin_delete on public.menu_items
 for delete to authenticated
-using (public.is_admin());
+using (public.is_admin(auth.uid()));
 
 drop policy if exists food_photo_menu_tags_public_read on public.food_photo_menu_tags;
 drop policy if exists food_photo_menu_tags_own_insert on public.food_photo_menu_tags;
@@ -809,13 +809,13 @@ with check (
     select 1
     from public.visit_photos vp
     where vp.id=photo_id
-      and (vp.user_id=auth.uid() or public.is_admin())
+      and (vp.user_id=auth.uid() or public.is_admin(auth.uid()))
   )
 );
 
 create policy food_photo_menu_tags_own_delete on public.food_photo_menu_tags
 for delete to authenticated
-using (tagged_by=auth.uid() or public.is_admin());
+using (tagged_by=auth.uid() or public.is_admin(auth.uid()));
 
 grant select on public.menu_items,public.food_photo_menu_tags to anon,authenticated;
 grant insert on public.menu_items,public.food_photo_menu_tags to authenticated;
