@@ -83,12 +83,57 @@ function openDetail(id, showAllTesti){
   const isVisited = visitedIds.has(r.id);
   const isWishlisted = wishlistIds.has(r.id);
 
-  // ---------- Hero photo + tombol overlay (back/tandai dikunjungi) ----------
-  const heroImgs = imgs.length ? imgs : (r.photos && r.photos.length ? [photoPublicUrl(r.photos[0].storagePath)] : []);
-  document.getElementById('detailHeroImg').src = heroImgs[0] || 'icons/icon-512.png';
+  // ---------- Hero carousel: maksimal 5 foto representatif, urutan stabil (tidak random) ----------
+  // Prioritas saat ini: foto menu/cover yang dikelola resto, lalu foto kunjungan terbaru.
+  // Fullscreen tetap membuka seluruh koleksi foto agar Hero hanya berfungsi sebagai preview.
+  const visitHeroImgs = (r.photos || []).slice().sort((a,b)=> (b.at||0) - (a.at||0))
+    .map(p => photoPublicUrl(p.storagePath)).filter(Boolean);
+  const allHeroGallery = [...new Set([...imgs, ...visitHeroImgs])];
+  const heroImgs = allHeroGallery.slice(0, 5);
+  const heroFallback = 'icons/icon-512.png';
+  let heroIndex = 0;
+  const heroImgEl = document.getElementById('detailHeroImg');
+  const heroProgressEl = document.getElementById('detailHeroProgress');
+  const heroCountBtn = document.getElementById('detailHeroCountBtn');
+  const heroPrevBtn = document.getElementById('detailHeroPrevBtn');
+  const heroNextBtn = document.getElementById('detailHeroNextBtn');
+  const heroMediaBtn = document.getElementById('detailHeroMediaBtn');
+
+  const renderHero = ()=>{
+    const hasPhotos = heroImgs.length > 0;
+    heroImgEl.src = hasPhotos ? heroImgs[heroIndex] : heroFallback;
+    heroImgEl.alt = hasPhotos ? `Foto ${heroIndex + 1} dari ${r.name}` : `Foto ${r.name}`;
+    heroProgressEl.innerHTML = heroImgs.length > 1
+      ? heroImgs.map((_, i)=>`<span class="detail-hero-dot${i === heroIndex ? ' active' : ''}"></span>`).join('')
+      : '';
+    heroCountBtn.textContent = allHeroGallery.length ? `▧ ${allHeroGallery.length}` : '';
+    heroCountBtn.classList.toggle('hidden', !allHeroGallery.length);
+    heroPrevBtn.classList.toggle('hidden', heroImgs.length < 2);
+    heroNextBtn.classList.toggle('hidden', heroImgs.length < 2);
+  };
+  const moveHero = (delta)=>{
+    if(heroImgs.length < 2) return;
+    heroIndex = (heroIndex + delta + heroImgs.length) % heroImgs.length;
+    renderHero();
+  };
+  heroPrevBtn.onclick = (e)=>{ e.stopPropagation(); moveHero(-1); };
+  heroNextBtn.onclick = (e)=>{ e.stopPropagation(); moveHero(1); };
+  heroMediaBtn.onclick = ()=>{ if(allHeroGallery.length) openPhotoLightbox(allHeroGallery, Math.max(0, allHeroGallery.indexOf(heroImgs[heroIndex]))); };
+  heroCountBtn.onclick = (e)=>{ e.stopPropagation(); if(allHeroGallery.length) openPhotoLightbox(allHeroGallery, 0); };
+  let heroTouchStartX = null;
+  heroMediaBtn.ontouchstart = (e)=>{ heroTouchStartX = e.touches && e.touches[0] ? e.touches[0].clientX : null; };
+  heroMediaBtn.ontouchend = (e)=>{
+    if(heroTouchStartX == null) return;
+    const endX = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : heroTouchStartX;
+    const delta = endX - heroTouchStartX;
+    heroTouchStartX = null;
+    if(Math.abs(delta) > 42){ e.preventDefault(); moveHero(delta < 0 ? 1 : -1); }
+  };
+  renderHero();
+
   document.getElementById('detailHeroBackBtn').onclick = closeDetail;
   const heroVisitBtn = document.getElementById('detailHeroVisitBtn');
-  heroVisitBtn.textContent = isVisited ? '✅ Dikunjungi' : '🆕 Belum';
+  heroVisitBtn.textContent = isVisited ? '✓ Dikunjungi' : 'Belum dikunjungi';
   heroVisitBtn.classList.toggle('is-visited', isVisited);
   heroVisitBtn.onclick = async ()=>{ await toggleVisited(r.id); openDetail(id, showAllTesti); };
 
