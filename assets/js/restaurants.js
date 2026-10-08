@@ -190,6 +190,11 @@ function openDetail(id, showAllTesti){
   const heartIcon = `<svg class="detail-cta-icon detail-heart-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.8a5.5 5.5 0 0 0-7.8 0L12 5.8l-1-1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.4a5.5 5.5 0 0 0 0-7.8Z"/></svg>`;
   const reportIcon = `<svg class="detail-cta-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 21 20H3L12 3Z"/><path d="M12 9v5"/><path d="M12 17h.01"/></svg>`;
 
+  const referencePhotos = (r.photos || []).slice().sort((a,b)=> (b.at||0) - (a.at||0));
+  const foodPhotos = referencePhotos.filter(p => visitPhotoCategory(p) === 'food');
+  const ambiencePhotos = referencePhotos.filter(p => visitPhotoCategory(p) === 'ambience');
+  const legacyVisitPhotos = referencePhotos.filter(p => visitPhotoCategory(p) === 'legacy');
+
   document.getElementById('detailContent').innerHTML = `
     <section class="detail-header-summary">
       <div class="detail-title-row">
@@ -209,7 +214,7 @@ function openDetail(id, showAllTesti){
       <button type="button" class="detail-tab-btn active" data-tab="ringkasan">Ringkasan</button>
       <button type="button" class="detail-tab-btn" data-tab="menu">Menu</button>
       <button type="button" class="detail-tab-btn" data-tab="ulasan">Ulasan</button>
-      <button type="button" class="detail-tab-btn" data-tab="foto">Foto</button>
+      <button type="button" class="detail-tab-btn" data-tab="referensi">Referensi</button>
     </div>
 
     <div class="detail-tab-panel active" data-tab-panel="ringkasan">
@@ -345,25 +350,65 @@ function openDetail(id, showAllTesti){
       </div>
     </div>
 
-    <div class="detail-tab-panel" data-tab-panel="foto">
-      <div class="field">
-        <label>Foto Kunjungan</label>
-        ${buildPhotosCarouselHtml(r.photos)}
-        <input type="file" id="photoCameraInput" accept="image/*" capture="environment" class="hidden">
-        <input type="file" id="photoGalleryInput" accept="image/*" class="hidden">
-        <div class="quick-photo-row">
-          <button type="button" id="photoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-          <button type="button" id="photoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+    <div class="detail-tab-panel" data-tab-panel="referensi">
+      <section class="reference-section">
+        <div class="reference-section-head">
+          <div>
+            <h4>Foto Makanan</h4>
+            <p>Foto hidangan yang dipesan pengunjung. Pengaitan dengan nama menu akan ditambahkan pada tahap berikutnya.</p>
+          </div>
+          <span class="reference-count">${foodPhotos.length} foto</span>
         </div>
-      </div>
-      <div class="field" style="margin-top:14px;">
-        <label>Referensi (Reels/Video)</label>
-        <div class="ref-grid" id="refGrid">${(r.references && r.references.length) ? r.references.map(buildRefCardHtml).join('') : '<span style="color:var(--muted);font-size:12.5px;">Belum ada referensi. Tempel link IG/YouTube/TikTok di bawah.</span>'}</div>
-        <div class="quick-ref-row">
-          <input type="url" id="quickRefInput" placeholder="Tempel link Reels/YouTube/TikTok...">
-          <button id="quickRefBtn">Tambah</button>
+        ${buildReferencePhotoCarouselHtml(foodPhotos, 'foodPhotoGrid', 'Belum ada foto makanan.')}
+        <input type="file" id="foodPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="foodPhotoGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row reference-upload-actions">
+          <button type="button" id="foodPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="foodPhotoGalleryBtn" class="btn btn-secondary">🖼️ Pilih Galeri</button>
         </div>
-      </div>
+      </section>
+
+      <section class="reference-section">
+        <div class="reference-section-head">
+          <div>
+            <h4>Foto Suasana</h4>
+            <p>Interior, eksterior, meja, dan suasana restoran dari kunjungan pengguna.</p>
+          </div>
+          <span class="reference-count">${ambiencePhotos.length} foto</span>
+        </div>
+        ${buildReferencePhotoCarouselHtml(ambiencePhotos, 'ambiencePhotoGrid', 'Belum ada foto suasana.')}
+        <input type="file" id="ambiencePhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="ambiencePhotoGalleryInput" accept="image/*" class="hidden">
+        <div class="quick-photo-row reference-upload-actions">
+          <button type="button" id="ambiencePhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+          <button type="button" id="ambiencePhotoGalleryBtn" class="btn btn-secondary">🖼️ Pilih Galeri</button>
+        </div>
+      </section>
+
+      ${legacyVisitPhotos.length ? `<section class="reference-section reference-legacy-section">
+        <div class="reference-section-head">
+          <div>
+            <h4>Foto Kunjungan Sebelumnya</h4>
+            <p>Foto lama yang dibuat sebelum kategori Makanan dan Suasana tersedia.</p>
+          </div>
+          <span class="reference-count">${legacyVisitPhotos.length} foto</span>
+        </div>
+        ${buildReferencePhotoCarouselHtml(legacyVisitPhotos, 'legacyPhotoGrid', '')}
+      </section>` : ''}
+
+      <section class="reference-section reference-social-section">
+        <div class="reference-section-head">
+          <div>
+            <h4>Referensi Media Sosial</h4>
+            <p>Reels, TikTok, YouTube, atau link lain yang membantu mengenal restoran ini.</p>
+          </div>
+        </div>
+        <div class="ref-grid reference-social-grid" id="refGrid">${(r.references && r.references.length) ? r.references.map(buildRefCardHtml).join('') : '<div class="reference-empty-state">Belum ada referensi media sosial.</div>'}</div>
+        <div class="quick-ref-row reference-link-form">
+          <input type="url" id="quickRefInput" placeholder="Tempel link Instagram, TikTok, YouTube...">
+          <button id="quickRefBtn">+ Tambah</button>
+        </div>
+      </section>
     </div>
   `;
   document.querySelectorAll('.detail-tab-btn').forEach(btn=>{
@@ -431,27 +476,35 @@ function openDetail(id, showAllTesti){
     await loadAllRestos();
     openDetail(id, showAllTesti);
   };
-  document.getElementById('photoCameraBtn').onclick = ()=>{
-    if(!requireLogin()) return;
-    document.getElementById('photoCameraInput').click();
+  const setupReferencePhotoUpload = (kind, prefix)=>{
+    const cameraBtn = document.getElementById(prefix + 'PhotoCameraBtn');
+    const galleryBtn = document.getElementById(prefix + 'PhotoGalleryBtn');
+    const cameraInput = document.getElementById(prefix + 'PhotoCameraInput');
+    const galleryInput = document.getElementById(prefix + 'PhotoGalleryInput');
+    if(!cameraBtn || !galleryBtn || !cameraInput || !galleryInput) return;
+    cameraBtn.onclick = ()=>{
+      if(!requireLogin()) return;
+      cameraInput.click();
+    };
+    galleryBtn.onclick = ()=>{
+      if(!requireLogin()) return;
+      galleryInput.click();
+    };
+    const handlePick = async (e)=>{
+      const file = e.target.files && e.target.files[0];
+      e.target.value = '';
+      if(!file || !requireLogin()) return;
+      showToast('Memeriksa wajah pada foto...');
+      const blob = await prepareVisitPhotoBlob(file);
+      if(!blob) return;
+      const ok = await uploadVisitPhotoBlob(blob, r.id, kind);
+      if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
+    };
+    cameraInput.onchange = handlePick;
+    galleryInput.onchange = handlePick;
   };
-  document.getElementById('photoGalleryBtn').onclick = ()=>{
-    if(!requireLogin()) return;
-    document.getElementById('photoGalleryInput').click();
-  };
-  const handlePhotoPick = async (e)=>{
-    const file = e.target.files && e.target.files[0];
-    e.target.value = ''; // reset supaya bisa pilih file yang sama lagi nanti
-    if(!file) return;
-    if(!requireLogin()) return;
-    showToast('Memeriksa wajah pada foto...');
-    const blob = await prepareVisitPhotoBlob(file);
-    if(!blob) return; // user membatalkan foto ini lewat modal konfirmasi
-    const ok = await uploadVisitPhotoBlob(blob, r.id);
-    if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
-  };
-  document.getElementById('photoCameraInput').onchange = handlePhotoPick;
-  document.getElementById('photoGalleryInput').onchange = handlePhotoPick;
+  setupReferencePhotoUpload('food', 'food');
+  setupReferencePhotoUpload('ambience', 'ambience');
   document.getElementById('menuPhotoDetailCameraBtn').onclick = ()=>{
     if(!requireLogin()) return;
     document.getElementById('menuPhotoDetailCameraInput').click();
@@ -469,9 +522,18 @@ function openDetail(id, showAllTesti){
   };
   document.getElementById('menuPhotoDetailCameraInput').onchange = handleMenuPhotoDetailPick;
   document.getElementById('menuPhotoDetailGalleryInput').onchange = handleMenuPhotoDetailPick;
-  document.querySelectorAll('#photoGrid .photo-card').forEach(card=>{
-    card.onclick = ()=> openPhotoLightbox(currentDetailPhotos.map(p=>photoPublicUrl(p.storagePath)), Number(card.dataset.idx), visitPhotoCaption);
-  });
+  const wireReferencePhotoGrid = (gridId, photos)=>{
+    document.querySelectorAll(`#${gridId} .photo-card`).forEach(card=>{
+      card.onclick = ()=> openPhotoLightbox(
+        photos.map(p=>photoPublicUrl(p.storagePath)),
+        Number(card.dataset.idx),
+        (idx)=> visitPhotoCaptionFromList(photos, idx)
+      );
+    });
+  };
+  wireReferencePhotoGrid('foodPhotoGrid', foodPhotos);
+  wireReferencePhotoGrid('ambiencePhotoGrid', ambiencePhotos);
+  wireReferencePhotoGrid('legacyPhotoGrid', legacyVisitPhotos);
   document.querySelectorAll('#menuPhotoDisplayGrid .photo-card').forEach(card=>{
     card.onclick = ()=> openPhotoLightbox(currentDetailMenuItems.map(item=>item.url), Number(card.dataset.idx));
   });
