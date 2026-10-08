@@ -1411,3 +1411,43 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   .menu-recommend-form{flex-direction:column;}
   .menu-recommend-form button{width:100%;}
 }
+
+
+/* ---------- DETAIL RESTO: Referensi tab ---------- */
+.reference-section{padding:2px 0 18px;}
+.reference-section + .reference-section{border-top:1px solid var(--line);padding-top:18px;}
+.reference-section-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:11px;
+}
+.reference-section-head h4{
+  margin:0;font-family:'Work Sans',sans-serif;font-size:15px;line-height:1.3;font-weight:750;color:var(--ink);
+}
+.reference-section-head p{
+  margin:4px 0 0;max-width:280px;font-size:11.5px;line-height:1.45;color:var(--muted);
+}
+.reference-count{
+  flex:0 0 auto;padding:4px 8px;border-radius:999px;background:var(--paper);
+  color:var(--muted);font-size:10.5px;font-weight:700;white-space:nowrap;
+}
+.reference-photo-carousel{height:164px;}
+.reference-photo-carousel .photo-card{flex-basis:78%;border-radius:11px;}
+.reference-empty-state{
+  display:flex;align-items:center;min-height:66px;padding:12px;border:1px dashed var(--line);
+  border-radius:10px;background:var(--paper);color:var(--muted);font-size:11.5px;line-height:1.45;
+}
+.reference-upload-actions{gap:8px;margin-top:9px;}
+.reference-upload-actions .btn{font-size:11.5px;padding:9px 8px;}
+.reference-legacy-section{opacity:.9;}
+.reference-legacy-section .reference-section-head p{font-size:11px;}
+.reference-social-grid{margin-top:2px;min-height:42px;}
+.reference-link-form{margin-top:12px;}
+.reference-link-form input{min-width:0;background:#fff;}
+.reference-link-form button{white-space:nowrap;padding:0 11px;}
+@media(max-width:380px){
+  .reference-section-head{gap:8px;}
+  .reference-section-head h4{font-size:14px;}
+  .reference-section-head p{font-size:11px;}
+  .reference-count{font-size:10px;padding:4px 7px;}
+  .reference-link-form{flex-direction:column;}
+  .reference-link-form button{min-height:36px;}
+}
