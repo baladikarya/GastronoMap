@@ -52,7 +52,37 @@ function openDetail(id, showAllTesti){
     return String(n);
   };
   const priceLevel = ({
-    '< Rp 25rb':'
+    '< Rp 25rb':'$',
+    'Rp 25rb - 50rb':'$$',
+    'Rp 50rb - 100rb':'$$$',
+    'Rp 100rb - 250rb':'$$$$',
+    '> Rp 250rb':'$$$$$'
+  })[r.priceRange] || '';
+  const ratingSummaryHtml = summary.overallCount > 0
+    ? `<div class="detail-meta-row">
+         <span class="detail-rating-star" aria-hidden="true">★</span>
+         <strong>${summary.overall.toFixed(1)}</strong>
+         <span class="detail-review-count">(${compactCount(summary.overallCount)} ulasan)</span>
+         <span class="detail-meta-sep">·</span>
+         <span>${escapeHtml(r.type || 'Resto')}</span>
+         ${priceLevel ? `<span class="detail-meta-sep">·</span><span class="detail-price-level">${priceLevel}</span>` : ''}
+       </div>`
+    : `<div class="detail-meta-row detail-meta-empty">
+         <span class="detail-rating-star" aria-hidden="true">★</span>
+         <span>Belum ada ulasan</span>
+         <span class="detail-meta-sep">·</span>
+         <span>${escapeHtml(r.type || 'Resto')}</span>
+         ${priceLevel ? `<span class="detail-meta-sep">·</span><span class="detail-price-level">${priceLevel}</span>` : ''}
+       </div>`;
+  const ratingBreakdownHtml = summary.overallCount > 0
+    ? `<div class="review-aggregate">
+         <div class="review-aggregate-head">
+           <div><strong>${summary.overall.toFixed(1)}</strong><span> / 5</span></div>
+           <span>${summary.overallCount} ulasan</span>
+         </div>
+         <div class="rating-breakdown">${buildRatingBreakdownRowsHtml(summary)}</div>
+       </div>`
+    : '';
 
   const platforms = (r.onlinePlatforms||[]);
   let platformsHtml = '';
