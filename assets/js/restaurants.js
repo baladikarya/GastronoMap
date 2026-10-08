@@ -31,19 +31,18 @@ function openDetail(id, showAllTesti){
   const favs = (r.favoriteMenu||[]).filter(Boolean);
   const today = currentDayName();
 
-  let scheduleRowsHtml = '';
-  let openNowBadge = '';
-  if(r.hoursByDay){
-    scheduleRowsHtml = DAYS.map((day, i)=>{
-      const d = r.hoursByDay[day];
-      const isToday = day === today;
-      const txt = d.closed ? 'Tutup' : `${d.open} – ${d.close}`;
-      const labelCells = i === 0 ? `<span class="df-label">JAM BUKA</span><span class="df-colon1">:</span>` : '';
-      return `<div class="df-row ${isToday ? 'df-today' : ''}">${labelCells}<span class="df-day">${day}</span><span class="df-colon2">:</span><span class="df-time">${txt}</span></div>`;
-    }).join('');
-    const openNow = isOpenAt(r.hoursByDay, today, currentTimeStr());
-    openNowBadge = `<span class="open-badge ${openNow ? 'yes' : 'no'}">${openNow ? 'Sudah Buka' : 'Masih Tutup'}</span>`;
-  }
+  const formatHour = (value)=> String(value || '').replace(':','.');
+  const allHoursRowsHtml = r.hoursByDay
+    ? DAYS.map(day=>{
+        const d = r.hoursByDay[day];
+        const isToday = day === today;
+        const txt = !d ? 'Belum diisi' : (d.closed ? 'Tutup' : `${formatHour(d.open)} – ${formatHour(d.close)}`);
+        return `<div class="summary-hours-row ${isToday ? 'is-today' : ''}">
+          <span>${day}${isToday ? ' <b>· Hari ini</b>' : ''}</span>
+          <strong>${txt}</strong>
+        </div>`;
+      }).join('')
+    : '';
 
   const summary = computeRatingSummary(r.ratings);
   const compactCount = (n)=>{
@@ -87,28 +86,26 @@ function openDetail(id, showAllTesti){
   const platforms = (r.onlinePlatforms||[]);
   let platformsHtml = '';
   if(r.noOnlineSales){
-    // Sudah diverifikasi tidak berjualan online -- sengaja tidak menampilkan apa pun.
-    platformsHtml = '';
+    platformsHtml = '<span class="summary-muted-value">Tidak tersedia</span>';
   } else if(platforms.length){
-    platformsHtml = `<div class="badge-row">${platforms.map(p=>{
+    platformsHtml = `<div class="summary-platform-list">${platforms.map(p=>{
         // Kompatibel data lama (string saja) maupun baru ({platform,url})
         const name = typeof p === 'string' ? p : p.platform;
         const url = typeof p === 'string' ? '' : (p.url || '');
         const meta = PLATFORM_FILTER_META[name] || {emoji:'🔗', color:'#555', file:'other'};
-        const inner = `${platformIconHtml(meta.file, meta.emoji, 16)} ${name}`;
+        const inner = `${platformIconHtml(meta.file, meta.emoji, 15)} ${name}`;
         if(url){
-          return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="platform-chip" style="background:${meta.color}">${inner}</a>`;
+          return `<a href="${escapeAttr(url)}" target="_blank" rel="noopener" class="platform-chip summary-platform-chip" style="--platform-color:${meta.color}">${inner}</a>`;
         }
-        return `<span class="platform-chip platform-chip-add-link" data-platform="${escapeAttr(name)}" style="background:${meta.color};opacity:0.75;cursor:pointer;" title="Tap untuk tambahkan link">${inner} ➕</span>`;
+        return `<button type="button" class="platform-chip summary-platform-chip platform-chip-add-link" data-platform="${escapeAttr(name)}" style="--platform-color:${meta.color}" title="Tambahkan link">${inner}</button>`;
       }).join('')}</div>`;
   } else {
-    // Belum ada info sama sekali -- ajak user melengkapi (link platform ATAU tandai tidak jual online)
-    platformsHtml = `<div class="badge-row"><span class="platform-chip platform-chip-add-link" id="onlineAvailabilityPromptChip" style="background:var(--teal);cursor:pointer;">🔗 Lengkapi ketersediaan online ➕</span></div>`;
+    platformsHtml = `<button type="button" class="summary-complete-link platform-chip-add-link" id="onlineAvailabilityPromptChip">Lengkapi ketersediaan online</button>`;
   }
   const payments = (r.paymentMethods||[]);
-  const paymentsHtml = payments.length
-    ? `<div class="df-row"><span class="df-label">PEMBAYARAN</span><span class="df-colon1">:</span><span class="df-value">${payments.map(p=> p === 'cash' ? 'Cash' : 'Cashless').join(' & ')}</span></div>`
-    : '';
+  const paymentsText = payments.length
+    ? payments.map(p=> p === 'cash' ? 'Tunai' : (p === 'cashless' ? 'Cashless' : p)).join(' & ')
+    : 'Belum ada informasi';
 
   const myRatingEntry = (r.ratings||[]).find(x => x.userId === myUserId) || null;
   const myTestiEntry = (r.testimonials||[]).find(x => x.userId === myUserId) || null;
@@ -216,14 +213,65 @@ function openDetail(id, showAllTesti){
     </div>
 
     <div class="detail-tab-panel active" data-tab-panel="ringkasan">
-      ${platformsHtml}
-      <div class="detail-fields">
-        ${r.address ? `<div class="df-row"><span class="df-label">ALAMAT</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.address)}</span></div>` : ''}
-        <div class="df-row"><span class="df-label">HARGA</span><span class="df-colon1">:</span><span class="df-value">${escapeHtml(r.priceRange||'-')}</span></div>
-        ${paymentsHtml}
-        ${r.hoursByDay ? scheduleRowsHtml : `<div class="df-row"><span class="df-label">JAM BUKA</span><span class="df-colon1">:</span><span class="df-value" style="color:var(--muted);">Jam buka belum diisi</span></div>`}
-      </div>
-      ${isAdmin ? `<div class="action-row">
+      <section class="summary-main-section">
+        <h4 class="summary-section-title">Informasi Utama</h4>
+
+        <div class="summary-info-row">
+          <div class="summary-info-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/></svg>
+          </div>
+          <div class="summary-info-label">Alamat</div>
+          <div class="summary-info-value">${r.address ? escapeHtml(r.address) : '<span class="summary-muted-value">Belum ada informasi</span>'}</div>
+          ${r.address ? `<button type="button" class="summary-row-action" id="copyAddressBtn" aria-label="Salin alamat" title="Salin alamat">
+            <svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+          </button>` : ''}
+        </div>
+
+        <div class="summary-info-row">
+          <div class="summary-info-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 7.5h13.5a2.5 2.5 0 0 1 0 5H16"/><path d="M4 7.5v9A2.5 2.5 0 0 0 6.5 19H20V5H6.5A2.5 2.5 0 0 0 4 7.5Z"/><circle cx="16.5" cy="10" r=".8"/></svg>
+          </div>
+          <div class="summary-info-label">Rentang Harga</div>
+          <div class="summary-info-value">${escapeHtml(r.priceRange || 'Belum ada informasi')}${r.priceRange ? '<span class="summary-value-suffix"> / orang</span>' : ''}</div>
+        </div>
+
+        <div class="summary-info-row">
+          <div class="summary-info-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18"/><path d="M7 15h4"/></svg>
+          </div>
+          <div class="summary-info-label">Pembayaran</div>
+          <div class="summary-info-value">${escapeHtml(paymentsText)}</div>
+        </div>
+
+        <div class="summary-info-row summary-hours-wrap">
+          <div class="summary-info-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+          </div>
+          <div class="summary-info-label">Jam Buka</div>
+          <div class="summary-info-value summary-hours-summary">
+            ${r.hoursByDay && todayHours
+              ? `<span class="summary-hours-today"><strong>${today}</strong><span>${todayHours.closed ? 'Tutup' : `${formatHour(todayHours.open)} – ${formatHour(todayHours.close)}`}</span></span>`
+              : '<span class="summary-muted-value">Jam buka belum diisi</span>'}
+          </div>
+          ${r.hoursByDay ? `<div class="summary-hours-actions">
+            ${openStatusPillHtml}
+            <button type="button" class="summary-expand-btn" id="summaryHoursToggle" aria-expanded="false" aria-controls="summaryHoursDetails" aria-label="Lihat jam buka semua hari">
+              <svg viewBox="0 0 24 24"><path d="m7 9 5 5 5-5"/></svg>
+            </button>
+          </div>` : ''}
+          ${r.hoursByDay ? `<div class="summary-hours-details hidden" id="summaryHoursDetails">${allHoursRowsHtml}</div>` : ''}
+        </div>
+
+        <div class="summary-info-row">
+          <div class="summary-info-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h3v3H7zM14 9h3v3h-3zM7 14h3v2H7zM14 14h3v2h-3z"/></svg>
+          </div>
+          <div class="summary-info-label">Platform Online</div>
+          <div class="summary-info-value summary-platform-value">${platformsHtml}</div>
+        </div>
+      </section>
+
+      ${isAdmin ? `<div class="action-row summary-admin-actions">
         <button class="btn btn-secondary" id="editBtn">✏️ Edit</button>
         <button class="btn btn-danger" id="delBtn">🗑</button>
       </div>
@@ -309,6 +357,27 @@ function openDetail(id, showAllTesti){
       document.querySelectorAll('.detail-tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tabPanel === btn.dataset.tab));
     };
   });
+  const hoursToggleEl = document.getElementById('summaryHoursToggle');
+  const hoursDetailsEl = document.getElementById('summaryHoursDetails');
+  if(hoursToggleEl && hoursDetailsEl){
+    hoursToggleEl.onclick = ()=>{
+      const expanded = hoursToggleEl.getAttribute('aria-expanded') === 'true';
+      hoursToggleEl.setAttribute('aria-expanded', String(!expanded));
+      hoursToggleEl.classList.toggle('expanded', !expanded);
+      hoursDetailsEl.classList.toggle('hidden', expanded);
+    };
+  }
+  const copyAddressBtn = document.getElementById('copyAddressBtn');
+  if(copyAddressBtn){
+    copyAddressBtn.onclick = async ()=>{
+      try{
+        await navigator.clipboard.writeText(r.address || '');
+        showToast('Alamat disalin');
+      }catch(e){
+        showToast('Tidak bisa menyalin alamat');
+      }
+    };
+  }
   document.getElementById('telpCtaBtn').onclick = ()=>{ if(r.phone) window.location.href = `tel:${r.phone.replace(/[^0-9+]/g,'')}`; };
   document.getElementById('simpanCtaBtn').onclick = async ()=>{ await toggleWishlist(r.id); openDetail(id, showAllTesti); };
   document.getElementById('reportCtaBtn').onclick = ()=>{ openReportModal(r.id, r.name); };
