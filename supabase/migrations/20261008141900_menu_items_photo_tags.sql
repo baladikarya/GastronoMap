@@ -218,12 +218,12 @@ with check (created_by=auth.uid());
 
 create policy menu_items_admin_update on public.menu_items
 for update to authenticated
-using (public.is_admin())
-with check (public.is_admin());
+using (public.is_admin(auth.uid()))
+with check (public.is_admin(auth.uid()));
 
 create policy menu_items_admin_delete on public.menu_items
 for delete to authenticated
-using (public.is_admin());
+using (public.is_admin(auth.uid()));
 
 drop policy if exists food_photo_menu_tags_public_read on public.food_photo_menu_tags;
 drop policy if exists food_photo_menu_tags_own_insert on public.food_photo_menu_tags;
@@ -241,13 +241,13 @@ with check (
     select 1
     from public.visit_photos vp
     where vp.id=photo_id
-      and (vp.user_id=auth.uid() or public.is_admin())
+      and (vp.user_id=auth.uid() or public.is_admin(auth.uid()))
   )
 );
 
 create policy food_photo_menu_tags_own_delete on public.food_photo_menu_tags
 for delete to authenticated
-using (tagged_by=auth.uid() or public.is_admin());
+using (tagged_by=auth.uid() or public.is_admin(auth.uid()));
 
 grant select on public.menu_items,public.food_photo_menu_tags to anon,authenticated;
 grant insert on public.menu_items,public.food_photo_menu_tags to authenticated;
