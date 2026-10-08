@@ -21,14 +21,25 @@ function testimoniListHtml(r, showAll){
   return html;
 }
 
-function openFoodPhotoMenuTagPicker(r, blob){
+function openFoodPhotoMenuTagPicker(r, options={}){
   return new Promise(resolve=>{
     const previous = document.getElementById('foodMenuTagOverlay');
     if(previous) previous.remove();
 
-    const previewUrl = blob ? URL.createObjectURL(blob) : '';
+    const blob = options.blob || null;
+    const objectPreviewUrl = blob ? URL.createObjectURL(blob) : '';
+    const previewUrl = objectPreviewUrl || options.previewUrl || '';
+    const mode = options.mode === 'edit' ? 'edit' : 'upload';
     const existingItems = (r.menuItems || []).slice().sort((a,b)=> a.name.localeCompare(b.name, 'id'));
+    const existingById = new Map(existingItems.map(item=> [item.id, item]));
     const selected = new Map();
+    const itemKey = (item)=> item.id ? `id:${item.id}` : `name:${normalizeMenuEntityName(item.name)}`;
+
+    (options.initialMenuItemIds || []).forEach(id=>{
+      const item = existingById.get(id);
+      if(item) selected.set(itemKey(item), item);
+    });
+
     const overlay = document.createElement('div');
     overlay.id = 'foodMenuTagOverlay';
     overlay.className = 'food-menu-tag-overlay';
@@ -38,18 +49,18 @@ function openFoodPhotoMenuTagPicker(r, blob){
         <div class="food-menu-tag-head">
           ${previewUrl ? `<img class="food-menu-tag-preview" src="${escapeAttr(previewUrl)}" alt="Preview foto makanan">` : ''}
           <div>
-            <h3 id="foodMenuTagTitle">Menu dalam foto ini</h3>
-            <p>Pilih satu atau beberapa nama menu. Bagian ini opsional dan tidak otomatis menjadi rekomendasi.</p>
+            <h3 id="foodMenuTagTitle">${mode === 'edit' ? 'Edit menu pada foto' : 'Menu dalam foto ini'}</h3>
+            <p>Pilih satu atau beberapa nama menu. Tag foto tidak otomatis menjadi rekomendasi.</p>
           </div>
         </div>
         <div class="food-menu-tag-selected" id="foodMenuTagSelected"></div>
         <div class="food-menu-tag-search-wrap">
-          <input id="foodMenuTagSearch" type="text" autocomplete="off" placeholder="Cari atau tambahkan nama menu...">
+          <input id="foodMenuTagSearch" type="text" autocomplete="off" placeholder="Cari nama menu yang sudah ada...">
         </div>
         <div class="food-menu-tag-suggestions" id="foodMenuTagSuggestions"></div>
         <div class="food-menu-tag-actions">
           <button type="button" class="btn btn-secondary" id="foodMenuTagCancel">Batal</button>
-          <button type="button" class="btn btn-primary" id="foodMenuTagConfirm">Unggah tanpa tag</button>
+          <button type="button" class="btn btn-primary" id="foodMenuTagConfirm"></button>
         </div>
       </div>
     `;
@@ -60,9 +71,8 @@ function openFoodPhotoMenuTagPicker(r, blob){
     const suggestionsEl = overlay.querySelector('#foodMenuTagSuggestions');
     const confirmBtn = overlay.querySelector('#foodMenuTagConfirm');
 
-    const itemKey = (item)=> item.id ? `id:${item.id}` : `name:${normalizeMenuEntityName(item.name)}`;
     const closeWith = (value)=>{
-      if(previewUrl) URL.revokeObjectURL(previewUrl);
+      if(objectPreviewUrl) URL.revokeObjectURL(objectPreviewUrl);
       overlay.remove();
       resolve(value);
     };
@@ -85,42 +95,93 @@ function openFoodPhotoMenuTagPicker(r, blob){
     const renderSelected = ()=>{
       const items = [...selected.entries()];
       selectedEl.innerHTML = items.length
-        ? items.map(([key,item])=>`<button type="button" class="food-menu-selected-chip" data-key="${escapeAttr(key)}">
+        ? items.map(([key,item])=>`<button type="button" class="food-menu-selected-chip" data-key="${escapeAttr(key)}" title="Hapus tag menu">
             <span>${escapeHtml(item.name)}</span><span aria-hidden="true">×</span>
           </button>`).join('')
         : '<span class="food-menu-tag-none">Belum ada menu yang ditandai.</span>';
       selectedEl.querySelectorAll('.food-menu-selected-chip').forEach(btn=>{
         btn.onclick = ()=> removeItem(btn.dataset.key);
       });
-      confirmBtn.textContent = items.length
-        ? `Unggah foto · ${items.length} menu`
-        : 'Unggah tanpa tag';
+      if(mode === 'edit'){
+        confirmBtn.textContent = 'Simpan perubahan';
+      }else{
+        confirmBtn.textContent = items.length
+          ? `Unggah foto · ${items.length} menu`
+          : 'Unggah tanpa tag';
+      }
     };
+
+    const suggestionMeta = (item, rawQuery)=>{
+      const query = normalizeMenuEntityName(rawQuery);
+      if(!query) return {score:100, label:'Tersedia'};
+      const itemStrict = item.normalizedName || normalizeMenuEntityName(item.name);
+      const queryAlias = normalizeMenuName(rawQuery);
+      const itemAlias = normalizeMenuName(item.name);
+
+      if(itemStrict === query || (queryAlias && itemAlias === queryAlias)){
+        return {score:0, label:'Sudah ada'};
+      }
+      if(itemStrict.startsWith(query) || (queryAlias && itemAlias.startsWith(queryAlias))){
+        return {score:10, label:'Cocok'};
+      }
+      if(itemStrict.includes(query) || (queryAlias && itemAlias.includes(queryAlias))){
+        return {score:20, label:'Cocok'};
+      }
+      if(queryAlias && itemAlias){
+        const dist = levenshtein(itemAlias, queryAlias);
+        const threshold = Math.min(3, Math.max(1, Math.floor(Math.max(itemAlias.length, queryAlias.length) * 0.22)));
+        if(dist <= threshold) return {score:40 + dist, label:'Mirip'};
+      }
+      return null;
+    };
+    const getSuggestions = (rawQuery)=>{
+      return existingItems
+        .filter(item=> !selected.has(itemKey(item)))
+        .map(item=> ({item, meta:suggestionMeta(item, rawQuery)}))
+        .filter(entry=> !!entry.meta)
+        .sort((a,b)=> a.meta.score - b.meta.score || a.item.name.localeCompare(b.item.name, 'id'))
+        .slice(0, 8);
+    };
+    const hasEquivalentName = (rawQuery)=>{
+      const strict = normalizeMenuEntityName(rawQuery);
+      const alias = normalizeMenuName(rawQuery);
+      return existingItems.some(item=>
+        (item.normalizedName || normalizeMenuEntityName(item.name)) === strict
+        || (alias && normalizeMenuName(item.name) === alias)
+      ) || [...selected.values()].some(item=>
+        item.normalizedName === strict || (alias && normalizeMenuName(item.name) === alias)
+      );
+    };
+
     const renderSuggestions = ()=>{
-      const query = normalizeMenuEntityName(searchEl.value);
-      const available = existingItems.filter(item=>{
-        if(selected.has(itemKey(item))) return false;
-        if(!query) return true;
-        return item.normalizedName.includes(query) || normalizeMenuEntityName(item.name).includes(query);
-      }).slice(0, 8);
-      const exactExists = existingItems.some(item=> item.normalizedName === query)
-        || [...selected.values()].some(item=> item.normalizedName === query);
-      const rawNew = cleanMenuEntityName(searchEl.value);
-      const newOption = query && rawNew && !exactExists
-        ? `<button type="button" class="food-menu-suggestion food-menu-new-option" data-new-name="${escapeAttr(rawNew)}">
-            <span class="food-menu-suggestion-plus">+</span>
-            <span>Tambahkan “${escapeHtml(rawNew)}”</span>
-          </button>`
-        : '';
-      const existingHtml = available.map(item=>`<button type="button" class="food-menu-suggestion" data-menu-id="${escapeAttr(item.id)}">
-          <span>${escapeHtml(item.name)}</span>
-          <span class="food-menu-suggestion-hint">Pilih</span>
+      const rawQuery = searchEl.value;
+      const query = normalizeMenuEntityName(rawQuery);
+      const suggestions = getSuggestions(rawQuery);
+      const existingHtml = suggestions.map(({item,meta})=>`<button type="button" class="food-menu-suggestion" data-menu-id="${escapeAttr(item.id)}">
+          <span class="food-menu-suggestion-main">
+            <span class="food-menu-suggestion-name">${escapeHtml(item.name)}</span>
+            <span class="food-menu-suggestion-sub">${meta.label === 'Sudah ada' ? 'Gunakan nama menu yang sudah tersimpan' : (meta.label === 'Mirip' ? 'Nama ini mirip dengan yang kamu ketik' : 'Nama menu yang sudah tersedia')}</span>
+          </span>
+          <span class="food-menu-suggestion-hint ${meta.label === 'Sudah ada' ? 'is-exact' : (meta.label === 'Mirip' ? 'is-similar' : '')}">${meta.label}</span>
         </button>`).join('');
+      const rawNew = cleanMenuEntityName(rawQuery);
+      const canCreate = !!(query && rawNew && !hasEquivalentName(rawQuery));
+      const newOption = canCreate
+        ? `<div class="food-menu-new-divider"><span>Belum menemukan nama yang tepat?</span></div>
+           <button type="button" class="food-menu-suggestion food-menu-new-option" data-new-name="${escapeAttr(rawNew)}">
+             <span class="food-menu-suggestion-plus">+</span>
+             <span class="food-menu-suggestion-main">
+               <span class="food-menu-suggestion-name">Tambah “${escapeHtml(rawNew)}”</span>
+               <span class="food-menu-suggestion-sub">Buat sebagai menu baru. Pastikan bukan duplikat menu di atas.</span>
+             </span>
+           </button>`
+        : '';
       suggestionsEl.innerHTML = existingHtml + newOption
-        || '<div class="food-menu-tag-empty">Tidak ada nama menu yang cocok.</div>';
+        || '<div class="food-menu-tag-empty">Tidak ada nama menu yang cocok. Ketik nama menu untuk menambahkannya.</div>';
+
       suggestionsEl.querySelectorAll('[data-menu-id]').forEach(btn=>{
         btn.onclick = ()=>{
-          const item = existingItems.find(x=> x.id === btn.dataset.menuId);
+          const item = existingById.get(btn.dataset.menuId);
           if(item) addItem(item);
         };
       });
@@ -132,11 +193,12 @@ function openFoodPhotoMenuTagPicker(r, blob){
     searchEl.onkeydown = (e)=>{
       if(e.key !== 'Enter') return;
       e.preventDefault();
-      const q = normalizeMenuEntityName(searchEl.value);
-      if(!q) return;
-      const exact = existingItems.find(item=> item.normalizedName === q);
-      if(exact) addItem(exact);
-      else addItem({name:searchEl.value});
+      const raw = searchEl.value;
+      if(!normalizeMenuEntityName(raw)) return;
+      const suggestions = getSuggestions(raw);
+      // Enter memprioritaskan entity yang sudah ada supaya typo tidak mudah membuat duplikat.
+      if(suggestions.length) addItem(suggestions[0].item);
+      else addItem({name:raw});
     };
     overlay.querySelector('#foodMenuTagCancel').onclick = ()=> closeWith(null);
     confirmBtn.onclick = ()=> closeWith([...selected.values()]);
@@ -148,6 +210,99 @@ function openFoodPhotoMenuTagPicker(r, blob){
     renderSuggestions();
     setTimeout(()=> searchEl.focus(), 0);
   });
+}
+
+function activateDetailTab(tabName){
+  const btn = document.querySelector(`.detail-tab-btn[data-tab="${tabName}"]`);
+  if(btn) btn.click();
+}
+
+function menuTagNamesSummary(items, maxNames=2){
+  const names = (items || []).map(item=> item && item.name).filter(Boolean);
+  if(names.length <= maxNames) return names.join(', ');
+  return `${names.slice(0, maxNames).join(', ')} +${names.length - maxNames} menu`;
+}
+
+async function resolveMenuTagSelection(restoId, selectedMenuItems){
+  const canonical = [];
+  for(const selected of (selectedMenuItems || [])){
+    if(selected.id){
+      canonical.push(selected);
+    }else{
+      const item = await ensureMenuItem(restoId, selected.name);
+      if(item) canonical.push(item);
+    }
+  }
+  return canonical;
+}
+
+function openFoodPhotoActionSheet(r, photo, showAllTesti){
+  const previous = document.getElementById('foodPhotoActionOverlay');
+  if(previous) previous.remove();
+
+  const itemById = new Map((r.menuItems || []).map(item=> [item.id, item]));
+  const taggedNames = (photo.menuItemIds || []).map(id=> itemById.get(id)?.name).filter(Boolean);
+  const overlay = document.createElement('div');
+  overlay.id = 'foodPhotoActionOverlay';
+  overlay.className = 'food-photo-action-overlay';
+  overlay.innerHTML = `
+    <div class="food-photo-action-sheet" role="dialog" aria-modal="true" aria-labelledby="foodPhotoActionTitle">
+      <div class="food-menu-tag-handle" aria-hidden="true"></div>
+      <div class="food-photo-action-head">
+        <img src="${escapeAttr(photoPublicUrl(photo.storagePath))}" alt="Foto makanan">
+        <div>
+          <h3 id="foodPhotoActionTitle">Kelola Foto Makanan</h3>
+          <p>${taggedNames.length ? `Ditandai sebagai ${escapeHtml(taggedNames.join(', '))}` : 'Belum ditandai ke nama menu.'}</p>
+        </div>
+      </div>
+      <button type="button" class="food-photo-action-row" id="foodPhotoEditMenuBtn">
+        <span><strong>Edit Menu</strong><small>Tambah atau hapus nama menu pada foto ini</small></span>
+        <span aria-hidden="true">›</span>
+      </button>
+      <button type="button" class="food-photo-action-row is-danger" id="foodPhotoDeleteBtn">
+        <span><strong>Hapus Foto</strong><small>Foto dan semua tag menunya akan dihapus</small></span>
+      </button>
+      <button type="button" class="btn btn-secondary food-photo-action-cancel" id="foodPhotoActionCancel">Batal</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = ()=> overlay.remove();
+  overlay.querySelector('#foodPhotoActionCancel').onclick = close;
+  overlay.addEventListener('click', e=>{ if(e.target === overlay) close(); });
+
+  overlay.querySelector('#foodPhotoEditMenuBtn').onclick = async ()=>{
+    close();
+    const picked = await openFoodPhotoMenuTagPicker(r, {
+      previewUrl: photoPublicUrl(photo.storagePath),
+      initialMenuItemIds: photo.menuItemIds || [],
+      mode: 'edit'
+    });
+    if(picked === null) return;
+    try{
+      const canonical = await resolveMenuTagSelection(r.id, picked);
+      await syncFoodPhotoMenuTags(photo.id, photo.menuItemIds || [], canonical.map(item=>item.id));
+      showToast(canonical.length
+        ? `Menu pada foto diperbarui: ${menuTagNamesSummary(canonical)}`
+        : 'Tag menu pada foto dihapus');
+      await loadAllRestos();
+      openDetail(r.id, showAllTesti);
+      activateDetailTab('referensi');
+    }catch(error){
+      showToast('Gagal memperbarui menu pada foto: ' + error.message);
+    }
+  };
+
+  overlay.querySelector('#foodPhotoDeleteBtn').onclick = async ()=>{
+    if(!confirm('Hapus foto makanan ini? Foto dan tag menu terkait akan ikut dihapus.')) return;
+    const ok = await deleteVisitPhoto(photo.id, photo.storagePath);
+    if(!ok) return;
+    close();
+    showToast('Foto makanan dihapus');
+    await loadAllRestos();
+    openDetail(r.id, showAllTesti);
+    activateDetailTab('referensi');
+  };
 }
 
 function openDetail(id, showAllTesti){
