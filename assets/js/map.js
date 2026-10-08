@@ -918,6 +918,7 @@ function cleanMenuEntityName(s){
 function rankMenuRecommendations(r){
   const itemsById = new Map((r && r.menuItems || []).map(item=> [item.id, item]));
   const counts = new Map();
+  const photoCounts = new Map();
   const fallbackNames = [];
 
   (r && r.favoriteMenuEntries || []).forEach(entry=>{
@@ -928,13 +929,24 @@ function rankMenuRecommendations(r){
     }
   });
 
+  // Hanya Foto Makanan yang dihitung sebagai galeri visual per-menu.
+  (r && r.photos || []).forEach(photo=>{
+    if(visitPhotoCategory(photo) !== 'food') return;
+    (photo.menuItemIds || []).forEach(menuItemId=>{
+      if(itemsById.has(menuItemId)){
+        photoCounts.set(menuItemId, (photoCounts.get(menuItemId) || 0) + 1);
+      }
+    });
+  });
+
   const ranked = [...counts.entries()].map(([menuItemId,count])=>{
     const item = itemsById.get(menuItemId);
     return {
       menuItemId,
       canonical: item ? item.name : '',
       normalizedName: item ? item.normalizedName : '',
-      count
+      count,
+      photoCount: photoCounts.get(menuItemId) || 0
     };
   });
 
@@ -944,13 +956,14 @@ function rankMenuRecommendations(r){
       menuItemId: null,
       canonical: group.canonical,
       normalizedName: group.normKey,
-      count: group.count
+      count: group.count,
+      photoCount: 0
     });
   });
 
   return ranked
     .filter(x=>x.canonical)
-    .sort((a,b)=> b.count - a.count || a.canonical.localeCompare(b.canonical, 'id'))
+    .sort((a,b)=> b.count - a.count || b.photoCount - a.photoCount || a.canonical.localeCompare(b.canonical, 'id'))
     .slice(0, 5);
 }
 
