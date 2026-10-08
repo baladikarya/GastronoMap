@@ -598,9 +598,10 @@ function openDetail(id, showAllTesti){
             : '<div class="menu-empty-state">Belum ada rekomendasi. Jadilah yang pertama merekomendasikan menu.</div>';
         })()}</div>
         <div class="quick-fav-row menu-recommend-form">
-          <input type="text" id="quickFavInput" placeholder="Nama menu yang kamu rekomendasikan...">
+          <input type="text" id="quickFavInput" autocomplete="off" placeholder="Nama menu yang kamu rekomendasikan...">
           <button id="quickFavBtn">+ Rekomendasikan</button>
         </div>
+        <div class="menu-recommend-autocomplete hidden" id="quickFavSuggestions"></div>
       </section>
 
       <section class="menu-section menu-price-section">
@@ -953,18 +954,76 @@ function openDetail(id, showAllTesti){
     openDetail(id, showAllTesti);
     activateDetailTab('referensi');
   };
+  const quickFavInput = document.getElementById('quickFavInput');
+  const quickFavSuggestions = document.getElementById('quickFavSuggestions');
+  const getQuickFavSuggestions = (raw)=>{
+    const strict = normalizeMenuEntityName(raw);
+    const alias = normalizeMenuName(raw);
+    if(!strict) return [];
+    return (r.menuItems || []).map(item=>{
+      const itemStrict = item.normalizedName || normalizeMenuEntityName(item.name);
+      const itemAlias = normalizeMenuName(item.name);
+      let score = Infinity;
+      let label = '';
+      if(itemStrict === strict || (alias && itemAlias === alias)){
+        score = 0; label = 'Sudah ada';
+      }else if(itemStrict.startsWith(strict) || (alias && itemAlias.startsWith(alias))){
+        score = 10; label = 'Cocok';
+      }else if(itemStrict.includes(strict) || (alias && itemAlias.includes(alias))){
+        score = 20; label = 'Cocok';
+      }else if(alias && itemAlias){
+        const dist = levenshtein(itemAlias, alias);
+        const threshold = Math.min(3, Math.max(1, Math.floor(Math.max(itemAlias.length, alias.length) * 0.22)));
+        if(dist <= threshold){ score = 40 + dist; label = 'Mirip'; }
+      }
+      return {item, score, label};
+    }).filter(entry=> Number.isFinite(entry.score))
+      .sort((a,b)=> a.score - b.score || a.item.name.localeCompare(b.item.name, 'id'))
+      .slice(0, 5);
+  };
+  const renderQuickFavSuggestions = ()=>{
+    const raw = quickFavInput.value;
+    const suggestions = getQuickFavSuggestions(raw);
+    if(!normalizeMenuEntityName(raw) || !suggestions.length){
+      quickFavSuggestions.classList.add('hidden');
+      quickFavSuggestions.innerHTML = '';
+      return;
+    }
+    quickFavSuggestions.innerHTML = suggestions.map(({item,label})=>`
+      <button type="button" class="menu-recommend-suggestion" data-name="${escapeAttr(item.name)}">
+        <span>${escapeHtml(item.name)}</span>
+        <small>${label}</small>
+      </button>`).join('');
+    quickFavSuggestions.classList.remove('hidden');
+    quickFavSuggestions.querySelectorAll('.menu-recommend-suggestion').forEach(btn=>{
+      btn.onclick = ()=>{
+        quickFavInput.value = btn.dataset.name;
+        quickFavSuggestions.classList.add('hidden');
+        quickFavInput.focus();
+      };
+    });
+  };
+  quickFavInput.oninput = renderQuickFavSuggestions;
+  quickFavInput.onfocus = renderQuickFavSuggestions;
+
   document.getElementById('quickFavBtn').onclick = async ()=>{
     if(!requireLogin()) return;
-    const inp = document.getElementById('quickFavInput');
-    const val = inp.value.trim();
+    const val = quickFavInput.value.trim();
     if(!val) return;
+    // Untuk alias ejaan yang jelas (mis. "special"/"spesial"), gunakan entity yang
+    // sudah ada. Kemiripan fuzzy tetap hanya suggestion dan tidak digabung otomatis.
+    const alias = normalizeMenuName(val);
+    const equivalent = (r.menuItems || []).find(item=> alias && normalizeMenuName(item.name) === alias);
+    const recommendationName = equivalent ? equivalent.name : val;
     try{
-      await addMenuRecommendation(id, val);
+      await addMenuRecommendation(id, recommendationName);
     }catch(error){
       showToast('Gagal: ' + error.message);
       return;
     }
-    showToast('Rekomendasi ditambahkan, terima kasih!');
+    showToast(equivalent && equivalent.name !== val
+      ? `Rekomendasi ditambahkan ke menu yang sudah ada: ${equivalent.name}`
+      : 'Rekomendasi ditambahkan, terima kasih!');
     await loadAllRestos();
     openDetail(id, showAllTesti);
     activateDetailTab('menu');
