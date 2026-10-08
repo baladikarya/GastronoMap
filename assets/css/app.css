@@ -1326,3 +1326,59 @@ button.platform-chip.summary-platform-chip{appearance:none;}
 #splashLoginStatus{font-size:12px;text-align:center;min-height:16px;color:var(--amber);}
 #splashAuthDivider{text-align:center;color:rgba(255,255,255,0.55);font-size:11.5px;margin:2px 0;}
 #splashGoogleHint{font-size:11px;text-align:center;color:rgba(255,255,255,0.55);margin-top:2px;}
+
+
+/* ---------- DETAIL RESTO: fixed header + ringkasan readability ---------- */
+/* Hero sudah berada di luar area scroll. Header info + tab juga dibuat tetap;
+   hanya isi tab aktif yang dapat di-scroll. */
+#detailContent{
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  padding:17px 18px 0;
+}
+.detail-header-summary,
+.detail-tabs{
+  flex:0 0 auto;
+}
+.detail-tab-panel.active{
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding-bottom:90px;
+}
+
+/* Informasi Utama: sedikit lebih besar agar mudah dibaca di mobile maupun desktop. */
+.summary-section-title{font-size:17px;}
+.summary-info-label{font-size:12px;line-height:1.4;}
+.summary-info-value{font-size:12.5px;line-height:1.5;}
+.summary-hours-today strong{font-size:12.5px;font-weight:700;color:var(--ink);}
+.summary-hours-row{font-size:11.5px;}
+.summary-hours-day,
+.summary-hours-time{font-size:11.5px;color:#626A66;font-weight:500;}
+.summary-hours-row.is-today,
+.summary-hours-row.is-today .summary-hours-day,
+.summary-hours-row.is-today .summary-hours-time{
+  color:var(--ink);
+  font-weight:700;
+}
+.platform-chip.summary-platform-chip{font-size:10.5px;}
+.summary-complete-link{font-size:11.5px;}
+
+@media(max-width:420px){
+  #detailContent{padding:16px 14px 0;}
+}
+@media(max-width:380px){
+  .summary-info-row{grid-template-columns:26px 80px minmax(0,1fr) auto;column-gap:7px;}
+  .summary-info-label{font-size:11.5px;}
+  .summary-info-value{font-size:12px;}
+  .summary-hours-today strong{font-size:12px;}
+}
+@media(min-width:760px){
+  .summary-info-label{font-size:12.5px;}
+  .summary-info-value{font-size:13px;}
+}
