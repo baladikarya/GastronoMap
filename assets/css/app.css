@@ -1334,30 +1334,68 @@ button.platform-chip.summary-platform-chip{appearance:none;}
 #splashGoogleHint{font-size:11px;text-align:center;color:rgba(255,255,255,0.55);margin-top:2px;}
 
 
-/* ---------- DETAIL RESTO: fixed header + ringkasan readability ---------- */
-/* Hero sudah berada di luar area scroll. Header info + tab juga dibuat tetap;
-   hanya isi tab aktif yang dapat di-scroll. */
-#detailContent{
-  flex:1;
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  padding:17px 18px 0;
-}
-.detail-header-summary,
-.detail-tabs{
-  flex:0 0 auto;
-}
-.detail-tab-panel.active{
-  flex:1 1 auto;
-  min-height:0;
+/* ---------- DETAIL RESTO: collapsing hero + sticky compact header ---------- */
+/* Satu scroll container: hero dan informasi utama dapat tergulir,
+   sedangkan judul ringkas dan tab tetap terlihat seperti referensi. */
+#detailPanel{
+  --detail-compact-height:calc(54px + env(safe-area-inset-top));
+  display:block;
+  overflow-x:hidden;
   overflow-y:auto;
   overscroll-behavior:contain;
   -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+}
+.detail-compact-bar{
+  position:sticky;top:0;z-index:30;
+  display:grid;grid-template-columns:44px minmax(0,1fr) 44px;
+  align-items:center;
+  height:var(--detail-compact-height);
+  box-sizing:border-box;
+  padding:env(safe-area-inset-top) 10px 0;
+  margin-bottom:calc(-1 * var(--detail-compact-height));
+  background:var(--card);
+  border-bottom:1px solid var(--line);
+  box-shadow:0 2px 8px rgba(20,30,25,.06);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .16s ease;
+}
+#detailPanel.is-scrolled .detail-compact-bar{opacity:1;pointer-events:auto;}
+.detail-compact-back{
+  width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:transparent;color:var(--ink);cursor:pointer;
+}
+.detail-compact-back svg{
+  width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.detail-compact-name{
+  display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font:700 15px 'Work Sans',sans-serif;color:var(--ink);text-align:center;
+}
+.detail-compact-spacer{width:44px;height:1px;}
+#detailContent{
+  display:block;
+  flex:none;
+  min-height:0;
+  overflow:visible;
+  padding:17px 18px 0;
+}
+.detail-header-summary{display:block;}
+.detail-tabs{
+  position:sticky;top:var(--detail-compact-height);z-index:10;
+  margin:16px -18px 14px;
+  padding:0 18px;
+  background:var(--card);
+  box-shadow:0 1px 0 var(--line);
+}
+.detail-tab-panel.active{
+  display:block;
+  min-height:0;
+  overflow:visible;
   padding-bottom:90px;
 }
-
 /* Informasi Utama: sedikit lebih besar agar mudah dibaca di mobile maupun desktop. */
 .summary-section-title{font-size:17px;}
 .summary-info-label{font-size:12px;line-height:1.4;}
@@ -1377,6 +1415,7 @@ button.platform-chip.summary-platform-chip{appearance:none;}
 
 @media(max-width:420px){
   #detailContent{padding:16px 14px 0;}
+  .detail-tabs{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px;}
 }
 @media(max-width:380px){
   .summary-info-row{grid-template-columns:26px 80px minmax(0,1fr) auto;column-gap:7px;}
