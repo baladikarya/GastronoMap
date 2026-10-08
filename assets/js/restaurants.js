@@ -281,29 +281,44 @@ function openDetail(id, showAllTesti){
     </div>
 
     <div class="detail-tab-panel" data-tab-panel="menu">
-      <div class="field">
-        <label>Menu Favorit / Rekomendasi</label>
-        <div class="fav-chip-list" id="favChipList">${(()=>{
+      <section class="menu-section">
+        <div class="menu-section-head">
+          <div>
+            <h4>Rekomendasi Pengunjung</h4>
+            <p>Menu yang paling banyak direkomendasikan oleh pengunjung.</p>
+          </div>
+        </div>
+        <div class="menu-recommend-list" id="favChipList">${(()=>{
           const ranked = groupAndRankFavorites(favs);
           return ranked.length
-            ? ranked.map(g=>`<span class="fav-chip">⭐ ${escapeHtml(g.canonical)}${g.count > 1 ? ` <b>(${g.count})</b>` : ''}</span>`).join('')
-            : '<span style="color:var(--muted);font-size:12.5px;">Belum ada rekomendasi. Jadilah yang pertama!</span>';
+            ? ranked.map((g,idx)=>`<div class="menu-recommend-row">
+                <span class="menu-recommend-rank">${idx + 1}</span>
+                <span class="menu-recommend-name">${escapeHtml(g.canonical)}</span>
+                <span class="menu-recommend-count" title="Jumlah rekomendasi">👍 ${g.count}</span>
+              </div>`).join('')
+            : '<div class="menu-empty-state">Belum ada rekomendasi. Jadilah yang pertama merekomendasikan menu.</div>';
         })()}</div>
-        <div class="quick-fav-row">
-          <input type="text" id="quickFavInput" placeholder="Tambahkan rekomendasi menu...">
-          <button id="quickFavBtn">Tambah</button>
+        <div class="quick-fav-row menu-recommend-form">
+          <input type="text" id="quickFavInput" placeholder="Nama menu yang kamu rekomendasikan...">
+          <button id="quickFavBtn">+ Rekomendasikan</button>
         </div>
-      </div>
-      <div class="field" style="margin-top:14px;">
-        <label>Daftar Menu</label>
+      </section>
+
+      <section class="menu-section menu-price-section">
+        <div class="menu-section-head">
+          <div>
+            <h4>Daftar Menu &amp; Harga</h4>
+            <p>Foto buku menu, papan menu, atau daftar harga dari restoran ini.</p>
+          </div>
+        </div>
         ${buildMenuPhotosCarouselHtml(imgs, r.menuPhotos)}
         <input type="file" id="menuPhotoDetailCameraInput" accept="image/*" capture="environment" class="hidden">
         <input type="file" id="menuPhotoDetailGalleryInput" accept="image/*" class="hidden">
-        <div class="quick-photo-row">
+        <div class="quick-photo-row menu-photo-actions">
           <button type="button" id="menuPhotoDetailCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-          <button type="button" id="menuPhotoDetailGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+          <button type="button" id="menuPhotoDetailGalleryBtn" class="btn btn-secondary">🖼️ Pilih Galeri</button>
         </div>
-      </div>
+      </section>
     </div>
 
     <div class="detail-tab-panel" data-tab-panel="ulasan">
