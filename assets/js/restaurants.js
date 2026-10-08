@@ -706,10 +706,26 @@ function openDetail(id, showAllTesti){
       </section>
     </div>
   `;
+  // Hero dan ringkasan awal scroll normal; title ringkas + tab sticky saat hero terlewati.
+  const detailPanelEl = document.getElementById('detailPanel');
+  const compactBarEl = document.getElementById('detailCompactBar');
+  const compactBackBtn = document.getElementById('detailCompactBackBtn');
+  document.getElementById('detailCompactName').textContent = r.name;
+  compactBackBtn.onclick = closeDetail;
+  const syncCompactHeader = ()=>{
+    const heroHeight = document.getElementById('detailHero').offsetHeight;
+    const compact = detailPanelEl.scrollTop >= Math.max(64, heroHeight - compactBarEl.offsetHeight);
+    detailPanelEl.classList.toggle('is-scrolled', compact);
+    compactBarEl.setAttribute('aria-hidden', String(!compact));
+    compactBackBtn.tabIndex = compact ? 0 : -1;
+  };
+  detailPanelEl.onscroll = syncCompactHeader;
+
   document.querySelectorAll('.detail-tab-btn').forEach(btn=>{
     btn.onclick = ()=>{
       document.querySelectorAll('.detail-tab-btn').forEach(b=> b.classList.toggle('active', b === btn));
       document.querySelectorAll('.detail-tab-panel').forEach(p=> p.classList.toggle('active', p.dataset.tabPanel === btn.dataset.tab));
+      syncCompactHeader();
     };
   });
   const hoursToggleEl = document.getElementById('summaryHoursToggle');
@@ -1073,9 +1089,15 @@ function openDetail(id, showAllTesti){
     await loadAllRestos();
     openDetail(id, showAllTesti);
   };
-  document.getElementById('detailPanel').classList.remove('hidden');
+  detailPanelEl.classList.remove('hidden');
+  detailPanelEl.scrollTop = 0;
+  syncCompactHeader();
 }
-function closeDetail(){ document.getElementById('detailPanel').classList.add('hidden'); }
+function closeDetail(){
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('hidden');
+  panel.classList.remove('is-scrolled');
+}
 
 /* ================= FORM MODAL ================= */
 function openForm(existing){
