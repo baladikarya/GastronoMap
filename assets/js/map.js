@@ -906,6 +906,127 @@ function levenshtein(a, b){
 }
 function titleCase(s){ return s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1)); }
 
+/* Normalisasi canonical menu harus mengikuti fungsi database:
+   trim + rapikan spasi + lowercase. Jangan gunakan fuzzy matching untuk identitas data. */
+function normalizeMenuEntityName(s){
+  return String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+function cleanMenuEntityName(s){
+  return String(s || '').trim().replace(/\s+/g, ' ');
+}
+
+function rankMenuRecommendations(r){
+  const itemsById = new Map((r && r.menuItems || []).map(item=> [item.id, item]));
+  const counts = new Map();
+  const fallbackNames = [];
+
+  (r && r.favoriteMenuEntries || []).forEach(entry=>{
+    if(entry.menuItemId && itemsById.has(entry.menuItemId)){
+      counts.set(entry.menuItemId, (counts.get(entry.menuItemId) || 0) + 1);
+    }else if(entry.menuName){
+      fallbackNames.push(entry.menuName);
+    }
+  });
+
+  const ranked = [...counts.entries()].map(([menuItemId,count])=>{
+    const item = itemsById.get(menuItemId);
+    return {
+      menuItemId,
+      canonical: item ? item.name : '',
+      normalizedName: item ? item.normalizedName : '',
+      count
+    };
+  });
+
+  // Fallback hanya untuk row lama yang belum punya menu_item_id.
+  groupAndRankFavorites(fallbackNames).forEach(group=>{
+    ranked.push({
+      menuItemId: null,
+      canonical: group.canonical,
+      normalizedName: group.normKey,
+      count: group.count
+    });
+  });
+
+  return ranked
+    .filter(x=>x.canonical)
+    .sort((a,b)=> b.count - a.count || a.canonical.localeCompare(b.canonical, 'id'))
+    .slice(0, 5);
+}
+
+async function ensureMenuItem(restoId, rawName){
+  if(!requireLogin()) return null;
+  const name = cleanMenuEntityName(rawName);
+  const normalizedName = normalizeMenuEntityName(name);
+  if(!name || !normalizedName) return null;
+
+  let { data: existing, error: findErr } = await sb.from('menu_items')
+    .select('id, resto_id, name, normalized_name')
+    .eq('resto_id', restoId)
+    .eq('normalized_name', normalizedName)
+    .maybeSingle();
+  if(findErr) throw findErr;
+  if(existing){
+    return {
+      id: existing.id,
+      restoId: existing.resto_id,
+      name: existing.name,
+      normalizedName: existing.normalized_name
+    };
+  }
+
+  const { data: inserted, error: insertErr } = await sb.from('menu_items')
+    .insert({
+      resto_id: restoId,
+      name,
+      normalized_name: normalizedName,
+      created_by: myUserId
+    })
+    .select('id, resto_id, name, normalized_name')
+    .single();
+
+  if(!insertErr && inserted){
+    return {
+      id: inserted.id,
+      restoId: inserted.resto_id,
+      name: inserted.name,
+      normalizedName: inserted.normalized_name
+    };
+  }
+
+  // Dua user bisa membuat nama yang sama hampir bersamaan. Unique index database
+  // menjadi sumber kebenaran; jika kalah race, ambil entity yang sudah dibuat.
+  if(insertErr && insertErr.code === '23505'){
+    const { data: raced, error: racedErr } = await sb.from('menu_items')
+      .select('id, resto_id, name, normalized_name')
+      .eq('resto_id', restoId)
+      .eq('normalized_name', normalizedName)
+      .single();
+    if(racedErr) throw racedErr;
+    return {
+      id: raced.id,
+      restoId: raced.resto_id,
+      name: raced.name,
+      normalizedName: raced.normalized_name
+    };
+  }
+
+  throw insertErr || new Error('Gagal membuat data menu');
+}
+
+async function addMenuRecommendation(restoId, rawName){
+  const item = await ensureMenuItem(restoId, rawName);
+  if(!item) return false;
+  const { error } = await sb.from('favorite_menu').insert({
+    resto_id: restoId,
+    user_id: myUserId,
+    menu_name: item.name,
+    menu_item_id: item.id
+  });
+  if(error) throw error;
+  return true;
+}
+
 /* Kelompokkan nama menu yang mirip (typo/varian ejaan) jadi satu, hitung suara, ranking top 5 */
 function groupAndRankFavorites(list){
   const groups = []; // {normKey, canonical, count}
@@ -945,7 +1066,7 @@ async function refreshAllData(){
 
 async function loadAllRestos(){
   try{
-    const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}, {data: menuPhotoRows}, {data: profileRows}] = await Promise.all([
+    const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}, {data: menuPhotoRows}, {data: menuItemRows}, {data: profileRows}] = await Promise.all([
       sb.from('restos').select('*'),
       sb.from('ratings').select('*'),
       sb.from('testimonials').select('*'),
@@ -953,6 +1074,7 @@ async function loadAllRestos(){
       sb.from('references_link').select('*'),
       sb.from('visit_photos').select('*'),
       sb.from('menu_photos').select('*'),
+      sb.from('menu_items').select('id, resto_id, name, normalized_name, created_by, created_at'),
       sb.from('public_contributor_profiles').select('id, username')
     ]);
     profilesMap = {};
@@ -967,7 +1089,8 @@ async function loadAllRestos(){
         noOnlineSales: !!row.no_online_sales,
         lat: row.lat, lng: row.lng, createdAt: row.created_at ? new Date(row.created_at).getTime() : 0,
         isVerified: !!row.is_verified,
-        ratings: [], testimonials: [], favoriteMenu: [], references: [], photos: [], menuPhotos: []
+        ratings: [], testimonials: [], favoriteMenu: [], favoriteMenuEntries: [],
+        menuItems: [], references: [], photos: [], menuPhotos: []
       };
     });
     (ratingsRows||[]).forEach(row=>{
@@ -980,9 +1103,26 @@ async function loadAllRestos(){
       const r = allRestos[row.resto_id]; if(!r) return;
       r.testimonials.push({userId: row.user_id, text: row.text, at: new Date(row.updated_at || row.created_at).getTime()});
     });
+    (menuItemRows||[]).forEach(row=>{
+      const r = allRestos[row.resto_id]; if(!r) return;
+      r.menuItems.push({
+        id: row.id,
+        name: row.name,
+        normalizedName: row.normalized_name,
+        createdBy: row.created_by,
+        at: row.created_at ? new Date(row.created_at).getTime() : 0
+      });
+    });
     (favRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
       r.favoriteMenu.push(row.menu_name);
+      r.favoriteMenuEntries.push({
+        id: row.id,
+        userId: row.user_id,
+        menuName: row.menu_name,
+        menuItemId: row.menu_item_id || null,
+        at: row.created_at ? new Date(row.created_at).getTime() : 0
+      });
     });
     (refRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
