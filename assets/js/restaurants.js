@@ -155,7 +155,7 @@ function openDetail(id, showAllTesti){
     }
   }
   const openStatusPillHtml = r.hoursByDay
-    ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}"><span class="detail-status-dot">✓</span>${isOpenNow ? 'Buka Sekarang' : 'Tutup Sekarang'}</span>`
+    ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}"><span class="detail-status-dot">${isOpenNow ? '✓' : '×'}</span>${isOpenNow ? 'Buka Sekarang' : 'Tutup Sekarang'}</span>`
     : '';
 
   const routeIcon = `<svg class="detail-cta-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 21 12 12 21 3 12 12 3Z"/><path d="M8.5 13.5h4.2c1.5 0 2.3-.8 2.3-2.3V9.5"/><path d="m13 11 2-2 2 2"/></svg>`;
