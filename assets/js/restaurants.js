@@ -38,8 +38,8 @@ function openDetail(id, showAllTesti){
         const isToday = day === today;
         const txt = !d ? 'Belum diisi' : (d.closed ? 'Tutup' : `${formatHour(d.open)} – ${formatHour(d.close)}`);
         return `<div class="summary-hours-row ${isToday ? 'is-today' : ''}">
-          <span>${day}${isToday ? ' <b>· Hari ini</b>' : ''}</span>
-          <strong>${txt}</strong>
+          <span class="summary-hours-day">${day}</span>
+          <span class="summary-hours-time">${txt}</span>
         </div>`;
       }).join('')
     : '';
@@ -182,7 +182,7 @@ function openDetail(id, showAllTesti){
     }
   }
   const openStatusPillHtml = r.hoursByDay
-    ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}"><span class="detail-status-dot">${isOpenNow ? '✓' : '×'}</span>${isOpenNow ? 'Buka Sekarang' : 'Tutup Sekarang'}</span>`
+    ? `<span class="detail-pill ${isOpenNow ? 'open-yes' : 'open-no'}"><span class="detail-status-dot">${isOpenNow ? '✓' : '×'}</span>${isOpenNow ? 'Buka' : 'Tutup'}</span>`
     : '';
 
   const routeIcon = `<svg class="detail-cta-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 21 12 12 21 3 12 12 3Z"/><path d="M8.5 13.5h4.2c1.5 0 2.3-.8 2.3-2.3V9.5"/><path d="m13 11 2-2 2 2"/></svg>`;
@@ -250,7 +250,7 @@ function openDetail(id, showAllTesti){
           <div class="summary-info-label">Jam Operasional</div>
           <div class="summary-info-value summary-hours-summary">
             ${r.hoursByDay && todayHours
-              ? `<span class="summary-hours-today"><strong>${today}</strong><span>${todayHours.closed ? 'Tutup' : `${formatHour(todayHours.open)} – ${formatHour(todayHours.close)}`}</span></span>`
+              ? `<span class="summary-hours-today"><strong>${today}</strong><strong>${todayHours.closed ? 'Tutup' : `${formatHour(todayHours.open)} – ${formatHour(todayHours.close)}`}</strong></span>`
               : '<span class="summary-muted-value">Jam buka belum diisi</span>'}
           </div>
           ${r.hoursByDay ? `<div class="summary-hours-actions">
