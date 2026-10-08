@@ -1475,10 +1475,14 @@ function photoPublicUrl(path){
 }
 function buildPhotoCard(photo, idx){
   const url = photoPublicUrl(photo.storagePath);
-  const canDelete = photo.userId === myUserId || isAdmin;
+  const canManage = photo.userId === myUserId || isAdmin;
+  const isFoodPhoto = visitPhotoCategory(photo) === 'food';
+  const actionHtml = !canManage ? '' : (isFoodPhoto
+    ? `<button type="button" class="photo-more-btn food-photo-more-btn" data-id="${escapeAttr(photo.id)}" title="Kelola foto makanan" aria-label="Kelola foto makanan">•••</button>`
+    : `<button type="button" class="photo-del-btn" data-path="${escapeAttr(photo.storagePath)}" data-id="${escapeAttr(photo.id)}" title="Hapus foto" aria-label="Hapus foto">✕</button>`);
   return `<div class="photo-card" data-idx="${idx}">
-    <img src="${url}" loading="lazy" alt="Foto kunjungan">
-    ${canDelete ? `<button class="photo-del-btn" data-path="${escapeAttr(photo.storagePath)}" data-id="${photo.id}" title="Hapus foto">✕</button>` : ''}
+    <img src="${escapeAttr(url)}" loading="lazy" alt="${isFoodPhoto ? 'Foto makanan' : 'Foto kunjungan'}">
+    ${actionHtml}
   </div>`;
 }
 
@@ -1567,9 +1571,10 @@ function visitPhotoCaptionFromList(photos, idx){
   const resto = p.restoId ? allRestos[p.restoId] : null;
   const itemById = new Map((resto && resto.menuItems || []).map(item=> [item.id, item]));
   const taggedNames = (p.menuItemIds || []).map(id=> itemById.get(id)?.name).filter(Boolean);
+  const isFoodPhoto = visitPhotoCategory(p) === 'food';
   const menuHtml = taggedNames.length
-    ? `<span class="photo-lightbox-menu-tags">Menu: ${taggedNames.map(escapeHtml).join(' · ')}</span>`
-    : '';
+    ? `<span class="photo-lightbox-menu-tags"><span class="photo-lightbox-menu-label">Menu</span>${taggedNames.map(name=> `<span class="photo-lightbox-menu-chip">${escapeHtml(name)}</span>`).join('')}</span>`
+    : (isFoodPhoto ? '<span class="photo-lightbox-menu-tags is-empty">Belum ditandai ke nama menu.</span>' : '');
   return `<b>${escapeHtml(name)}</b>${dateStr ? ' · ' + dateStr : ''}${menuHtml}`;
 }
 function visitPhotoCaption(idx){
@@ -1828,7 +1833,6 @@ async function uploadVisitPhotoBlob(blob, restoId, category='general'){
       .select('id, resto_id, user_id, storage_path, created_at')
       .single();
     if(insErr) throw insErr;
-    showToast('Foto berhasil diunggah');
     return {
       id: inserted.id,
       restoId: inserted.resto_id,
@@ -1853,6 +1857,28 @@ async function tagFoodPhotoMenuItems(photoId, menuItemIds){
   }));
   const { error } = await sb.from('food_photo_menu_tags').insert(rows);
   if(error) throw error;
+  return true;
+}
+
+async function syncFoodPhotoMenuTags(photoId, previousMenuItemIds, nextMenuItemIds){
+  const previous = [...new Set((previousMenuItemIds || []).filter(Boolean))];
+  const next = [...new Set((nextMenuItemIds || []).filter(Boolean))];
+  const previousSet = new Set(previous);
+  const nextSet = new Set(next);
+  const toAdd = next.filter(id=> !previousSet.has(id));
+  const toRemove = previous.filter(id=> !nextSet.has(id));
+
+  // Tambahkan dulu. Jika insert gagal, tag lama tetap utuh dan user bisa mencoba lagi.
+  if(toAdd.length){
+    await tagFoodPhotoMenuItems(photoId, toAdd);
+  }
+  if(toRemove.length){
+    const { error } = await sb.from('food_photo_menu_tags')
+      .delete()
+      .eq('photo_id', photoId)
+      .in('menu_item_id', toRemove);
+    if(error) throw error;
+  }
   return true;
 }
 async function deleteVisitPhoto(photoId, storagePath){
