@@ -836,3 +836,23 @@ create index if not exists menu_items_created_by_idx
 
 create index if not exists food_photo_menu_tags_tagged_by_idx
   on public.food_photo_menu_tags (tagged_by);
+
+-- Allow photo owners to edit food-photo menu tags
+drop policy if exists food_photo_menu_tags_own_delete
+  on public.food_photo_menu_tags;
+
+create policy food_photo_menu_tags_own_delete
+on public.food_photo_menu_tags
+for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.visit_photos vp
+    where vp.id = food_photo_menu_tags.photo_id
+      and (
+        vp.user_id = auth.uid()
+        or public.is_admin(auth.uid())
+      )
+  )
+);
