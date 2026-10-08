@@ -425,11 +425,19 @@ function openDetail(id, showAllTesti){
         <div class="menu-recommend-list" id="favChipList">${(()=>{
           const ranked = rankMenuRecommendations(r);
           return ranked.length
-            ? ranked.map((g,idx)=>`<div class="menu-recommend-row" ${g.menuItemId ? `data-menu-item-id="${escapeAttr(g.menuItemId)}"` : ''}>
-                <span class="menu-recommend-rank">${idx + 1}</span>
-                <span class="menu-recommend-name">${escapeHtml(g.canonical)}</span>
-                <span class="menu-recommend-count" title="Jumlah rekomendasi">👍 ${g.count}</span>
-              </div>`).join('')
+            ? ranked.map((g,idx)=>{
+                const hasPhotos = !!(g.menuItemId && g.photoCount > 0);
+                return `<div class="menu-recommend-row${hasPhotos ? ' has-photos' : ''}"
+                  ${g.menuItemId ? `data-menu-item-id="${escapeAttr(g.menuItemId)}"` : ''}
+                  ${hasPhotos ? `data-menu-photo-count="${g.photoCount}" role="button" tabindex="0" aria-label="Lihat ${g.photoCount} foto ${escapeAttr(g.canonical)}"` : ''}>
+                  <span class="menu-recommend-rank">${idx + 1}</span>
+                  <span class="menu-recommend-name">${escapeHtml(g.canonical)}</span>
+                  <span class="menu-recommend-meta">
+                    <span class="menu-recommend-count" title="Jumlah rekomendasi">👍 ${g.count}</span>
+                    ${g.photoCount > 0 ? `<span class="menu-recommend-photo-count">${g.photoCount} foto</span>` : ''}
+                  </span>
+                </div>`;
+              }).join('')
             : '<div class="menu-empty-state">Belum ada rekomendasi. Jadilah yang pertama merekomendasikan menu.</div>';
         })()}</div>
         <div class="quick-fav-row menu-recommend-form">
@@ -702,6 +710,26 @@ function openDetail(id, showAllTesti){
   wireReferencePhotoGrid('foodPhotoGrid', foodPhotos);
   wireReferencePhotoGrid('ambiencePhotoGrid', ambiencePhotos);
   wireReferencePhotoGrid('legacyPhotoGrid', legacyVisitPhotos);
+
+  const openMenuLinkedPhotos = (menuItemId)=>{
+    if(!menuItemId) return;
+    const linkedPhotos = foodPhotos.filter(photo=> (photo.menuItemIds || []).includes(menuItemId));
+    if(!linkedPhotos.length) return;
+    openPhotoLightbox(
+      linkedPhotos.map(photo=>photoPublicUrl(photo.storagePath)),
+      0,
+      (idx)=> visitPhotoCaptionFromList(linkedPhotos, idx)
+    );
+  };
+  document.querySelectorAll('.menu-recommend-row.has-photos[data-menu-item-id]').forEach(row=>{
+    row.onclick = ()=> openMenuLinkedPhotos(row.dataset.menuItemId);
+    row.onkeydown = (e)=>{
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        openMenuLinkedPhotos(row.dataset.menuItemId);
+      }
+    };
+  });
   document.querySelectorAll('#menuPhotoDisplayGrid .photo-card').forEach(card=>{
     card.onclick = ()=> openPhotoLightbox(currentDetailMenuItems.map(item=>item.url), Number(card.dataset.idx));
   });
