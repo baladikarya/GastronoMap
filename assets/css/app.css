@@ -1334,34 +1334,29 @@ button.platform-chip.summary-platform-chip{appearance:none;}
 #splashGoogleHint{font-size:11px;text-align:center;color:rgba(255,255,255,0.55);margin-top:2px;}
 
 
-/* ---------- DETAIL RESTO: collapsing hero + sticky compact header ---------- */
-/* Satu scroll container: hero dan informasi utama dapat tergulir,
-   sedangkan judul ringkas dan tab tetap terlihat seperti referensi. */
+/* ---------- DETAIL RESTO: independent tab scrolling + explicit header state ---------- */
+/* Hero tampil ketika expanded. Ketika collapsed, header ringkas dan tab
+   tidak berubah tinggi walaupun tab aktif kosong atau kontennya pendek. */
 #detailPanel{
-  --detail-compact-height:calc(54px + env(safe-area-inset-top));
-  display:block;
-  overflow-x:hidden;
-  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
   overscroll-behavior:contain;
-  -webkit-overflow-scrolling:touch;
-  scrollbar-width:thin;
 }
 .detail-compact-bar{
-  position:sticky;top:0;z-index:30;
-  display:grid;grid-template-columns:44px minmax(0,1fr) 44px;
+  flex:0 0 auto;
+  display:none;
+  grid-template-columns:44px minmax(0,1fr) 44px;
   align-items:center;
-  height:var(--detail-compact-height);
   box-sizing:border-box;
+  height:calc(54px + env(safe-area-inset-top));
   padding:env(safe-area-inset-top) 10px 0;
-  margin-bottom:calc(-1 * var(--detail-compact-height));
   background:var(--card);
   border-bottom:1px solid var(--line);
   box-shadow:0 2px 8px rgba(20,30,25,.06);
-  opacity:0;
-  pointer-events:none;
-  transition:opacity .16s ease;
+  z-index:30;
 }
-#detailPanel.is-scrolled .detail-compact-bar{opacity:1;pointer-events:auto;}
+#detailPanel.is-collapsed .detail-compact-bar{display:grid;}
 .detail-compact-back{
   width:40px;height:40px;display:flex;align-items:center;justify-content:center;
   border:0;border-radius:50%;background:transparent;color:var(--ink);cursor:pointer;
@@ -1370,32 +1365,56 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;
   stroke-linecap:round;stroke-linejoin:round;
 }
+.detail-compact-expand{
+  min-width:0;max-width:100%;display:flex;align-items:center;justify-content:center;
+  gap:6px;padding:9px 4px;border:0;border-radius:8px;
+  background:transparent;color:var(--ink);cursor:pointer;
+}
+.detail-compact-expand svg{
+  flex:0 0 auto;width:14px;height:14px;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
 .detail-compact-name{
   display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   font:700 15px 'Work Sans',sans-serif;color:var(--ink);text-align:center;
 }
 .detail-compact-spacer{width:44px;height:1px;}
 #detailContent{
-  display:block;
-  flex:none;
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
   min-height:0;
-  overflow:visible;
+  overflow:hidden;
   padding:17px 18px 0;
 }
-.detail-header-summary{display:block;}
+.detail-header-summary{flex:0 0 auto;}
 .detail-tabs{
-  position:sticky;top:var(--detail-compact-height);z-index:10;
-  margin:16px -18px 14px;
+  flex:0 0 auto;
+  position:relative;top:auto;z-index:10;
+  margin:16px -18px 12px;
   padding:0 18px;
   background:var(--card);
   box-shadow:0 1px 0 var(--line);
 }
+.detail-tab-panel{flex:1 1 auto;min-height:0;}
 .detail-tab-panel.active{
   display:block;
+  flex:1 1 auto;
   min-height:0;
-  overflow:visible;
+  overflow-y:auto;
+  overflow-x:hidden;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
   padding-bottom:90px;
 }
+#detailPanel.is-collapsed #detailHero,
+#detailPanel.is-collapsed .detail-header-summary{display:none;}
+#detailPanel.is-collapsed #detailContent{
+  margin-top:0;
+  border-radius:0;
+  padding-top:0;
+}
+#detailPanel.is-collapsed .detail-tabs{margin-top:0;}
 /* Informasi Utama: sedikit lebih besar agar mudah dibaca di mobile maupun desktop. */
 .summary-section-title{font-size:17px;}
 .summary-info-label{font-size:12px;line-height:1.4;}
