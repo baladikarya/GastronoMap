@@ -1313,9 +1313,23 @@ function buildPhotoCard(photo, idx){
   </div>`;
 }
 
+function visitPhotoCategory(photo){
+  const path = String((photo && photo.storagePath) || '').toLowerCase();
+  if(path.startsWith('food/')) return 'food';
+  if(path.startsWith('ambience/')) return 'ambience';
+  return 'legacy';
+}
+
+function buildReferencePhotoCarouselHtml(photos, gridId, emptyText){
+  const list = (photos || []).slice().sort((a,b)=> (b.at||0) - (a.at||0));
+  if(list.length === 0){
+    return `<div id="${gridId}" class="reference-empty-state">${escapeHtml(emptyText)}</div>`;
+  }
+  return `<div class="photo-carousel reference-photo-carousel" id="${gridId}">${list.map((p, idx)=>buildPhotoCard(p, idx)).join('')}</div>`;
+}
+
 /* Satu carousel tunggal berisi semua foto kunjungan (terbaru duluan), tanpa
-   label nama/jumlah foto -- nama pengunggah & tanggal baru muncul sebagai
-   keterangan saat foto dibuka dalam mode ukuran penuh (lihat openPhotoLightbox). */
+   label nama/jumlah foto -- tetap dipertahankan untuk kompatibilitas komponen lama. */
 function buildPhotosCarouselHtml(photos){
   currentDetailPhotos = (photos || []).slice().sort((a,b)=> (b.at||0) - (a.at||0));
   if(currentDetailPhotos.length === 0){
@@ -1375,13 +1389,16 @@ function openPhotoLightbox(urls, startIdx, captionFn){
   document.addEventListener('keydown', photoLightboxKeyHandler);
 }
 /* Keterangan nama pengunggah + tanggal untuk lightbox Foto Kunjungan */
-function visitPhotoCaption(idx){
-  const p = currentDetailPhotos[idx];
+function visitPhotoCaptionFromList(photos, idx){
+  const p = (photos || [])[idx];
   if(!p) return '';
   const isMine = p.userId === myUserId;
   const name = isMine ? 'Anda' : (profilesMap[p.userId] || 'Pengguna');
   const dateStr = p.at ? new Date(p.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
   return `<b>${escapeHtml(name)}</b>${dateStr ? ' · ' + dateStr : ''}`;
+}
+function visitPhotoCaption(idx){
+  return visitPhotoCaptionFromList(currentDetailPhotos, idx);
 }
 
 /* Foto Menu di halaman detail: tampilan carousel sama seperti Foto Kunjungan
@@ -1621,11 +1638,14 @@ async function prepareVisitPhotoBlob(file){
 /* Mengunggah blob Foto Kunjungan yang SUDAH diproses (kompres + keputusan
    blur user sudah final lewat prepareVisitPhotoBlob) ke Supabase Storage &
    mencatatnya di tabel visit_photos. */
-async function uploadVisitPhotoBlob(blob, restoId){
+async function uploadVisitPhotoBlob(blob, restoId, category='general'){
   if(!requireLogin()) return false;
   showToast('Mengunggah foto...');
   try{
-    const path = `${restoId}/${myUserId}_${Date.now()}.jpg`;
+    // Kategori disimpan pada prefix storage path agar kompatibel dengan schema visit_photos
+    // yang sudah aktif. Foto lama tanpa prefix khusus tetap diperlakukan sebagai legacy.
+    const safeCategory = ['food','ambience'].includes(category) ? category : 'general';
+    const path = `${safeCategory}/${restoId}/${myUserId}_${Date.now()}.jpg`;
     const { error: upErr } = await sb.storage.from('visit-photos').upload(path, blob, { contentType: 'image/jpeg' });
     if(upErr) throw upErr;
     const { error: insErr } = await sb.from('visit_photos').insert({ resto_id: restoId, user_id: myUserId, storage_path: path });
