@@ -821,3 +821,18 @@ grant select on public.menu_items,public.food_photo_menu_tags to anon,authentica
 grant insert on public.menu_items,public.food_photo_menu_tags to authenticated;
 grant update,delete on public.menu_items to authenticated;
 grant delete on public.food_photo_menu_tags to authenticated;
+
+-- Harden functions and indexes introduced by menu_items/photo-tag foundation.
+
+alter function public.normalize_menu_item_name(text)
+  set search_path = pg_catalog, public;
+
+revoke all on function public.normalize_menu_item_name(text) from public, anon, authenticated;
+revoke all on function public.link_favorite_menu_item() from public, anon, authenticated;
+revoke all on function public.validate_food_photo_menu_tag() from public, anon, authenticated;
+
+create index if not exists menu_items_created_by_idx
+  on public.menu_items (created_by);
+
+create index if not exists food_photo_menu_tags_tagged_by_idx
+  on public.food_photo_menu_tags (tagged_by);
