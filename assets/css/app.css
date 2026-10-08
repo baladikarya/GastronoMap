@@ -1451,3 +1451,85 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   .reference-link-form{flex-direction:column;}
   .reference-link-form button{min-height:36px;}
 }
+
+
+/* ---------- FOTO MAKANAN: multi-menu tagging sheet ---------- */
+.food-menu-tag-overlay{
+  position:fixed;inset:0;z-index:5600;
+  display:flex;align-items:flex-end;justify-content:center;
+  padding:18px 12px calc(18px + env(safe-area-inset-bottom));
+  background:rgba(20,27,24,.48);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+.food-menu-tag-sheet{
+  width:min(520px,100%);max-height:min(76vh,680px);overflow:auto;
+  padding:10px 16px 16px;border-radius:20px;background:var(--card);
+  box-shadow:0 20px 55px rgba(20,27,24,.28);
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+}
+.food-menu-tag-handle{
+  width:40px;height:4px;margin:0 auto 12px;border-radius:99px;background:#D5D9D7;
+}
+.food-menu-tag-head{display:grid;grid-template-columns:68px minmax(0,1fr);gap:12px;align-items:center;}
+.food-menu-tag-head h3{
+  margin:0;font-family:'Work Sans',sans-serif;font-size:16px;line-height:1.25;color:var(--ink);
+}
+.food-menu-tag-head p{
+  margin:5px 0 0;font-size:11.5px;line-height:1.45;color:var(--muted);
+}
+.food-menu-tag-preview{
+  width:68px;height:68px;border-radius:12px;object-fit:cover;background:var(--paper);
+}
+.food-menu-tag-selected{
+  display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-top:15px;
+}
+.food-menu-selected-chip{
+  display:inline-flex;align-items:center;gap:6px;max-width:100%;
+  padding:6px 9px;border:1px solid #DCE9E4;border-radius:999px;
+  background:#EEF7F3;color:var(--teal-dark);
+  font:650 11.5px 'Work Sans',sans-serif;cursor:pointer;
+}
+.food-menu-selected-chip span:first-child{
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.food-menu-selected-chip span:last-child{font-size:15px;line-height:1;}
+.food-menu-tag-none{align-self:center;font-size:11.5px;color:var(--muted);}
+.food-menu-tag-search-wrap{margin-top:10px;}
+.food-menu-tag-search-wrap input{
+  width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;
+  background:var(--paper);font:500 12.5px 'Work Sans',sans-serif;color:var(--ink);
+}
+.food-menu-tag-search-wrap input:focus{
+  outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(50,133,110,.10);
+}
+.food-menu-tag-suggestions{
+  margin-top:8px;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff;
+}
+.food-menu-suggestion{
+  width:100%;min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:9px 11px;border:0;border-bottom:1px solid #EEF0EF;background:#fff;
+  color:var(--ink);text-align:left;font:600 12px 'Work Sans',sans-serif;cursor:pointer;
+}
+.food-menu-suggestion:last-child{border-bottom:0;}
+.food-menu-suggestion:hover{background:var(--paper);}
+.food-menu-suggestion-hint{font-size:10.5px;font-weight:600;color:var(--muted);}
+.food-menu-new-option{justify-content:flex-start;color:var(--teal-dark);}
+.food-menu-suggestion-plus{
+  width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto;border-radius:7px;background:#EEF7F3;font-size:15px;
+}
+.food-menu-tag-empty{padding:12px;font-size:11.5px;color:var(--muted);}
+.food-menu-tag-actions{display:grid;grid-template-columns:1fr 1.45fr;gap:8px;margin-top:14px;}
+.food-menu-tag-actions .btn{min-height:40px;font-size:12px;}
+.photo-lightbox-menu-tags{
+  display:block;margin-top:5px;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.82);
+}
+@media(min-width:760px){
+  .food-menu-tag-overlay{align-items:center;}
+}
+@media(max-width:380px){
+  .food-menu-tag-sheet{padding-left:13px;padding-right:13px;border-radius:18px;}
+  .food-menu-tag-head{grid-template-columns:58px minmax(0,1fr);}
+  .food-menu-tag-preview{width:58px;height:58px;}
+  .food-menu-tag-actions{grid-template-columns:1fr;}
+}
