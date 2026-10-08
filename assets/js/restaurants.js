@@ -21,6 +21,135 @@ function testimoniListHtml(r, showAll){
   return html;
 }
 
+function openFoodPhotoMenuTagPicker(r, blob){
+  return new Promise(resolve=>{
+    const previous = document.getElementById('foodMenuTagOverlay');
+    if(previous) previous.remove();
+
+    const previewUrl = blob ? URL.createObjectURL(blob) : '';
+    const existingItems = (r.menuItems || []).slice().sort((a,b)=> a.name.localeCompare(b.name, 'id'));
+    const selected = new Map();
+    const overlay = document.createElement('div');
+    overlay.id = 'foodMenuTagOverlay';
+    overlay.className = 'food-menu-tag-overlay';
+    overlay.innerHTML = `
+      <div class="food-menu-tag-sheet" role="dialog" aria-modal="true" aria-labelledby="foodMenuTagTitle">
+        <div class="food-menu-tag-handle" aria-hidden="true"></div>
+        <div class="food-menu-tag-head">
+          ${previewUrl ? `<img class="food-menu-tag-preview" src="${escapeAttr(previewUrl)}" alt="Preview foto makanan">` : ''}
+          <div>
+            <h3 id="foodMenuTagTitle">Menu dalam foto ini</h3>
+            <p>Pilih satu atau beberapa nama menu. Bagian ini opsional dan tidak otomatis menjadi rekomendasi.</p>
+          </div>
+        </div>
+        <div class="food-menu-tag-selected" id="foodMenuTagSelected"></div>
+        <div class="food-menu-tag-search-wrap">
+          <input id="foodMenuTagSearch" type="text" autocomplete="off" placeholder="Cari atau tambahkan nama menu...">
+        </div>
+        <div class="food-menu-tag-suggestions" id="foodMenuTagSuggestions"></div>
+        <div class="food-menu-tag-actions">
+          <button type="button" class="btn btn-secondary" id="foodMenuTagCancel">Batal</button>
+          <button type="button" class="btn btn-primary" id="foodMenuTagConfirm">Unggah tanpa tag</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const selectedEl = overlay.querySelector('#foodMenuTagSelected');
+    const searchEl = overlay.querySelector('#foodMenuTagSearch');
+    const suggestionsEl = overlay.querySelector('#foodMenuTagSuggestions');
+    const confirmBtn = overlay.querySelector('#foodMenuTagConfirm');
+
+    const itemKey = (item)=> item.id ? `id:${item.id}` : `name:${normalizeMenuEntityName(item.name)}`;
+    const closeWith = (value)=>{
+      if(previewUrl) URL.revokeObjectURL(previewUrl);
+      overlay.remove();
+      resolve(value);
+    };
+    const addItem = (item)=>{
+      const name = cleanMenuEntityName(item && item.name);
+      if(!name) return;
+      const normalizedName = item.normalizedName || normalizeMenuEntityName(name);
+      const normalizedItem = {id:item.id || null, name, normalizedName};
+      selected.set(itemKey(normalizedItem), normalizedItem);
+      searchEl.value = '';
+      renderSelected();
+      renderSuggestions();
+      searchEl.focus();
+    };
+    const removeItem = (key)=>{
+      selected.delete(key);
+      renderSelected();
+      renderSuggestions();
+    };
+    const renderSelected = ()=>{
+      const items = [...selected.entries()];
+      selectedEl.innerHTML = items.length
+        ? items.map(([key,item])=>`<button type="button" class="food-menu-selected-chip" data-key="${escapeAttr(key)}">
+            <span>${escapeHtml(item.name)}</span><span aria-hidden="true">×</span>
+          </button>`).join('')
+        : '<span class="food-menu-tag-none">Belum ada menu yang ditandai.</span>';
+      selectedEl.querySelectorAll('.food-menu-selected-chip').forEach(btn=>{
+        btn.onclick = ()=> removeItem(btn.dataset.key);
+      });
+      confirmBtn.textContent = items.length
+        ? `Unggah foto · ${items.length} menu`
+        : 'Unggah tanpa tag';
+    };
+    const renderSuggestions = ()=>{
+      const query = normalizeMenuEntityName(searchEl.value);
+      const available = existingItems.filter(item=>{
+        if(selected.has(itemKey(item))) return false;
+        if(!query) return true;
+        return item.normalizedName.includes(query) || normalizeMenuEntityName(item.name).includes(query);
+      }).slice(0, 8);
+      const exactExists = existingItems.some(item=> item.normalizedName === query)
+        || [...selected.values()].some(item=> item.normalizedName === query);
+      const rawNew = cleanMenuEntityName(searchEl.value);
+      const newOption = query && rawNew && !exactExists
+        ? `<button type="button" class="food-menu-suggestion food-menu-new-option" data-new-name="${escapeAttr(rawNew)}">
+            <span class="food-menu-suggestion-plus">+</span>
+            <span>Tambahkan “${escapeHtml(rawNew)}”</span>
+          </button>`
+        : '';
+      const existingHtml = available.map(item=>`<button type="button" class="food-menu-suggestion" data-menu-id="${escapeAttr(item.id)}">
+          <span>${escapeHtml(item.name)}</span>
+          <span class="food-menu-suggestion-hint">Pilih</span>
+        </button>`).join('');
+      suggestionsEl.innerHTML = existingHtml + newOption
+        || '<div class="food-menu-tag-empty">Tidak ada nama menu yang cocok.</div>';
+      suggestionsEl.querySelectorAll('[data-menu-id]').forEach(btn=>{
+        btn.onclick = ()=>{
+          const item = existingItems.find(x=> x.id === btn.dataset.menuId);
+          if(item) addItem(item);
+        };
+      });
+      const newBtn = suggestionsEl.querySelector('[data-new-name]');
+      if(newBtn) newBtn.onclick = ()=> addItem({name:newBtn.dataset.newName});
+    };
+
+    searchEl.oninput = renderSuggestions;
+    searchEl.onkeydown = (e)=>{
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      const q = normalizeMenuEntityName(searchEl.value);
+      if(!q) return;
+      const exact = existingItems.find(item=> item.normalizedName === q);
+      if(exact) addItem(exact);
+      else addItem({name:searchEl.value});
+    };
+    overlay.querySelector('#foodMenuTagCancel').onclick = ()=> closeWith(null);
+    confirmBtn.onclick = ()=> closeWith([...selected.values()]);
+    overlay.addEventListener('click', (e)=>{
+      if(e.target === overlay) closeWith(null);
+    });
+
+    renderSelected();
+    renderSuggestions();
+    setTimeout(()=> searchEl.focus(), 0);
+  });
+}
+
 function openDetail(id, showAllTesti){
   const r = allRestos[id];
   if(!r) return;
@@ -355,7 +484,7 @@ function openDetail(id, showAllTesti){
         <div class="reference-section-head">
           <div>
             <h4>Foto Makanan</h4>
-            <p>Foto hidangan yang dipesan pengunjung. Pengaitan dengan nama menu akan ditambahkan pada tahap berikutnya.</p>
+            <p>Foto hidangan yang dipesan pengunjung. Saat upload, nama menu dapat ditandai satu atau beberapa sekaligus.</p>
           </div>
           <span class="reference-count">${foodPhotos.length} foto</span>
         </div>
@@ -497,8 +626,47 @@ function openDetail(id, showAllTesti){
       showToast('Memeriksa wajah pada foto...');
       const blob = await prepareVisitPhotoBlob(file);
       if(!blob) return;
-      const ok = await uploadVisitPhotoBlob(blob, r.id, kind);
-      if(ok){ await loadAllRestos(); openDetail(id, showAllTesti); }
+
+      let selectedMenuItems = [];
+      if(kind === 'food'){
+        const picked = await openFoodPhotoMenuTagPicker(r, blob);
+        if(picked === null) return; // user membatalkan seluruh upload
+        selectedMenuItems = picked;
+      }
+
+      let canonicalMenuItems = [];
+      if(kind === 'food' && selectedMenuItems.length){
+        try{
+          for(const selected of selectedMenuItems){
+            if(selected.id){
+              canonicalMenuItems.push(selected);
+            }else{
+              const item = await ensureMenuItem(r.id, selected.name);
+              if(item) canonicalMenuItems.push(item);
+            }
+          }
+        }catch(error){
+          showToast('Gagal menyiapkan nama menu: ' + error.message);
+          return;
+        }
+      }
+
+      const uploaded = await uploadVisitPhotoBlob(blob, r.id, kind);
+      if(!uploaded) return;
+
+      if(kind === 'food' && canonicalMenuItems.length){
+        try{
+          await tagFoodPhotoMenuItems(uploaded.id, canonicalMenuItems.map(item=>item.id));
+          showToast(`Foto ditautkan ke ${canonicalMenuItems.length} menu`);
+        }catch(error){
+          // Foto tetap dipertahankan walau tagging gagal; user tidak perlu upload ulang foto.
+          showToast('Foto terunggah, tetapi tag menu gagal disimpan');
+          console.error('Gagal menyimpan tag menu foto:', error);
+        }
+      }
+
+      await loadAllRestos();
+      openDetail(id, showAllTesti);
     };
     cameraInput.onchange = handlePick;
     galleryInput.onchange = handlePick;
