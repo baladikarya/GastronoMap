@@ -294,9 +294,9 @@ function openDetail(id, showAllTesti){
           </div>
         </div>
         <div class="menu-recommend-list" id="favChipList">${(()=>{
-          const ranked = groupAndRankFavorites(favs);
+          const ranked = rankMenuRecommendations(r);
           return ranked.length
-            ? ranked.map((g,idx)=>`<div class="menu-recommend-row">
+            ? ranked.map((g,idx)=>`<div class="menu-recommend-row" ${g.menuItemId ? `data-menu-item-id="${escapeAttr(g.menuItemId)}"` : ''}>
                 <span class="menu-recommend-rank">${idx + 1}</span>
                 <span class="menu-recommend-name">${escapeHtml(g.canonical)}</span>
                 <span class="menu-recommend-count" title="Jumlah rekomendasi">👍 ${g.count}</span>
@@ -584,8 +584,12 @@ function openDetail(id, showAllTesti){
     const inp = document.getElementById('quickFavInput');
     const val = inp.value.trim();
     if(!val) return;
-    const { error } = await sb.from('favorite_menu').insert({resto_id: id, user_id: myUserId, menu_name: val});
-    if(error){ showToast('Gagal: ' + error.message); return; }
+    try{
+      await addMenuRecommendation(id, val);
+    }catch(error){
+      showToast('Gagal: ' + error.message);
+      return;
+    }
     showToast('Rekomendasi ditambahkan, terima kasih!');
     await loadAllRestos();
     openDetail(id, showAllTesti);
@@ -964,8 +968,13 @@ async function handleSave(){
     // (supaya jelas siapa penulisnya).
     if(!editingId){
       if(favMenus.length){
-        const { error } = await sb.from('favorite_menu').insert(favMenus.map(menu_name=>({resto_id: restoId, user_id: myUserId, menu_name})));
-        if(error) console.error(error);
+        for(const menuName of favMenus){
+          try{
+            await addMenuRecommendation(restoId, menuName);
+          }catch(error){
+            console.error('Gagal menyimpan rekomendasi menu:', error);
+          }
+        }
       }
       if(refUrlsRaw.length){
         const refRows = refUrlsRaw.map(rawUrl=>{
