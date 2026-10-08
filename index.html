@@ -467,8 +467,14 @@
   <div id="detailPanel" class="hidden">
     <button class="closeBtn" id="closeDetail">✕</button>
     <div id="detailHero">
-      <img id="detailHeroImg" src="" alt="">
-      <button type="button" class="detail-hero-back" id="detailHeroBackBtn" title="Kembali">‹</button>
+      <button type="button" class="detail-hero-media" id="detailHeroMediaBtn" aria-label="Buka foto restoran ukuran penuh">
+        <img id="detailHeroImg" src="" alt="">
+      </button>
+      <button type="button" class="detail-hero-back" id="detailHeroBackBtn" title="Kembali" aria-label="Kembali">‹</button>
+      <button type="button" class="detail-hero-prev" id="detailHeroPrevBtn" aria-label="Foto sebelumnya">‹</button>
+      <button type="button" class="detail-hero-next" id="detailHeroNextBtn" aria-label="Foto berikutnya">›</button>
+      <div class="detail-hero-progress" id="detailHeroProgress" aria-live="polite"></div>
+      <button type="button" class="detail-hero-count" id="detailHeroCountBtn" aria-label="Buka semua foto"></button>
       <button type="button" class="detail-hero-visit-btn" id="detailHeroVisitBtn"></button>
     </div>
     <div id="detailContent"></div>
