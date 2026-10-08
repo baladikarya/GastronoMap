@@ -247,7 +247,7 @@ function openDetail(id, showAllTesti){
           <div class="summary-info-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
           </div>
-          <div class="summary-info-label">Jam Buka</div>
+          <div class="summary-info-label">Jam Operasional</div>
           <div class="summary-info-value summary-hours-summary">
             ${r.hoursByDay && todayHours
               ? `<span class="summary-hours-today"><strong>${today}</strong><span>${todayHours.closed ? 'Tutup' : `${formatHour(todayHours.open)} – ${formatHour(todayHours.close)}`}</span></span>`
