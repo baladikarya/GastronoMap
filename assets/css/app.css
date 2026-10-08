@@ -996,8 +996,8 @@ body{
 .summary-platform-list{display:flex;align-items:center;flex-wrap:wrap;gap:5px;}
 .platform-chip.summary-platform-chip{
   min-height:25px;display:inline-flex;align-items:center;gap:4px;padding:4px 7px;
-  border-radius:999px;border:1px solid color-mix(in srgb,var(--platform-color) 55%,white);
-  background:color-mix(in srgb,var(--platform-color) 9%,white);color:var(--platform-color);
+  border-radius:999px;border:1px solid var(--platform-color);
+  background:#fff;color:var(--platform-color);
   font-family:'Work Sans',sans-serif;font-size:9.5px;font-weight:700;text-decoration:none;
   cursor:pointer;box-sizing:border-box;
 }
