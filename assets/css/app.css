@@ -810,8 +810,9 @@ body{
   box-shadow:0 2px 10px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:3;
 }
 .detail-hero-back{top:calc(12px + env(safe-area-inset-top));left:12px;width:36px;height:36px;font-size:22px;}
-.detail-hero-prev,.detail-hero-next{top:50%;transform:translateY(-50%);width:32px;height:32px;font-size:22px;opacity:.92;}
+.detail-hero-prev,.detail-hero-next{top:50%;transform:translateY(-50%);width:32px;height:32px;font-size:22px;opacity:0;transition:opacity .15s ease;}
 .detail-hero-prev{left:10px}.detail-hero-next{right:10px}
+#detailHero:hover .detail-hero-prev,#detailHero:hover .detail-hero-next{opacity:.92;}
 .detail-hero-progress{position:absolute;left:50%;bottom:13px;transform:translateX(-50%);display:flex;gap:5px;z-index:3;}
 .detail-hero-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.55);box-shadow:0 1px 3px rgba(0,0,0,.25);}
 .detail-hero-dot.active{width:16px;border-radius:8px;background:#fff;}
@@ -827,7 +828,10 @@ body{
 }
 .detail-hero-visit-btn.is-visited{background:#E4F3E0;color:#2E7D32;border-color:#CBE6C5;}
 
-#detailContent{overflow-y:auto;padding:16px 20px 90px 20px;}
+#detailContent{
+  position:relative;z-index:2;overflow-y:auto;background:var(--card);
+  margin-top:-8px;border-radius:16px 16px 0 0;padding:17px 18px 90px;
+}
 .visit-toggle-btn{
   flex-shrink:0;border:1px solid var(--line);background:var(--paper);color:var(--muted);
   border-radius:14px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
@@ -839,36 +843,81 @@ body{
   cursor:pointer;white-space:nowrap;display:flex;align-items:center;justify-content:center;
 }
 .wishlist-toggle-btn.is-wishlisted{background:#FCE4EC;border-color:#C2185B;color:#C2185B;}
-.detail-name{font-family:'Fraunces',serif;font-size:22px;font-weight:600;margin:0 0 6px 0;}
-.verified-badge{
-  display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
-  width:18px;height:18px;border-radius:50%;background:#1877F2;color:#fff;
-  font-size:11px;font-weight:900;line-height:1;margin-left:6px;
+
+.detail-header-summary{padding:0 0 2px;}
+.detail-title-row{display:flex;align-items:center;min-width:0;}
+.detail-name{
+  display:flex;align-items:center;min-width:0;font-family:'Fraunces',serif;
+  font-size:22px;line-height:1.2;font-weight:700;margin:0;color:var(--ink);
 }
+.verified-badge{
+  display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;flex:0 0 auto;
+  width:18px;height:18px;border-radius:50%;background:#2F6DF6;color:#fff;
+  font-family:'Work Sans',sans-serif;font-size:11px;font-weight:900;line-height:1;margin-left:6px;
+}
+.detail-meta-row{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;
+  color:#5E625F;font-size:12.5px;line-height:1.35;
+}
+.detail-meta-row strong{font-size:14px;color:var(--ink);}
+.detail-rating-star{color:#F4A51C;font-size:17px;line-height:1;}
+.detail-review-count{color:#6D716E;}
+.detail-meta-sep{color:#A1A4A2;}
+.detail-price-level{letter-spacing:.04em;color:#5D625F;}
+.detail-meta-empty{color:var(--muted);}
+
 .admin-verify-row{margin-top:8px;}
 .admin-verify-row .btn{width:100%;}
 .btn-verify-on{background:#1877F2;color:#fff;}
 .btn-verify-off{background:var(--paper);color:var(--muted);border:1px solid var(--line);}
 
-/* Pill status buka/tutup, sejajar dengan nama resto di ujung form */
+/* Status buka/tutup seperti referensi: badge + keterangan jam hari ini */
+.detail-open-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px;}
 .detail-pill{
-  padding:4px 10px;border-radius:12px;background:var(--paper);border:1px solid var(--line);
-  font-size:11.5px;font-weight:700;color:var(--ink);white-space:nowrap;flex-shrink:0;
+  display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;
+  border:0;font-size:11.5px;font-weight:700;white-space:nowrap;flex-shrink:0;
 }
-.detail-pill.open-yes{background:#E4F3E0;border-color:#2E7D32;color:#2E7D32;}
-.detail-pill.open-no{background:#FBE4E1;border-color:var(--red);color:var(--red);}
+.detail-status-dot{
+  width:14px;height:14px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:900;background:currentColor;color:#fff;
+}
+.detail-pill.open-yes{background:#DDF7E7;color:#23A35A;}
+.detail-pill.open-yes .detail-status-dot{background:#23A35A;color:#fff;}
+.detail-pill.open-no{background:#FDE7E4;color:#D94C41;}
+.detail-pill.open-no .detail-status-dot{background:#D94C41;color:#fff;}
+.detail-open-detail{font-size:11.5px;color:#686D69;}
+.detail-open-detail::first-letter{color:#2FA66A;}
 
-/* 4 tombol aksi utama: Rute / Telepon / Wishlist / Laporkan */
-.detail-cta-row{display:flex;gap:8px;margin:14px 0 4px;}
+/* 4 CTA utama mengikuti proporsi dan hierarki pada referensi */
+.detail-cta-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:17px 0 4px;}
 .detail-cta-btn{
-  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px;
-  border-radius:12px;border:1.5px solid var(--line);background:var(--card);cursor:pointer;
-  font-family:'Work Sans',sans-serif;font-size:11px;font-weight:700;color:var(--ink);
+  min-width:0;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;padding:8px 3px;border-radius:10px;border:1px solid #DEE2E0;background:#fff;cursor:pointer;
+  box-shadow:0 1px 2px rgba(22,56,42,.04);
+  font-family:'Work Sans',sans-serif;font-size:10.5px;font-weight:600;color:#303533;
+  transition:transform .12s ease,background .12s ease,border-color .12s ease;
 }
-.detail-cta-btn .cta-icon{font-size:16px;}
-.detail-cta-btn.cta-primary{background:var(--ink);border-color:var(--ink);color:#fff;}
-.detail-cta-btn.cta-active{background:#FCE4EC;border-color:#C2185B;color:#C2185B;}
-.detail-cta-btn:disabled{opacity:0.45;filter:grayscale(1);cursor:not-allowed;}
+.detail-cta-btn:active{transform:scale(.97);}
+.detail-cta-icon{
+  width:21px;height:21px;display:block;fill:none;stroke:currentColor;stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.detail-cta-btn.cta-primary{
+  background:#2F6DF6;border-color:#2F6DF6;color:#fff;
+  box-shadow:0 5px 12px rgba(47,109,246,.22);
+}
+.detail-cta-btn.cta-wishlist{color:#E14B32;}
+.detail-cta-btn.cta-wishlist .detail-heart-icon{fill:currentColor;stroke:currentColor;}
+.detail-cta-btn.cta-wishlist.cta-active{background:#FFF1EF;border-color:#F5BBB2;color:#D93B29;}
+.detail-cta-btn:disabled{opacity:.38;filter:grayscale(1);cursor:not-allowed;box-shadow:none;}
+
+.review-aggregate{
+  margin:0 0 16px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);
+}
+.review-aggregate-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px;}
+.review-aggregate-head div{display:flex;align-items:baseline;gap:3px;}
+.review-aggregate-head strong{font-family:'Fraunces',serif;font-size:24px;color:var(--ink);}
+.review-aggregate-head div span,.review-aggregate-head>span{font-size:11.5px;color:var(--muted);}
 
 /* Tab Ringkasan / Menu / Ulasan / Foto */
 .detail-tabs{
@@ -914,7 +963,8 @@ body{
 }
 @media(max-width:759px){
   #detailPanel{left:0;right:0;top:0;bottom:0;border-radius:0;}
-  #detailHero{height:38vh;min-height:200px;}
+  #detailHero{height:250px;min-height:220px;max-height:34vh;}
+  .detail-hero-prev,.detail-hero-next{display:none;}
 }
 
 /* ---------- MODAL FORM ---------- */
