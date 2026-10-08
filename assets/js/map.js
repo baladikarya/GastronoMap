@@ -1066,7 +1066,7 @@ async function refreshAllData(){
 
 async function loadAllRestos(){
   try{
-    const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}, {data: menuPhotoRows}, {data: menuItemRows}, {data: profileRows}] = await Promise.all([
+    const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}, {data: menuPhotoRows}, {data: menuItemRows}, {data: foodPhotoTagRows}, {data: profileRows}] = await Promise.all([
       sb.from('restos').select('*'),
       sb.from('ratings').select('*'),
       sb.from('testimonials').select('*'),
@@ -1075,6 +1075,7 @@ async function loadAllRestos(){
       sb.from('visit_photos').select('*'),
       sb.from('menu_photos').select('*'),
       sb.from('menu_items').select('id, resto_id, name, normalized_name, created_by, created_at'),
+      sb.from('food_photo_menu_tags').select('photo_id, menu_item_id, tagged_by, created_at'),
       sb.from('public_contributor_profiles').select('id, username')
     ]);
     profilesMap = {};
@@ -1128,9 +1129,24 @@ async function loadAllRestos(){
       const r = allRestos[row.resto_id]; if(!r) return;
       r.references.push({id: row.id, url: row.url, platform: row.platform, userId: row.user_id, at: new Date(row.created_at).getTime()});
     });
+    const visitPhotoById = new Map();
     (photoRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
-      r.photos.push({id: row.id, storagePath: row.storage_path, userId: row.user_id, at: new Date(row.created_at).getTime()});
+      const photo = {
+        id: row.id,
+        restoId: row.resto_id,
+        storagePath: row.storage_path,
+        userId: row.user_id,
+        at: new Date(row.created_at).getTime(),
+        menuItemIds: []
+      };
+      r.photos.push(photo);
+      visitPhotoById.set(photo.id, photo);
+    });
+    (foodPhotoTagRows||[]).forEach(row=>{
+      const photo = visitPhotoById.get(row.photo_id);
+      if(!photo) return;
+      if(!photo.menuItemIds.includes(row.menu_item_id)) photo.menuItemIds.push(row.menu_item_id);
     });
     (menuPhotoRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
@@ -1535,7 +1551,13 @@ function visitPhotoCaptionFromList(photos, idx){
   const isMine = p.userId === myUserId;
   const name = isMine ? 'Anda' : (profilesMap[p.userId] || 'Pengguna');
   const dateStr = p.at ? new Date(p.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
-  return `<b>${escapeHtml(name)}</b>${dateStr ? ' · ' + dateStr : ''}`;
+  const resto = p.restoId ? allRestos[p.restoId] : null;
+  const itemById = new Map((resto && resto.menuItems || []).map(item=> [item.id, item]));
+  const taggedNames = (p.menuItemIds || []).map(id=> itemById.get(id)?.name).filter(Boolean);
+  const menuHtml = taggedNames.length
+    ? `<span class="photo-lightbox-menu-tags">Menu: ${taggedNames.map(escapeHtml).join(' · ')}</span>`
+    : '';
+  return `<b>${escapeHtml(name)}</b>${dateStr ? ' · ' + dateStr : ''}${menuHtml}`;
 }
 function visitPhotoCaption(idx){
   return visitPhotoCaptionFromList(currentDetailPhotos, idx);
@@ -1788,14 +1810,37 @@ async function uploadVisitPhotoBlob(blob, restoId, category='general'){
     const path = `${safeCategory}/${restoId}/${myUserId}_${Date.now()}.jpg`;
     const { error: upErr } = await sb.storage.from('visit-photos').upload(path, blob, { contentType: 'image/jpeg' });
     if(upErr) throw upErr;
-    const { error: insErr } = await sb.from('visit_photos').insert({ resto_id: restoId, user_id: myUserId, storage_path: path });
+    const { data: inserted, error: insErr } = await sb.from('visit_photos')
+      .insert({ resto_id: restoId, user_id: myUserId, storage_path: path })
+      .select('id, resto_id, user_id, storage_path, created_at')
+      .single();
     if(insErr) throw insErr;
     showToast('Foto berhasil diunggah');
-    return true;
+    return {
+      id: inserted.id,
+      restoId: inserted.resto_id,
+      userId: inserted.user_id,
+      storagePath: inserted.storage_path,
+      at: inserted.created_at ? new Date(inserted.created_at).getTime() : Date.now(),
+      menuItemIds: []
+    };
   }catch(e){
     showToast('Gagal unggah: ' + e.message);
     return false;
   }
+}
+
+async function tagFoodPhotoMenuItems(photoId, menuItemIds){
+  const ids = [...new Set((menuItemIds || []).filter(Boolean))];
+  if(!photoId || ids.length === 0) return true;
+  const rows = ids.map(menuItemId=>({
+    photo_id: photoId,
+    menu_item_id: menuItemId,
+    tagged_by: myUserId
+  }));
+  const { error } = await sb.from('food_photo_menu_tags').insert(rows);
+  if(error) throw error;
+  return true;
 }
 async function deleteVisitPhoto(photoId, storagePath){
   try{
