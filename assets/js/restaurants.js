@@ -21,10 +21,12 @@ function buildCombinedReviews(r){
     const createdAtCandidates = [rating?.createdAt, testimonial?.createdAt].filter(v=> Number.isFinite(v) && v > 0);
     const createdAt = createdAtCandidates.length ? Math.min(...createdAtCandidates) : 0;
     const editedCandidates = [];
-    if(rating && rating.updatedAt && rating.createdAt && rating.updatedAt > rating.createdAt){
+    // Toleransi 1 detik mencegah row lama yang created_at/updated_at-nya berbeda
+    // beberapa milidetik saat insert dianggap sebagai hasil edit.
+    if(rating && rating.updatedAt && rating.createdAt && rating.updatedAt - rating.createdAt > 1000){
       editedCandidates.push(rating.updatedAt);
     }
-    if(testimonial && testimonial.updatedAt && testimonial.createdAt && testimonial.updatedAt > testimonial.createdAt){
+    if(testimonial && testimonial.updatedAt && testimonial.createdAt && testimonial.updatedAt - testimonial.createdAt > 1000){
       editedCandidates.push(testimonial.updatedAt);
     }
     const editedAt = editedCandidates.length ? Math.max(...editedCandidates) : 0;
