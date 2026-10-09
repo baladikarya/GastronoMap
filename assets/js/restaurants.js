@@ -17,11 +17,25 @@ function buildCombinedReviews(r){
     const overall = rating && typeof rating.overall === 'number'
       ? rating.overall
       : (criteriaVals.length ? criteriaVals.reduce((a,b)=>a+b,0) / criteriaVals.length : null);
+
+    const createdAtCandidates = [rating?.createdAt, testimonial?.createdAt].filter(v=> Number.isFinite(v) && v > 0);
+    const createdAt = createdAtCandidates.length ? Math.min(...createdAtCandidates) : 0;
+    const editedCandidates = [];
+    if(rating && rating.updatedAt && rating.createdAt && rating.updatedAt > rating.createdAt){
+      editedCandidates.push(rating.updatedAt);
+    }
+    if(testimonial && testimonial.updatedAt && testimonial.createdAt && testimonial.updatedAt > testimonial.createdAt){
+      editedCandidates.push(testimonial.updatedAt);
+    }
+    const editedAt = editedCandidates.length ? Math.max(...editedCandidates) : 0;
+
     return {
       userId,
       rating,
       testimonial,
       overall,
+      createdAt,
+      editedAt,
       at: Math.max(rating?.at || 0, testimonial?.at || 0)
     };
   }).sort((a,b)=> (b.at || 0) - (a.at || 0));
@@ -39,31 +53,38 @@ function reviewListHtml(r, showAll){
   let html = visible.map(review=>{
     const mine = review.userId === myUserId;
     const displayName = mine ? 'Anda' : (profilesMap[review.userId] || 'Pengguna');
-    const dateStr = review.at ? new Date(review.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
+    const dateBase = review.createdAt || review.at;
+    const dateStr = dateBase ? new Date(dateBase).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
+    const editedStr = review.editedAt
+      ? new Date(review.editedAt).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'})
+      : '';
     const overallHtml = typeof review.overall === 'number'
       ? `<div class="review-card-rating"><span aria-hidden="true">★</span><strong>${review.overall.toFixed(1)}</strong></div>`
       : '';
     const textHtml = review.testimonial && review.testimonial.text
       ? `<div class="review-card-text">${escapeHtml(review.testimonial.text)}</div>`
       : '<div class="review-card-text review-card-text-muted">Memberikan rating tanpa ulasan tertulis.</div>';
-    const criteriaHtml = review.rating
-      ? `<div class="review-card-criteria">${RATING_CRITERIA.map(c=>{
-          const value = review.rating[c.key];
-          if(typeof value !== 'number') return '';
-          return `<span><b>${escapeHtml(c.label)}</b> ${value.toFixed(1)}</span>`;
-        }).join('')}</div>`
+    const moderationBtn = isAdmin
+      ? `<button type="button" class="review-admin-menu-btn" data-review-user-id="${escapeAttr(review.userId)}" title="Kelola ulasan" aria-label="Kelola ulasan">•••</button>`
       : '';
-    return `<article class="review-card${mine ? ' is-mine' : ''}">
+    const editedHtml = editedStr
+      ? `<div class="review-edited-note">(Edited ${escapeHtml(editedStr)})</div>`
+      : '';
+
+    return `<article class="review-card${mine ? ' is-mine' : ''}" data-review-user-id="${escapeAttr(review.userId)}">
       <div class="review-card-head">
         <div class="review-avatar" aria-hidden="true">${escapeHtml(reviewInitials(displayName))}</div>
         <div class="review-card-author">
           <strong>${escapeHtml(displayName)}</strong>
           <span>${dateStr || 'Tanggal tidak tersedia'}${mine ? ' · Ulasan Anda' : ''}</span>
         </div>
-        ${overallHtml}
+        <div class="review-card-head-actions">
+          ${overallHtml}
+          ${moderationBtn}
+        </div>
       </div>
       ${textHtml}
-      ${criteriaHtml}
+      ${editedHtml}
     </article>`;
   }).join('');
   if(!showAll && reviews.length > 3){
