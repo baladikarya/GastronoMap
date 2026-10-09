@@ -1109,13 +1109,17 @@ async function loadAllRestos(){
     });
     (ratingsRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
-      const entry = {userId: row.user_id, overall: row.overall, at: new Date(row.created_at).getTime()};
+      const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0;
+      const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : createdAt;
+      const entry = {userId: row.user_id, overall: row.overall, createdAt, updatedAt, at: updatedAt || createdAt};
       RATING_CRITERIA.forEach(c=>{ entry[c.key] = row[c.key]; });
       r.ratings.push(entry);
     });
     (testiRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
-      r.testimonials.push({userId: row.user_id, text: row.text, at: new Date(row.updated_at || row.created_at).getTime()});
+      const createdAt = row.created_at ? new Date(row.created_at).getTime() : 0;
+      const updatedAt = row.updated_at ? new Date(row.updated_at).getTime() : createdAt;
+      r.testimonials.push({userId: row.user_id, text: row.text, createdAt, updatedAt, at: updatedAt || createdAt});
     });
     (menuItemRows||[]).forEach(row=>{
       const r = allRestos[row.resto_id]; if(!r) return;
