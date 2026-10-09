@@ -93,6 +93,52 @@ function reviewListHtml(r, showAll){
   return html;
 }
 
+function openAdminReviewAction(r, reviewUserId, showAllReviews){
+  if(!isAdmin || !reviewUserId) return;
+  const mine = reviewUserId === myUserId;
+  const displayName = mine ? 'ulasan Anda' : `ulasan ${profilesMap[reviewUserId] || 'pengguna ini'}`;
+  const previous = document.getElementById('reviewAdminActionOverlay');
+  if(previous) previous.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'reviewAdminActionOverlay';
+  overlay.className = 'review-admin-action-overlay';
+  overlay.innerHTML = `
+    <div class="review-admin-action-sheet" role="dialog" aria-modal="true" aria-labelledby="reviewAdminActionTitle">
+      <div class="food-menu-tag-handle" aria-hidden="true"></div>
+      <h3 id="reviewAdminActionTitle">Kelola Ulasan</h3>
+      <p>Admin hanya dapat menghapus ulasan pengguna lain, bukan mengedit isinya.</p>
+      <button type="button" class="review-admin-delete-btn" id="reviewAdminDeleteBtn">
+        <strong>Hapus Ulasan</strong>
+        <span>Rating dan ulasan tertulis akan dihapus sekaligus.</span>
+      </button>
+      <button type="button" class="btn btn-secondary review-admin-cancel-btn" id="reviewAdminCancelBtn">Batal</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const close = ()=> overlay.remove();
+  overlay.querySelector('#reviewAdminCancelBtn').onclick = close;
+  overlay.addEventListener('click', e=>{ if(e.target === overlay) close(); });
+  overlay.querySelector('#reviewAdminDeleteBtn').onclick = async ()=>{
+    if(!confirm(`Hapus ${displayName}? Rating dan ulasan tertulis akan dihapus. Tindakan ini tidak dapat dibatalkan.`)) return;
+    try{
+      const { error } = await sb.rpc('admin_delete_review', {
+        p_resto_id: r.id,
+        p_user_id: reviewUserId
+      });
+      if(error) throw error;
+      close();
+      showToast('Ulasan berhasil dihapus');
+      await loadAllRestos();
+      openDetail(r.id, showAllReviews);
+      activateDetailTab('ulasan');
+    }catch(error){
+      showToast('Gagal menghapus ulasan: ' + error.message);
+    }
+  };
+}
+
 function reviewAggregateHtml(summary){
   if(!summary.overallCount){
     return `<section class="review-summary-card is-empty">
@@ -1220,6 +1266,12 @@ function openDetail(id, showAllTesti){
     openDetail(id, true);
     activateDetailTab('ulasan');
   };
+  document.querySelectorAll('.review-admin-menu-btn[data-review-user-id]').forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      openAdminReviewAction(r, btn.dataset.reviewUserId, showAllTesti);
+    };
+  });
 
   const reviewComposer = document.getElementById('reviewComposer');
   const reviewComposerToggle = document.getElementById('reviewComposerToggle');
@@ -1284,6 +1336,11 @@ function openDetail(id, showAllTesti){
     }
 
     const textValue = reviewTextInput ? reviewTextInput.value.trim() : '';
+    if(myTestiEntry && !textValue){
+      showToast('Ulasan tertulis yang sudah dibuat tidak bisa dikosongkan. Edit isinya, atau admin dapat menghapus seluruh ulasan.');
+      if(reviewTextInput) reviewTextInput.focus();
+      return;
+    }
     const critValues = RATING_CRITERIA.map(c=>ratingDraft[c.key]);
     const overall = critValues.reduce((a,b)=>a+b,0) / critValues.length;
     const ratingRow = {resto_id:id, user_id:myUserId, overall};
@@ -1301,16 +1358,9 @@ function openDetail(id, showAllTesti){
         const { error: testiError } = await sb.from('testimonials').upsert({
           resto_id:id,
           user_id:myUserId,
-          text:textValue,
-          updated_at:new Date().toISOString()
+          text:textValue
         });
         if(testiError) throw testiError;
-      }else if(myTestiEntry){
-        const { error: deleteError } = await sb.from('testimonials')
-          .delete()
-          .eq('resto_id', id)
-          .eq('user_id', myUserId);
-        if(deleteError) throw deleteError;
       }
 
       showToast(myRatingEntry || myTestiEntry ? 'Ulasan Anda diperbarui' : 'Ulasan berhasil dikirim');
