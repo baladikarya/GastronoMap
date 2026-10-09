@@ -1846,3 +1846,50 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   .review-star-picker{justify-content:flex-end;}
   .review-star-picker button{width:24px;font-size:20px;}
 }
+
+
+/* ---------- REVIEW CARD: moderation + edit note ---------- */
+.review-card-head-actions{
+  display:flex;align-items:center;gap:6px;justify-self:end;
+}
+.review-admin-menu-btn{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  padding:0 0 5px;border:1px solid #E7EAE8;border-radius:8px;background:#fff;
+  color:var(--muted);font-size:13px;font-weight:800;letter-spacing:-1px;cursor:pointer;
+}
+.review-admin-menu-btn:hover{background:var(--paper);color:var(--ink);}
+.review-admin-menu-btn:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+.review-edited-note{
+  margin-top:8px;color:var(--muted);font-size:9.8px;font-style:italic;
+}
+.review-card-criteria{display:none;}
+
+.review-admin-action-overlay{
+  position:fixed;inset:0;z-index:5560;
+  display:flex;align-items:flex-end;justify-content:center;
+  padding:18px 12px calc(18px + env(safe-area-inset-bottom));
+  background:rgba(20,27,24,.48);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+.review-admin-action-sheet{
+  width:min(480px,100%);padding:10px 14px 14px;border-radius:20px;
+  background:var(--card);box-shadow:0 20px 55px rgba(20,27,24,.28);
+}
+.review-admin-action-sheet h3{
+  margin:2px 0 4px;font-family:'Work Sans',sans-serif;font-size:15px;color:var(--ink);
+}
+.review-admin-action-sheet > p{
+  margin:0 0 11px;color:var(--muted);font-size:10.8px;line-height:1.45;
+}
+.review-admin-delete-btn{
+  width:100%;display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  padding:11px 10px;border:1px solid #F0D8D5;border-radius:10px;
+  background:#FFF8F7;color:#B42318;text-align:left;cursor:pointer;
+}
+.review-admin-delete-btn:hover{background:#FFF2F0;}
+.review-admin-delete-btn strong{font-size:12.5px;}
+.review-admin-delete-btn span{font-size:10.3px;line-height:1.35;color:#8E4A43;}
+.review-admin-cancel-btn{width:100%;margin-top:8px;}
+@media(min-width:760px){
+  .review-admin-action-overlay{align-items:center;}
+}
