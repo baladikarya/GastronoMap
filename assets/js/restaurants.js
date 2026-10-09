@@ -1,24 +1,106 @@
 /* ================= DETAIL PANEL ================= */
-function testimoniListHtml(r, showAll){
-  const items = [];
-  if(r.description) items.push({text:r.description, at:null, legacy:true});
-  (r.testimonials||[]).forEach(t=> items.push(t));
-  if(items.length === 0){
-    return '<span style="color:var(--muted);font-size:12.5px;">Belum ada testimoni. Ceritakan pengalaman Anda!</span>';
+function reviewInitials(name){
+  const clean = String(name || 'Pengguna').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] || 'P') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+function buildCombinedReviews(r){
+  const ratingByUser = new Map((r.ratings || []).filter(x=>x.userId).map(x=>[x.userId, x]));
+  const testiByUser = new Map((r.testimonials || []).filter(x=>x.userId).map(x=>[x.userId, x]));
+  const userIds = new Set([...ratingByUser.keys(), ...testiByUser.keys()]);
+  return [...userIds].map(userId=>{
+    const rating = ratingByUser.get(userId) || null;
+    const testimonial = testiByUser.get(userId) || null;
+    const criteriaVals = RATING_CRITERIA.map(c=> rating && typeof rating[c.key] === 'number' ? rating[c.key] : null)
+      .filter(v=> typeof v === 'number');
+    const overall = rating && typeof rating.overall === 'number'
+      ? rating.overall
+      : (criteriaVals.length ? criteriaVals.reduce((a,b)=>a+b,0) / criteriaVals.length : null);
+    return {
+      userId,
+      rating,
+      testimonial,
+      overall,
+      at: Math.max(rating?.at || 0, testimonial?.at || 0)
+    };
+  }).sort((a,b)=> (b.at || 0) - (a.at || 0));
+}
+
+function reviewListHtml(r, showAll){
+  const reviews = buildCombinedReviews(r);
+  if(!reviews.length){
+    return `<div class="review-empty-state">
+      <strong>Belum ada ulasan</strong>
+      <span>Jadilah yang pertama membagikan penilaian dan pengalaman di tempat ini.</span>
+    </div>`;
   }
-  const sorted = items.slice().sort((a,b)=> (b.at||0) - (a.at||0));
-  const visible = showAll ? sorted : sorted.slice(0, 2);
-  let html = visible.map(t=>{
-    const dateStr = t.at ? new Date(t.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
-    const mine = t.userId && t.userId === myUserId;
-    const authorName = mine ? 'Anda' : (t.userId && profilesMap[t.userId]) ? profilesMap[t.userId] : (t.legacy ? null : 'Pengguna');
-    const authorHtml = authorName ? `<b>${escapeHtml(authorName)}</b>${dateStr ? ' · ' : ''}` : '';
-    return `<div class="testi-item${mine ? ' testi-mine' : ''}">${escapeHtml(t.text)}${(authorHtml || dateStr) ? `<span class="testi-date">${authorHtml}${dateStr}</span>` : ''}</div>`;
+  const visible = showAll ? reviews : reviews.slice(0, 3);
+  let html = visible.map(review=>{
+    const mine = review.userId === myUserId;
+    const displayName = mine ? 'Anda' : (profilesMap[review.userId] || 'Pengguna');
+    const dateStr = review.at ? new Date(review.at).toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'}) : '';
+    const overallHtml = typeof review.overall === 'number'
+      ? `<div class="review-card-rating"><span aria-hidden="true">★</span><strong>${review.overall.toFixed(1)}</strong></div>`
+      : '';
+    const textHtml = review.testimonial && review.testimonial.text
+      ? `<div class="review-card-text">${escapeHtml(review.testimonial.text)}</div>`
+      : '<div class="review-card-text review-card-text-muted">Memberikan rating tanpa ulasan tertulis.</div>';
+    const criteriaHtml = review.rating
+      ? `<div class="review-card-criteria">${RATING_CRITERIA.map(c=>{
+          const value = review.rating[c.key];
+          if(typeof value !== 'number') return '';
+          return `<span><b>${escapeHtml(c.label)}</b> ${value.toFixed(1)}</span>`;
+        }).join('')}</div>`
+      : '';
+    return `<article class="review-card${mine ? ' is-mine' : ''}">
+      <div class="review-card-head">
+        <div class="review-avatar" aria-hidden="true">${escapeHtml(reviewInitials(displayName))}</div>
+        <div class="review-card-author">
+          <strong>${escapeHtml(displayName)}</strong>
+          <span>${dateStr || 'Tanggal tidak tersedia'}${mine ? ' · Ulasan Anda' : ''}</span>
+        </div>
+        ${overallHtml}
+      </div>
+      ${textHtml}
+      ${criteriaHtml}
+    </article>`;
   }).join('');
-  if(!showAll && sorted.length > 2){
-    html += `<div class="testi-more" id="testiShowMoreBtn">Lihat semua ${sorted.length} testimoni</div>`;
+  if(!showAll && reviews.length > 3){
+    html += `<button type="button" class="review-show-more" id="testiShowMoreBtn">Lihat semua ${reviews.length} ulasan</button>`;
   }
   return html;
+}
+
+function reviewAggregateHtml(summary){
+  if(!summary.overallCount){
+    return `<section class="review-summary-card is-empty">
+      <div class="review-summary-empty-icon" aria-hidden="true">★</div>
+      <div>
+        <strong>Belum ada rating</strong>
+        <span>Rating akan muncul setelah pengunjung memberikan penilaian.</span>
+      </div>
+    </section>`;
+  }
+  return `<section class="review-summary-card">
+    <div class="review-score-block">
+      <div class="review-score-main"><strong>${summary.overall.toFixed(1)}</strong><span>/5</span></div>
+      <div class="review-score-stars">${renderStars(summary.overall)}</div>
+      <span class="review-score-count">${summary.overallCount} ulasan</span>
+    </div>
+    <div class="review-criteria-summary">
+      ${RATING_CRITERIA.map(c=>{
+        const data = summary.byCriteria[c.key];
+        const hasValue = data && data.count > 0;
+        const avg = hasValue ? data.avg : 0;
+        return `<div class="review-criteria-row">
+          <span class="review-criteria-name">${escapeHtml(c.label)}</span>
+          <span class="review-criteria-track"><span style="width:${(avg/5*100).toFixed(1)}%"></span></span>
+          <strong>${hasValue ? avg.toFixed(1) : '—'}</strong>
+        </div>`;
+      }).join('')}
+    </div>
+  </section>`;
 }
 
 function openFoodPhotoMenuTagPicker(r, options={}){
