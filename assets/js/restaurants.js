@@ -1195,50 +1195,112 @@ function openDetail(id, showAllTesti){
     activateDetailTab('menu');
   };
   const showMoreBtn = document.getElementById('testiShowMoreBtn');
-  if(showMoreBtn) showMoreBtn.onclick = ()=> openDetail(id, true);
-  document.getElementById('quickTestiBtn').onclick = async ()=>{
-    if(!requireLogin()) return;
-    const inp = document.getElementById('quickTestiInput');
-    const val = inp.value.trim();
-    if(!val) return;
-    const { error } = await sb.from('testimonials').upsert({resto_id: id, user_id: myUserId, text: val, updated_at: new Date().toISOString()});
-    if(error){ showToast('Gagal: ' + error.message); return; }
-    showToast(myTestiEntry ? 'Testimoni Anda diperbarui' : 'Testimoni ditambahkan, terima kasih!');
-    await loadAllRestos();
+  if(showMoreBtn) showMoreBtn.onclick = ()=>{
     openDetail(id, true);
+    activateDetailTab('ulasan');
   };
 
+  const reviewComposer = document.getElementById('reviewComposer');
+  const reviewComposerToggle = document.getElementById('reviewComposerToggle');
+  const cancelReviewBtn = document.getElementById('cancelReviewBtn');
+  const submitReviewBtn = document.getElementById('submitReviewBtn');
+  const reviewTextInput = document.getElementById('reviewTextInput');
   const ratingDraft = {};
-  document.querySelectorAll('#ratingSection .star-picker').forEach(picker=>{
+
+  const setReviewComposerOpen = (open)=>{
+    if(!reviewComposer) return;
+    reviewComposer.classList.toggle('hidden', !open);
+    if(reviewComposerToggle){
+      reviewComposerToggle.textContent = open ? 'Tutup' : (myRatingEntry || myTestiEntry ? 'Edit Ulasan' : 'Tulis Ulasan');
+      reviewComposerToggle.setAttribute('aria-expanded', String(open));
+    }
+    if(open){
+      setTimeout(()=>{
+        const firstUnset = RATING_CRITERIA.find(c=> !ratingDraft[c.key]);
+        const target = firstUnset
+          ? document.querySelector(`.review-star-picker[data-crit="${firstUnset.key}"] button`)
+          : reviewTextInput;
+        if(target) target.focus({preventScroll:true});
+      }, 0);
+    }
+  };
+
+  document.querySelectorAll('#ratingSection .review-star-picker').forEach(picker=>{
     const crit = picker.dataset.crit;
-    ratingDraft[crit] = myRatingEntry && myRatingEntry[crit] ? myRatingEntry[crit] : 0;
-    picker.querySelectorAll('span').forEach(star=>{
+    ratingDraft[crit] = myRatingEntry && typeof myRatingEntry[crit] === 'number' ? myRatingEntry[crit] : 0;
+    picker.querySelectorAll('button').forEach(star=>{
       star.onclick = ()=>{
-        const v = Number(star.dataset.v);
-        ratingDraft[crit] = v;
-        picker.querySelectorAll('span').forEach(s=> s.classList.toggle('filled', Number(s.dataset.v) <= v));
+        const value = Number(star.dataset.v);
+        ratingDraft[crit] = value;
+        picker.querySelectorAll('button').forEach(btn=>{
+          const active = Number(btn.dataset.v) <= value;
+          btn.classList.toggle('filled', active);
+          btn.setAttribute('aria-pressed', String(Number(btn.dataset.v) === value));
+        });
+        const valueEl = document.querySelector(`[data-rating-value="${crit}"]`);
+        if(valueEl) valueEl.textContent = value.toFixed(1);
       };
     });
   });
-  document.getElementById('submitRatingBtn').onclick = async ()=>{
+
+  if(reviewComposerToggle){
+    reviewComposerToggle.setAttribute('aria-expanded', 'false');
+    reviewComposerToggle.onclick = ()=>{
+      if(!requireLogin()) return;
+      setReviewComposerOpen(reviewComposer.classList.contains('hidden'));
+    };
+  }
+  if(cancelReviewBtn) cancelReviewBtn.onclick = ()=> setReviewComposerOpen(false);
+
+  if(submitReviewBtn) submitReviewBtn.onclick = async ()=>{
     if(!requireLogin()) return;
-    const belumDiisi = RATING_CRITERIA.filter(c => !ratingDraft[c.key]);
-    if(belumDiisi.length > 0){
-      showToast('Isi rating untuk: ' + belumDiisi.map(c=>c.label).join(', '));
+    const missing = RATING_CRITERIA.filter(c=> !ratingDraft[c.key]);
+    if(missing.length){
+      showToast('Lengkapi rating: ' + missing.map(c=>c.label).join(', '));
+      const first = document.querySelector(`.review-star-picker[data-crit="${missing[0].key}"] button`);
+      if(first) first.focus();
       return;
     }
-    // Rating keseluruhan = rata-rata dari 5 kriteria (harga, porsi, rasa, suasana, pelayanan),
-    // dihitung otomatis di sini per-user, lalu dirata-rata lagi antar semua user di computeRatingSummary().
-    const critValues = RATING_CRITERIA.map(c => ratingDraft[c.key]);
+
+    const textValue = reviewTextInput ? reviewTextInput.value.trim() : '';
+    const critValues = RATING_CRITERIA.map(c=>ratingDraft[c.key]);
     const overall = critValues.reduce((a,b)=>a+b,0) / critValues.length;
-    const row = {resto_id: id, user_id: myUserId, overall};
-    RATING_CRITERIA.forEach(c=>{ row[c.key] = ratingDraft[c.key]; });
-    const { error } = await sb.from('ratings').upsert(row);
-    if(error){ showToast('Gagal: ' + error.message); return; }
-    showToast(myRatingEntry ? 'Rating Anda diperbarui' : 'Terima kasih atas rating-nya!');
-    await loadAllRestos();
-    openDetail(id, showAllTesti);
+    const ratingRow = {resto_id:id, user_id:myUserId, overall};
+    RATING_CRITERIA.forEach(c=>{ ratingRow[c.key] = ratingDraft[c.key]; });
+
+    submitReviewBtn.disabled = true;
+    submitReviewBtn.textContent = 'Menyimpan...';
+    try{
+      const { error: ratingError } = await sb.from('ratings').upsert(ratingRow);
+      if(ratingError) throw ratingError;
+
+      if(textValue){
+        const { error: testiError } = await sb.from('testimonials').upsert({
+          resto_id:id,
+          user_id:myUserId,
+          text:textValue,
+          updated_at:new Date().toISOString()
+        });
+        if(testiError) throw testiError;
+      }else if(myTestiEntry){
+        const { error: deleteError } = await sb.from('testimonials')
+          .delete()
+          .eq('resto_id', id)
+          .eq('user_id', myUserId);
+        if(deleteError) throw deleteError;
+      }
+
+      showToast(myRatingEntry || myTestiEntry ? 'Ulasan Anda diperbarui' : 'Ulasan berhasil dikirim');
+      await loadAllRestos();
+      openDetail(id, showAllTesti);
+      activateDetailTab('ulasan');
+    }catch(error){
+      showToast('Gagal menyimpan ulasan: ' + error.message);
+      submitReviewBtn.disabled = false;
+      submitReviewBtn.textContent = myRatingEntry || myTestiEntry ? 'Simpan Perubahan' : 'Kirim Ulasan';
+    }
   };
+
   setHeaderCollapsed(false);
   detailPanelEl.classList.remove('hidden');
 }
