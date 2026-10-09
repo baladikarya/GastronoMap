@@ -1502,7 +1502,14 @@ function buildReferencePhotoCarouselHtml(photos, gridId, emptyText){
   if(list.length === 0){
     return `<div id="${gridId}" class="reference-empty-state">${escapeHtml(emptyText)}</div>`;
   }
-  return `<div class="photo-carousel reference-photo-carousel" id="${gridId}">${list.map((p, idx)=>buildPhotoCard(p, idx)).join('')}</div>`;
+  const visible = list.slice(0, 6);
+  const hiddenCount = Math.max(0, list.length - 6);
+  return `<div class="reference-photo-grid" id="${gridId}">${visible.map((p, idx)=>{
+    const moreOverlay = idx === 5 && hiddenCount > 0
+      ? `<span class="photo-grid-more" aria-hidden="true">+${hiddenCount}</span>`
+      : '';
+    return buildPhotoCard(p, idx).replace('</div>', `${moreOverlay}</div>`);
+  }).join('')}</div>`;
 }
 
 /* Satu carousel tunggal berisi semua foto kunjungan (terbaru duluan), tanpa
@@ -1594,12 +1601,15 @@ function buildMenuPhotosCarouselHtml(legacyImgs, crowdPhotos){
     .map(p => ({ url: photoPublicUrl(p.storagePath), kind: 'crowd', id: p.id, storagePath: p.storagePath }));
   currentDetailMenuItems = [...legacy, ...crowd];
   if(currentDetailMenuItems.length === 0){
-    return '<span id="menuPhotoDisplayGrid" style="color:var(--muted);font-size:12.5px;">Belum ada foto menu.</span>';
+    return '<div id="menuPhotoDisplayGrid" class="reference-empty-state">Belum ada foto menu.</div>';
   }
-  return `<div class="photo-carousel" id="menuPhotoDisplayGrid">${currentDetailMenuItems.map((item, idx)=>`
-    <div class="photo-card" data-idx="${idx}">
+  const visible = currentDetailMenuItems.slice(0, 6);
+  const hiddenCount = Math.max(0, currentDetailMenuItems.length - 6);
+  return `<div class="menu-photo-gallery-grid" id="menuPhotoDisplayGrid">${visible.map((item, idx)=>`
+    <div class="photo-card menu-document-card" data-idx="${idx}">
       <img src="${escapeAttr(item.url)}" loading="lazy" alt="Foto menu" onerror="this.style.opacity=0.2">
       ${isAdmin ? `<button class="photo-del-btn menu-photo-del-btn" data-idx="${idx}" title="Hapus foto (khusus admin)">✕</button>` : ''}
+      ${idx === 5 && hiddenCount > 0 ? `<span class="photo-grid-more" aria-hidden="true">+${hiddenCount}</span>` : ''}
     </div>`).join('')}</div>`;
 }
 
