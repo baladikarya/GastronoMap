@@ -1505,10 +1505,11 @@ function buildReferencePhotoCarouselHtml(photos, gridId, emptyText){
   const visible = list.slice(0, 6);
   const hiddenCount = Math.max(0, list.length - 6);
   return `<div class="reference-photo-grid" id="${gridId}">${visible.map((p, idx)=>{
+    const cardHtml = buildPhotoCard(p, idx);
     const moreOverlay = idx === 5 && hiddenCount > 0
       ? `<span class="photo-grid-more" aria-hidden="true">+${hiddenCount}</span>`
       : '';
-    return buildPhotoCard(p, idx).replace('</div>', `${moreOverlay}</div>`);
+    return moreOverlay ? cardHtml.replace(/<\/div>$/, `${moreOverlay}</div>`) : cardHtml;
   }).join('')}</div>`;
 }
 
