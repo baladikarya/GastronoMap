@@ -1270,9 +1270,11 @@ function openDetail(id, showAllTesti){
 
     submitReviewBtn.disabled = true;
     submitReviewBtn.textContent = 'Menyimpan...';
+    let ratingSaved = false;
     try{
       const { error: ratingError } = await sb.from('ratings').upsert(ratingRow);
       if(ratingError) throw ratingError;
+      ratingSaved = true;
 
       if(textValue){
         const { error: testiError } = await sb.from('testimonials').upsert({
@@ -1295,7 +1297,7 @@ function openDetail(id, showAllTesti){
       openDetail(id, showAllTesti);
       activateDetailTab('ulasan');
     }catch(error){
-      showToast('Gagal menyimpan ulasan: ' + error.message);
+      showToast((ratingSaved ? 'Rating tersimpan, tetapi cerita ulasan gagal diperbarui: ' : 'Gagal menyimpan ulasan: ') + error.message);
       submitReviewBtn.disabled = false;
       submitReviewBtn.textContent = myRatingEntry || myTestiEntry ? 'Simpan Perubahan' : 'Kirim Ulasan';
     }
