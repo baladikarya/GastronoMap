@@ -1893,3 +1893,38 @@ button.platform-chip.summary-platform-chip{appearance:none;}
 @media(min-width:760px){
   .review-admin-action-overlay{align-items:center;}
 }
+
+
+/* ---------- DETAIL PHOTO GALLERIES: 1:1 grid ---------- */
+.reference-photo-grid,
+.menu-photo-gallery-grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;
+}
+.reference-photo-grid .photo-card,
+.menu-photo-gallery-grid .photo-card{
+  width:100%;height:auto;aspect-ratio:1 / 1;min-width:0;border-radius:10px;
+  overflow:hidden;cursor:pointer;background:#ECEEEB;
+}
+.reference-photo-grid .photo-card img{
+  width:100%;height:100%;display:block;object-fit:cover;
+}
+.menu-photo-gallery-grid .photo-card{
+  background:#F4F1EA;border:1px solid #ECE6DA;
+}
+.menu-photo-gallery-grid .photo-card img{
+  width:100%;height:100%;display:block;object-fit:contain;
+}
+.photo-grid-more{
+  position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;
+  background:rgba(18,24,22,.55);color:#fff;
+  font:800 clamp(20px,7vw,30px)/1 'Work Sans',sans-serif;
+  pointer-events:none;
+}
+.reference-photo-grid .photo-del-btn,
+.reference-photo-grid .photo-more-btn,
+.menu-photo-gallery-grid .photo-del-btn{
+  z-index:3;width:24px;height:24px;top:5px;right:5px;
+}
+@media(max-width:360px){
+  .reference-photo-grid,.menu-photo-gallery-grid{gap:6px;}
+}
