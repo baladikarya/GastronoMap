@@ -856,3 +856,13 @@ using (
       )
   )
 );
+
+-- Unified review composer: user may remove only their own written testimonial
+drop policy if exists "testimonials: hapus milik sendiri"
+  on public.testimonials;
+
+create policy "testimonials: hapus milik sendiri"
+on public.testimonials
+for delete
+to authenticated
+using (auth.uid() = user_id);
