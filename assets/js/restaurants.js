@@ -439,15 +439,7 @@ function openDetail(id, showAllTesti){
          <span>${escapeHtml(r.type || 'Resto')}</span>
          ${priceLevel ? `<span class="detail-meta-sep">·</span><span class="detail-price-level">${priceLevel}</span>` : ''}
        </div>`;
-  const ratingBreakdownHtml = summary.overallCount > 0
-    ? `<div class="review-aggregate">
-         <div class="review-aggregate-head">
-           <div><strong>${summary.overall.toFixed(1)}</strong><span> / 5</span></div>
-           <span>${summary.overallCount} ulasan</span>
-         </div>
-         <div class="rating-breakdown">${buildRatingBreakdownRowsHtml(summary)}</div>
-       </div>`
-    : '';
+  const reviewSummaryHtml = reviewAggregateHtml(summary);
 
   const platforms = (r.onlinePlatforms||[]);
   let platformsHtml = '';
@@ -704,26 +696,55 @@ function openDetail(id, showAllTesti){
     </div>
 
     <div class="detail-tab-panel" data-tab-panel="ulasan">
-      ${ratingBreakdownHtml}
-      <div class="field" id="ratingSection">
-        <label>Rating Pengunjung</label>
-        ${myRatingEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:6px;">Anda sudah pernah menilai resto ini. Ubah bintang di bawah lalu simpan untuk memperbarui.</div>' : ''}
-        <div id="ratingForm">${RATING_CRITERIA.map(c=>`
-          <div class="rating-crit-row">
-            <span class="crit-label">${c.label}</span>
-            <div class="star-picker" data-crit="${c.key}">${[1,2,3,4,5].map(v=>`<span data-v="${v}">★</span>`).join('')}</div>
-          </div>`).join('')}
-        </div>
-        <button class="btn btn-primary" id="submitRatingBtn" style="width:100%;margin-top:10px;">${myRatingEntry ? 'Update Rating Saya' : 'Kirim Rating'}</button>
-      </div>
-      <div class="field" style="margin-top:14px;">
-        <label>Testimoni Pengunjung</label>
-        <div class="testi-list" id="testiList">${testimoniListHtml(r, showAllTesti)}</div>
-        <div class="quick-testi-row">
-          ${myTestiEntry ? '<div style="font-size:11.5px;color:var(--teal-dark);margin-bottom:4px;">Anda sudah menulis testimoni. Ubah teks di bawah untuk memperbarui.</div>' : ''}
-          <textarea id="quickTestiInput" placeholder="Bagaimana suasana atau pengalaman Anda di sini?">${myTestiEntry ? escapeHtml(myTestiEntry.text) : ''}</textarea>
-          <button id="quickTestiBtn">${myTestiEntry ? 'Update Testimoni Saya' : 'Kirim Testimoni'}</button>
-        </div>
+      <div class="review-tab-shell">
+        ${reviewSummaryHtml}
+
+        <section class="review-compose-section">
+          <div class="review-compose-intro">
+            <div>
+              <h4>${myRatingEntry || myTestiEntry ? 'Ulasan Anda' : 'Bagikan pengalaman Anda'}</h4>
+              <p>Nilai enam aspek restoran. Cerita pengalaman bersifat opsional.</p>
+            </div>
+            <button type="button" class="btn btn-primary review-compose-toggle" id="reviewComposerToggle">
+              ${myRatingEntry || myTestiEntry ? 'Edit Ulasan' : 'Tulis Ulasan'}
+            </button>
+          </div>
+
+          <div class="review-composer hidden" id="reviewComposer">
+            <div class="review-composer-note">Rating wajib diisi untuk semua aspek. Ulasan tertulis boleh dikosongkan.</div>
+            <div class="review-rating-grid" id="ratingSection">
+              ${RATING_CRITERIA.map(c=>{
+                const current = myRatingEntry && typeof myRatingEntry[c.key] === 'number' ? myRatingEntry[c.key] : 0;
+                return `<div class="review-rating-row">
+                  <span class="review-rating-label">${escapeHtml(c.label)}</span>
+                  <div class="star-picker review-star-picker" data-crit="${escapeAttr(c.key)}" aria-label="Rating ${escapeAttr(c.label)}">
+                    ${[1,2,3,4,5].map(v=>`<button type="button" data-v="${v}" class="${v <= current ? 'filled' : ''}" aria-label="${v} dari 5 untuk ${escapeAttr(c.label)}">★</button>`).join('')}
+                  </div>
+                  <span class="review-rating-value" data-rating-value="${escapeAttr(c.key)}">${current ? current.toFixed(1) : '—'}</span>
+                </div>`;
+              }).join('')}
+            </div>
+            <label class="review-text-label" for="reviewTextInput">
+              Cerita pengalaman <span>Opsional</span>
+            </label>
+            <textarea id="reviewTextInput" class="review-text-input" maxlength="1200" placeholder="Apa yang paling berkesan? Ceritakan soal makanan, pelayanan, suasana, atau tips untuk pengunjung lain.">${myTestiEntry ? escapeHtml(myTestiEntry.text) : ''}</textarea>
+            <div class="review-composer-actions">
+              <button type="button" class="btn btn-secondary" id="cancelReviewBtn">Batal</button>
+              <button type="button" class="btn btn-primary" id="submitReviewBtn">${myRatingEntry || myTestiEntry ? 'Simpan Perubahan' : 'Kirim Ulasan'}</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="review-list-section">
+          <div class="review-list-head">
+            <div>
+              <h4>Ulasan Pengunjung</h4>
+              <p>Rating dan pengalaman dari pengunjung restoran ini.</p>
+            </div>
+            <span>${buildCombinedReviews(r).length} ulasan</span>
+          </div>
+          <div class="review-list" id="reviewList">${reviewListHtml(r, showAllTesti)}</div>
+        </section>
       </div>
     </div>
 
@@ -890,15 +911,6 @@ function openDetail(id, showAllTesti){
   document.getElementById('telpCtaBtn').onclick = ()=>{ if(r.phone) window.location.href = `tel:${r.phone.replace(/[^0-9+]/g,'')}`; };
   document.getElementById('simpanCtaBtn').onclick = async ()=>{ await toggleWishlist(r.id); openDetail(id, showAllTesti); };
   document.getElementById('reportCtaBtn').onclick = ()=>{ openReportModal(r.id, r.name); };
-  if(myRatingEntry){
-    setTimeout(()=>{
-      document.querySelectorAll('#ratingSection .star-picker').forEach(picker=>{
-        const crit = picker.dataset.crit;
-        const v = myRatingEntry[crit];
-        if(v) picker.querySelectorAll('span').forEach(s=> s.classList.toggle('filled', Number(s.dataset.v) <= v));
-      });
-    }, 0);
-  }
   document.getElementById('directionBtn').onclick = ()=>{
     openDirectionChoice(r.lat, r.lng, r.name);
   };
