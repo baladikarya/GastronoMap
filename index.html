@@ -514,8 +514,13 @@
 
   <div id="modalOverlay" class="hidden">
     <div id="formModal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
-      <h2 id="formTitle">Tambah Resto</h2>
-      <p id="wizardDescription" class="wizard-description">Tambahkan tempat makan yang belum terdaftar. Kolom bertanda * wajib diisi.</p>
+      <div class="wizard-help-block">
+          <div class="wizard-help-title">
+            <h2 id="formTitle">Tambah Resto</h2>
+            <button type="button" class="detail-info-trigger wizard-help-trigger" aria-label="Info: Tambah Resto" aria-expanded="false" aria-controls="wizardHelpIntro" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button>
+          </div>
+          <p id="wizardHelpIntro" class="wizard-help-popover" role="tooltip" hidden>Tambahkan tempat makan yang belum terdaftar. Kolom bertanda * wajib diisi.</p>
+        </div>
       <div id="draftRestoredNotice" class="wizard-draft-notice hidden" role="status">
         <span>Draft sebelumnya dipulihkan. Foto kunjungan perlu dipilih kembali.</span>
         <button type="button" id="discardRestoDraftBtn">Mulai baru</button>
@@ -531,8 +536,13 @@
       </div>
 
       <div class="wizard-step" data-step="1">
-        <h3 class="wizard-section-title">Informasi Dasar</h3>
-        <p class="wizard-section-help">Mulai dengan identitas tempat makan.</p>
+        <div class="wizard-help-block">
+          <div class="wizard-help-title">
+            <h3 class="wizard-section-title">Informasi Dasar</h3>
+            <button type="button" class="detail-info-trigger wizard-help-trigger" aria-label="Info: Informasi Dasar" aria-expanded="false" aria-controls="wizardHelpInfo" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button>
+          </div>
+          <p id="wizardHelpInfo" class="wizard-help-popover" role="tooltip" hidden>Mulai dengan identitas tempat makan.</p>
+        </div>
         <div class="field" style="position:relative;">
           <label for="f_name">Nama Resto <span class="wizard-required">*</span></label>
           <input type="text" id="f_name" maxlength="120" autocomplete="off" placeholder="Contoh: Bakmie Pak Slamet" aria-required="true">
@@ -563,8 +573,13 @@
       </div>
 
       <div class="wizard-step" data-step="2">
-        <h3 class="wizard-section-title">Tentukan Lokasi</h3>
-        <p class="wizard-section-help">Cari alamat, gunakan GPS, atau pilih dan geser pin di peta. Pin wajib ditentukan.</p>
+        <div class="wizard-help-block">
+          <div class="wizard-help-title">
+            <h3 class="wizard-section-title">Tentukan Lokasi</h3>
+            <button type="button" class="detail-info-trigger wizard-help-trigger" aria-label="Info: Tentukan Lokasi" aria-expanded="false" aria-controls="wizardHelpLocation" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button>
+          </div>
+          <p id="wizardHelpLocation" class="wizard-help-popover" role="tooltip" hidden>Cari alamat, gunakan GPS, atau pilih dan geser pin di peta. Pin wajib ditentukan.</p>
+        </div>
         <div class="field" style="position:relative;">
           <label for="f_address">Alamat <span class="wizard-optional">(opsional)</span></label>
           <input type="text" id="f_address" placeholder="Ketik nama jalan atau alamat resto">
@@ -583,8 +598,13 @@
       </div>
 
       <div class="wizard-step" data-step="3">
-        <h3 class="wizard-section-title">Detail Tambahan</h3>
-        <p class="wizard-section-help">Semua bagian berikut opsional. Isi yang diketahui saja.</p>
+        <div class="wizard-help-block">
+          <div class="wizard-help-title">
+            <h3 class="wizard-section-title">Detail Tambahan</h3>
+            <button type="button" class="detail-info-trigger wizard-help-trigger" aria-label="Info: Detail Tambahan" aria-expanded="false" aria-controls="wizardHelpDetails" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button>
+          </div>
+          <p id="wizardHelpDetails" class="wizard-help-popover" role="tooltip" hidden>Semua bagian berikut opsional. Isi yang diketahui saja.</p>
+        </div>
         <div class="field">
           <label>Jam Buka per Hari <span class="wizard-optional">(opsional)</span></label>
           <div id="dayHoursList"></div>
@@ -646,10 +666,14 @@
       </div>
 
       <div class="wizard-step" data-step="4">
-        <h3 class="wizard-section-title">Periksa Data Resto</h3>
-        <p class="wizard-section-help">Pastikan nama dan pin lokasi sudah benar sebelum dikirim.</p>
+        <div class="wizard-help-block">
+          <div class="wizard-help-title">
+            <h3 class="wizard-section-title">Periksa Data Resto</h3>
+            <button type="button" class="detail-info-trigger wizard-help-trigger" aria-label="Info: Review Resto" aria-expanded="false" aria-controls="wizardHelpReview" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button>
+          </div>
+          <p id="wizardHelpReview" class="wizard-help-popover" role="tooltip" hidden>Pastikan nama dan pin lokasi sudah benar sebelum dikirim. Resto dari pengguna akan terdaftar dengan status <strong>Belum Terverifikasi</strong> hingga diperiksa admin.</p>
+        </div>
         <div class="wizard-review-box" id="wizardReviewBox"></div>
-        <p class="wizard-verification-note">Resto dari pengguna akan terdaftar dengan status <strong>Belum Terverifikasi</strong> hingga diperiksa admin.</p>
         <div class="wizard-nav">
           <button type="button" class="btn btn-secondary" id="wizardBack4">← Kembali</button>
         </div>
