@@ -1508,6 +1508,7 @@ function openForm(existing){
     editNote.classList.add('hidden');
   }
 
+  closeWizardHelpPopovers();
   document.getElementById('modalOverlay').classList.remove('hidden');
   const saveBtn = document.getElementById('saveForm');
   saveBtn.disabled = false;
@@ -1614,6 +1615,7 @@ function addRefUrlRow(value=''){
 
 function closeForm(options = {}){
   if(isRestoSaving && !options.skipDraft)return;
+  closeWizardHelpPopovers();
   if(!options.skipDraft)saveAddRestoDraft();
   draftReady = false;
   pickingLocationMode = false;
@@ -1621,6 +1623,46 @@ function closeForm(options = {}){
   document.getElementById('pinPeekBar').classList.add('hidden');
   if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
 }
+
+
+/* Bantuan (?) pada Add Resto: satu popover aktif; tutup ketika berpindah langkah atau mengetuk area lain. */
+function closeWizardHelpPopovers(){
+  document.querySelectorAll('#formModal .wizard-help-trigger').forEach(trigger=>{
+    trigger.setAttribute('aria-expanded','false');
+    const block=trigger.closest('.wizard-help-block');
+    if(!block)return;
+    block.classList.remove('is-open');
+    const popup=block.querySelector('.wizard-help-popover');
+    if(popup)popup.hidden=true;
+  });
+}
+document.getElementById('formModal').addEventListener('click',event=>{
+  const trigger=event.target.closest('.wizard-help-trigger');
+  if(!trigger)return;
+  event.stopPropagation();
+  const block=trigger.closest('.wizard-help-block');
+  const popup=block && block.querySelector('.wizard-help-popover');
+  if(!popup)return;
+  const wasOpen=trigger.getAttribute('aria-expanded')==='true';
+  closeWizardHelpPopovers();
+  if(!wasOpen){
+    trigger.setAttribute('aria-expanded','true');
+    block.classList.add('is-open');
+    popup.hidden=false;
+  }
+});
+document.addEventListener('click',event=>{
+  if(!event.target.closest('#formModal .wizard-help-block'))closeWizardHelpPopovers();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key!=='Escape')return;
+  const expanded=document.querySelector('#formModal .wizard-help-trigger[aria-expanded="true"]');
+  if(!expanded)return;
+  closeWizardHelpPopovers();
+  expanded.focus();
+  event.stopPropagation();
+});
+document.getElementById('formModal').addEventListener('scroll',closeWizardHelpPopovers,{passive:true});
 
 /* ================= P1 TAHAP 5: ADD RESTO WIZARD + SESI DRAFT ================= */
 let currentWizardStep = 1;
@@ -1713,6 +1755,7 @@ function validateAddRestoExtras(){
   return true;
 }
 function goToWizardStep(n){
+  closeWizardHelpPopovers();
   currentWizardStep=n;
   document.querySelectorAll('.wizard-step').forEach(el=>el.classList.toggle('active',Number(el.dataset.step)===n));
   document.querySelectorAll('.wizard-step-item').forEach(el=>{
