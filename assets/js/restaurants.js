@@ -1437,7 +1437,7 @@ function openForm(existing){
   document.getElementById('nameSuggestions').classList.add('hidden');
   document.getElementById('f_name').value = existing ? existing.name : '';
   document.getElementById('f_type').value = existing ? existing.type : 'Indonesian';
-  document.getElementById('f_price').value = existing ? existing.priceRange : '< Rp 25rb';
+  document.getElementById('f_price').value = existing ? (existing.priceRange || '') : '';
   const existingPlatforms = existing && existing.onlinePlatforms ? existing.onlinePlatforms : [];
   // Kompatibel dengan data lama (array nama saja) maupun baru (array {platform,url})
   const platformUrlMap = {};
@@ -1696,6 +1696,7 @@ function validateAddRestoBasics(){
 }
 function validateAddRestoLocation(){
   if(!pickedLatLng || !Number.isFinite(pickedLatLng.lat) || !Number.isFinite(pickedLatLng.lng)){showToast('Pilih titik lokasi resto di peta');return false;}
+  if(editingId)return true; // admin tetap boleh mengedit resto existing
   const candidates=findAddRestoDuplicateCandidates(document.getElementById('f_name').value.trim(),pickedLatLng.lat,pickedLatLng.lng);
   const blocked=candidates.find(x=>x.similar && x.distance<=25);
   if(blocked){showToast('Resto sangat mirip sudah ada di titik ini: '+blocked.resto.name);return false;}
@@ -1836,7 +1837,7 @@ async function handleSave(){
   const data={
     id:editingId||null,name,address:document.getElementById('f_address').value.trim(),
     phone:document.getElementById('f_phone').value.trim(),type:document.getElementById('f_type').value,
-    priceRange:document.getElementById('f_price').value,hoursByDay:readDayHoursFromForm(),
+    priceRange:document.getElementById('f_price').value || null,hoursByDay:readDayHoursFromForm(),
     onlinePlatforms:platforms,
     paymentMethods:Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(el=>el.dataset.payment),
     menuImages:formMenuImages.slice(),lat:pickedLatLng.lat,lng:pickedLatLng.lng
