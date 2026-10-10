@@ -63,9 +63,15 @@ function safeImage(url,cls,alt){
 function avatar(profile){
   const image=safeImage(profile?.avatar_url,'community-avatar','Foto profil');
   if(image)return image;
-  return $('span','community-avatar community-avatar--empty',(profile?.display_name||profile?.username||'P').slice(0,1).toUpperCase());
+  return $('span','community-avatar community-avatar--empty',displayName(profile).slice(0,1).toUpperCase());
 }
-function displayName(profile){return profile?.display_name||profile?.username||'Pengguna GastronoMap';}
+function displayName(profile){
+  // Community identities use only the public username, never email/display_name.
+  const username=typeof profile?.username==='string'?profile.username.trim():'';
+  return username&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username)
+    ? username
+    : 'Pengguna GastronoMap';
+}
 function distanceKm(a,b,c,d){
   const toRad=Math.PI/180, x=(c-a)*toRad, y=(d-b)*toRad;
   const h=Math.sin(x/2)**2+Math.cos(a*toRad)*Math.cos(c*toRad)*Math.sin(y/2)**2;
@@ -237,7 +243,7 @@ async function loadCommunityFeed(){
       sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position',{ascending:true}),
       sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
       sb.from('comments').select('post_id').in('post_id',ids),
-      sb.from('profiles').select('id,display_name,username,avatar_url').in('id',users),
+      sb.from('profiles').select('id,username,avatar_url').in('id',users),
       restos.length?sb.from('restos').select('id,name,address,lat,lng').in('id',restos):Promise.resolve({data:[]})
     ];
     if(user())queries.push(sb.from('post_saves').select('post_id').eq('user_id',user()).in('post_id',ids));
@@ -350,8 +356,9 @@ function closeComposer(){
 }
 function openComposer(){
   if(!requireAuth())return;
-  composeBy.firstChild.textContent=myUsername||'Pengguna GastronoMap';
-  composeAvatar.textContent=(myUsername||'P').slice(0,1).toUpperCase();
+  const username=displayName({username:myUsername});
+  composeBy.firstChild.textContent=username;
+  composeAvatar.textContent=username.slice(0,1).toUpperCase();
   openModal(composer.surface);caption.focus();
 }
 function updateComposerState(){
@@ -503,6 +510,11 @@ function commentItem(c,replies){
   like.setAttribute('aria-label',c.liked?'Batal suka komentar':'Suka komentar');
   if(c.liked)like.firstChild.querySelector('path').setAttribute('fill','currentColor');
   bar.append(like,button('Balas','community-small-link',()=>setReply(c)));
+  if(c.user_id===user()){
+    const remove=button('Hapus','community-comment-delete',()=>deleteComment(c),'trash');
+    remove.setAttribute('aria-label','Hapus komentar Anda');
+    bar.append(remove);
+  }
   content.append(bar);wrap.append(content);
   const container=$('div','community-comment-thread');container.append(wrap);
   for(const child of replies)container.append(commentItem(child,[]));
@@ -530,7 +542,7 @@ async function loadComments(postId){
     if(state.selectedPost?.id!==postId)return;
     const users=[...new Set(comments.map(c=>c.user_id))];
     const results=await Promise.all([
-      users.length?sb.from('profiles').select('id,display_name,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
+      users.length?sb.from('profiles').select('id,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
       comments.length?sb.from('comment_likes').select('comment_id,user_id').in('comment_id',comments.map(c=>c.id)):Promise.resolve({data:[]})
     ]);
     if(state.selectedPost?.id!==postId)return;
@@ -540,6 +552,29 @@ async function loadComments(postId){
     state.detailComments=comments.map(c=>({...c,profile:byId.get(c.user_id),likeCount:counts.get(c.id)||0,liked:mine.has(c.id)}));
     renderComments();
   }catch(error){console.error(error);commentsBody.replaceChildren($('div','community-comments-empty','Komentar belum dapat dimuat.'));}
+}
+async function deleteComment(comment){
+  const post=state.selectedPost;
+  if(!post||comment.post_id!==post.id||comment.user_id!==user())return;
+  if(!window.confirm('Hapus komentar Anda? Balasan pengguna lain akan tetap tersimpan.'))return;
+  if(!requireAuth())return;
+  try{
+    const response=await sb.from('comments').delete()
+      .eq('id',comment.id).eq('post_id',post.id).eq('user_id',user())
+      .select('id');
+    if(response.error)throw response.error;
+    if(!response.data?.length)throw new Error('Komentar tidak ditemukan atau tidak dapat dihapus');
+    if(replyTo?.id===comment.id){
+      replyTo=null;replyLabel.hidden=true;replyLabel.replaceChildren();
+    }
+    post.commentCount=Math.max(0,post.commentCount-1);
+    renderFeed();renderDetailPost(post);
+    await loadComments(post.id);
+    toast('Komentar berhasil dihapus.');
+  }catch(error){
+    console.error('Gagal menghapus komentar:',error);
+    toast('Komentar gagal dihapus. Silakan coba lagi.');
+  }
 }
 async function toggleCommentLike(comment){
   if(!requireAuth())return;
@@ -563,6 +598,10 @@ commentForm.addEventListener('submit',async e=>{
   if(commentBusy||!state.selectedPost||!requireAuth())return;
   const post=state.selectedPost,comment=commentInput.value.trim();
   if(!comment)return;
+  if(replyTo&&(replyTo.post_id!==post.id||!state.detailComments.some(c=>c.id===replyTo.id))){
+    toast('Komentar yang dibalas tidak tersedia lagi.');replyTo=null;replyLabel.hidden=true;
+    return;
+  }
   commentBusy=true;sendButton.disabled=true;
   try{
     const r=await sb.from('comments').insert({post_id:post.id,user_id:user(),parent_id:replyTo?.id||null,body:comment});
@@ -570,7 +609,7 @@ commentForm.addEventListener('submit',async e=>{
     post.commentCount++;replyTo=null;replyLabel.hidden=true;commentInput.value='';
     renderFeed();renderDetailPost(post);await loadComments(post.id);
     detailScroll.scrollTo({top:detailScroll.scrollHeight,behavior:'smooth'});
-  }catch(error){console.error(error);toast('Komentar gagal dikirim.');}
+  }catch(error){console.error('Gagal mengirim komentar:',error);toast(replyTo?'Balasan gagal dikirim. Silakan coba lagi.':'Komentar gagal dikirim. Silakan coba lagi.');}
   finally{commentBusy=false;sendButton.disabled=false;}
 });
 async function deletePost(post){
