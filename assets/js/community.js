@@ -213,7 +213,7 @@ function renderFeed(){
   feed.replaceChildren(...posts.map(p=>renderPost(p)));
 }
 function openDetailRestaurant(id){
-  if(typeof openDetail==='function')openDetail(id);
+  if(typeof window.openDetail==='function')window.openDetail(id);
 }
 function safeResult(result){if(result.error)throw result.error;return result.data||[];}
 async function loadCommunityFeed(){
@@ -338,6 +338,7 @@ function clearPhotos(){
   for(const p of photoFiles)URL.revokeObjectURL(p.preview);
   photoFiles=[];renderPhotos();
 }
+composer.surface.querySelector('.community-modal-shade').onclick=closeComposer;
 function closeComposer(){
   if(uploadBusy)return;
   closeModal(composer.surface);clearPhotos();caption.value='';locationInput.value='';restoInput.value='';
@@ -470,6 +471,7 @@ const sendButton=button(null,'community-comment-send',null,'send');sendButton.ty
 commentRow.append(commentInput,sendButton);commentForm.append(replyLabel,commentRow);
 detail.panel.append(detailHeader,detailScroll,commentForm);
 let replyTo=null,commentBusy=false;
+detail.surface.querySelector('.community-modal-shade').onclick=closeDetail;
 function closeDetail(){
   closeModal(detail.surface);state.selectedPost=null;replyTo=null;
   const address=new URL(location.href);
@@ -506,8 +508,15 @@ function renderComments(){
   commentsBody.replaceChildren();
   const list=state.detailComments;
   if(!list.length){commentsBody.append($('div','community-comments-empty','Belum ada komentar. Mulai percakapan pertama.'));return;}
-  const roots=list.filter(c=>!c.parent_id||!list.some(x=>x.id===c.parent_id));
-  for(const c of roots)commentsBody.append(commentItem(c,list.filter(x=>x.parent_id===c.id)));
+  const byParent=new Map(),seen=new Set();
+  for(const c of list){const parent=c.parent_id||null;if(!byParent.has(parent))byParent.set(parent,[]);byParent.get(parent).push(c);}
+  function append(c,depth){
+    if(depth>8||seen.has(c.id))return;
+    seen.add(c.id);commentsBody.append(commentItem(c,[]));
+    for(const child of byParent.get(c.id)||[])append(child,depth+1);
+  }
+  for(const c of list.filter(c=>!c.parent_id||!list.some(x=>x.id===c.parent_id)))append(c,0);
+  for(const c of list)if(!seen.has(c.id))append(c,0);
 }
 async function loadComments(postId){
   commentsBody.replaceChildren($('div','community-comments-empty','Memuat komentar…'));
