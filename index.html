@@ -750,6 +750,7 @@ html,body{margin:0;padding:0;height:100%;font-family:'Work Sans',sans-serif;colo
 }
 #toast.show{opacity:1;}
 </style>
+<link rel="stylesheet" href="community.css">
 </head>
 <body>
 <div id="app">
@@ -4406,5 +4407,8 @@ refreshMyGpsLocation();
   setTimeout(showNewRestoPopupIfNeeded, 700); // beri jeda dikit supaya tidak "nabrak" modal lengkapi profil
 })();
 </script>
+<section id="gm-community" hidden aria-label="Community"><div class="gm-inner"><h1>Community</h1><p class="gm-sub">Cerita dan pengalaman kuliner dari komunitas GastronoMap</p><div id="gm-feed"></div></div></section>
+<nav id="gm-bottom" class="gm-bottom" aria-label="Navigasi utama"><button data-gm-tab="home" class="active"><span>⌂</span>Home</button><button data-gm-tab="community"><span>♧</span>Community</button><button data-gm-tab="add" class="gm-add"><span>+</span>Add Resto</button><button data-gm-tab="leaderboard"><span>♛</span>Leaderboard</button><button data-gm-tab="more"><span>♡</span>Saved</button></nav>
+<script src="community.js"></script>
 </body>
 </html>
