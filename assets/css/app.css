@@ -1986,3 +1986,38 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   .ref-platform-name{font-size:9px;}
   .reference-social-grid .ref-card-play{width:32px;height:32px;}
 }
+
+/* ---------- Detail section help: compact heading + anchored popover ---------- */
+.detail-info-title{
+  position:relative;display:flex;align-items:center;gap:4px;max-width:100%;
+}
+.detail-info-title h4{flex:0 1 auto;min-width:0;}
+.detail-info-trigger{
+  flex:0 0 32px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:transparent;color:#7B8580;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.detail-info-trigger:hover,.detail-info-trigger[aria-expanded="true"]{
+  background:#EEF2EF;color:var(--teal-dark);
+}
+.detail-info-trigger:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+.detail-info-trigger svg{
+  width:18px;height:18px;fill:none;stroke:currentColor;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;
+}
+.detail-info-trigger .detail-info-dot{fill:currentColor;stroke:none;}
+.menu-section-head > div:first-child,
+.review-list-head > div:first-child,
+.reference-section-head > div:first-child,
+.review-compose-intro > div:first-child{position:relative;min-width:0;}
+.menu-section-head .detail-info-popover,
+.review-list-head .detail-info-popover,
+.reference-section-head .detail-info-popover,
+.review-compose-intro .detail-info-popover{
+  position:absolute;top:calc(100% + 4px);left:0;z-index:35;
+  width:max-content;max-width:min(275px,calc(100vw - 70px));
+  margin:0;padding:10px 12px;border:1px solid #E3E9E4;border-radius:10px;
+  background:#fff;color:var(--ink);font:400 11.5px/1.5 'Work Sans',sans-serif;
+  box-shadow:0 8px 28px rgba(20,32,28,.16);
+}
+.detail-info-popover[hidden]{display:none!important;}
