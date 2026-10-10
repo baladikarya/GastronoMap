@@ -1931,19 +1931,6 @@ button.platform-chip.summary-platform-chip{appearance:none;}
 
 
 /* ---------- Referensi media sosial: 1:1 previews, same tile size as photo galleries ---------- */
-.reference-social-filters{
-  display:flex;gap:7px;align-items:center;overflow-x:auto;
-  scrollbar-width:none;-webkit-overflow-scrolling:touch;
-  margin:0 0 12px;padding:2px 0 4px;
-}
-.reference-social-filters::-webkit-scrollbar{display:none;}
-.reference-filter{
-  flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;
-  min-height:32px;padding:5px 10px;border:1px solid #DEE3E0;border-radius:999px;
-  background:#fff;color:var(--ink);font:650 11px 'Work Sans',sans-serif;cursor:pointer;
-}
-.reference-filter.active{background:#FFF0E9;border-color:#F3B9A1;color:#A84B25;}
-.reference-filter>span{flex-shrink:0;}
 .reference-social-grid{
   display:grid;grid-auto-flow:column;
   grid-auto-columns:calc((100% - 14px) / 3);gap:7px;
@@ -1996,7 +1983,6 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   grid-column:1 / -1;min-width:260px;
 }
 @media(max-width:380px){
-  .reference-filter{padding:5px 8px;font-size:10px;}
   .ref-platform-name{font-size:9px;}
   .reference-social-grid .ref-card-play{width:32px;height:32px;}
 }
