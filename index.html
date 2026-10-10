@@ -505,10 +505,16 @@
 
   <div id="pinPeekBar" class="hidden">
     <div class="pin-peek-text">
-      <p class="pin-peek-title">📍 Pastikan posisi pin</p>
-      <p class="pin-peek-sub">Tap di peta untuk pilih/pindah titik lokasi resto, atau geser pin yang sudah ada. Lalu lanjutkan isi data.</p>
+      <div class="pin-peek-heading">
+        <p class="pin-peek-title">📍 Pastikan Posisi Pin</p>
+        <button type="button" id="pinPeekHelpBtn" class="detail-info-trigger" aria-label="Petunjuk menentukan posisi pin" aria-controls="pinPeekHelpPopover" aria-expanded="false" aria-haspopup="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg>
+        </button>
+      </div>
+      <p class="pin-peek-sub">Geser pin ke lokasi resto yang tepat.</p>
+      <p id="pinPeekHelpPopover" class="pin-peek-help-popover" role="tooltip" hidden>Ketuk peta untuk memilih atau memindahkan lokasi resto. Anda juga bisa menggeser pin yang sudah ada. Pastikan pin berada di lokasi resto yang benar sebelum melanjutkan.</p>
     </div>
-    <button type="button" class="btn btn-primary" id="pinPeekConfirmBtn">Lanjutkan ✓</button>
+    <button type="button" class="btn btn-primary" id="pinPeekConfirmBtn">Lanjutkan →</button>
   </div>
 
 
