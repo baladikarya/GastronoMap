@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="assets/css/design-system.css">
 <link rel="stylesheet" href="assets/css/app.css">
 <link rel="stylesheet" href="assets/css/navigation.css">
+<link rel="stylesheet" href="assets/css/community.css">
 </head>
 <body>
 <div id="app">
@@ -442,10 +443,7 @@
       <h1 class="primary-view__title" id="communityViewTitle">Community</h1>
     </div>
     <div class="primary-view__body">
-      <div class="primary-view__placeholder">
-        <h3>Community siap sebagai halaman utama.</h3>
-        <p>Fondasi navigasi dan view sudah aktif. Feed, posting, like, komentar, dan tagged resto akan diimplementasikan pada tahap Community (P1).</p>
-      </div>
+      <div id="communityFeed" class="community-feed" aria-live="polite"></div>
     </div>
   </section>
 
@@ -705,5 +703,6 @@
 <script src="assets/js/restaurants.js"></script>
 <script src="assets/js/events.js"></script>
 <script src="assets/js/bootstrap.js"></script>
+<script src="assets/js/community.js"></script>
 </body>
 </html>
