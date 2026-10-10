@@ -1464,13 +1464,86 @@ function getYoutubeId(url){
   for(const p of patterns){ const m = url.match(p); if(m) return m[1]; }
   return null;
 }
+// Preview video: YouTube langsung; Instagram/TikTok dicoba melalui metadata publik.
+// Apabila metadata/CORS/hotlink gagal, kartu gelap dengan logo + nama tetap terlihat.
+const referenceThumbnailCache = new Map();
+function safeReferenceUrl(value){
+  try{
+    const parsed = new URL(String(value || ''));
+    return /^https?:$/.test(parsed.protocol) ? parsed.href : '';
+  }catch(e){ return ''; }
+}
+function referenceVideoThumbnailUrl(ref){
+  const explicit = safeReferenceUrl(ref.thumbnailUrl || ref.thumbnail_url || '');
+  if(explicit) return explicit;
+  const url = safeReferenceUrl(ref.url);
+  if(!url) return '';
+  const platform = detectPlatform(url);
+  if(platform === 'youtube'){
+    const id = getYoutubeId(url);
+    if(id && /^[A-Za-z0-9_-]{11}$/.test(id)){
+      return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    }
+  }
+  return '';
+}
 function buildRefCardHtml(ref){
-  const plat = REF_PLATFORM_META[ref.platform] || REF_PLATFORM_META.other;
+  const link = safeReferenceUrl(ref.url);
+  const platform = link ? detectPlatform(link) : 'other';
+  const meta = REF_PLATFORM_META[platform] || REF_PLATFORM_META.other;
   const canDelete = isAdmin || (ref.userId && ref.userId === myUserId);
-  return `<div class="ref-card-wrap">
-    <a class="ref-card" href="${escapeAttr(ref.url)}" target="_blank" rel="noopener" title="${plat.label}">${platformIconHtml(plat.file, plat.icon, 52)}</a>
-    ${canDelete ? `<button type="button" class="ref-del-btn" data-id="${escapeAttr(ref.id)}" title="Hapus referensi">✕</button>` : ''}
+  const label = platform === 'other' && link ? new URL(link).hostname.replace(/^www\./,'') : meta.label;
+  const thumbnail = referenceVideoThumbnailUrl(ref);
+  const icon = platformIconHtml(meta.file, meta.icon, 29);
+  return `<div class="ref-card-wrap" data-ref-platform="${escapeAttr(platform)}">
+    <a class="ref-card" ${link ? `href="${escapeAttr(link)}" target="_blank" rel="noopener noreferrer"` : 'aria-disabled="true"'}
+       aria-label="Buka referensi ${escapeAttr(label)}" title="${escapeAttr(label)}"
+       data-ref-url="${escapeAttr(link)}" data-thumbnail-url="${escapeAttr(thumbnail)}">
+      <span class="ref-card-fallback">${icon}<span class="ref-platform-name">${escapeHtml(label)}</span></span>
+      <img class="ref-card-thumbnail" alt="Preview ${escapeAttr(label)}" loading="lazy" decoding="async">
+      <span class="ref-card-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6.5 18 12 9 17.5Z"/></svg></span>
+    </a>
+    ${canDelete ? `<button type="button" class="ref-del-btn" data-id="${escapeAttr(ref.id)}" title="Hapus referensi" aria-label="Hapus referensi">✕</button>` : ''}
   </div>`;
+}
+function hydrateReferenceThumbnails(root){
+  if(!root) return;
+  root.querySelectorAll('.ref-card').forEach(card=>{
+    if(card.dataset.thumbInitialized === 'true') return;
+    card.dataset.thumbInitialized = 'true';
+    const link = safeReferenceUrl(card.dataset.refUrl);
+    const img = card.querySelector('.ref-card-thumbnail');
+    if(!link || !img) return;
+    const showThumbnail = (url)=>{
+      const safe = safeReferenceUrl(url);
+      if(!safe) return;
+      img.onload = ()=>{
+        if(img.naturalWidth > 0 && img.naturalHeight > 0) card.classList.add('has-thumbnail');
+      };
+      img.onerror = ()=>{card.classList.remove('has-thumbnail'); img.removeAttribute('src');};
+      img.src = safe;
+    };
+    const supplied = card.dataset.thumbnailUrl;
+    if(supplied){showThumbnail(supplied); return;}
+    const platform = detectPlatform(link);
+    if(platform !== 'instagram' && platform !== 'tiktok') return;
+    const cached = referenceThumbnailCache.get(link);
+    if(cached !== undefined){if(cached) showThumbnail(cached); return;}
+    const endpoint = platform === 'tiktok'
+      ? 'https://www.tiktok.com/oembed?url=' + encodeURIComponent(link)
+      : 'https://noembed.com/embed?url=' + encodeURIComponent(link);
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 5000);
+    fetch(endpoint,{signal:controller.signal,credentials:'omit'})
+      .then(resp=>{if(!resp.ok) throw new Error('Thumbnail metadata unavailable');return resp.json();})
+      .then(meta=>{
+        const url = safeReferenceUrl(meta.thumbnail_url || '');
+        referenceThumbnailCache.set(link,url);
+        if(url && card.isConnected) showThumbnail(url);
+      })
+      .catch(()=>referenceThumbnailCache.set(link,''))
+      .finally(()=>clearTimeout(timeout));
+  });
 }
 
 /* ================= FOTO KUNJUNGAN ================= */
