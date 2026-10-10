@@ -105,7 +105,25 @@ document.getElementById('cancelForm').onclick = closeForm;
 document.getElementById('modalOverlay').onclick = (e)=>{
   if(e.target.id === 'modalOverlay') closeForm();
 };
-document.getElementById('pinPeekConfirmBtn').onclick = exitPinPeek;
+const pinPeekHelpBtn = document.getElementById('pinPeekHelpBtn');
+const pinPeekHelpPopover = document.getElementById('pinPeekHelpPopover');
+function closePinPeekHelp(){
+  pinPeekHelpPopover.hidden = true;
+  pinPeekHelpBtn.setAttribute('aria-expanded','false');
+}
+pinPeekHelpBtn.addEventListener('click',event=>{
+  event.stopPropagation();
+  const open = pinPeekHelpPopover.hidden;
+  closePinPeekHelp();
+  if(open){pinPeekHelpPopover.hidden=false;pinPeekHelpBtn.setAttribute('aria-expanded','true');}
+});
+document.addEventListener('click',event=>{
+  if(!event.target.closest('#pinPeekHelpBtn, #pinPeekHelpPopover'))closePinPeekHelp();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && !pinPeekHelpPopover.hidden){closePinPeekHelp();pinPeekHelpBtn.focus();}
+});
+document.getElementById('pinPeekConfirmBtn').onclick = ()=>{closePinPeekHelp();exitPinPeek();};
 document.getElementById('adjustPinLinkBtn').onclick = ()=>{
   if(pickedLatLng) map.setView([pickedLatLng.lat, pickedLatLng.lng], map.getZoom() < 16 ? 17 : map.getZoom());
   enterPinPeek();
