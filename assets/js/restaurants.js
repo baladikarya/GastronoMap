@@ -870,7 +870,13 @@ function openDetail(id, showAllTesti){
             <p>Reels, TikTok, YouTube, atau link lain yang membantu mengenal restoran ini.</p>
           </div>
         </div>
-        <div class="ref-grid reference-social-grid" id="refGrid">${(r.references && r.references.length) ? r.references.map(buildRefCardHtml).join('') : '<div class="reference-empty-state">Belum ada referensi media sosial.</div>'}</div>
+        ${(r.references && r.references.length) ? `<div class="reference-social-filters" role="group" aria-label="Filter media sosial">
+          <button type="button" class="reference-filter active" data-platform="all" aria-pressed="true">Semua</button>
+          <button type="button" class="reference-filter" data-platform="instagram" aria-pressed="false">${platformIconHtml('instagram','',18)}Instagram</button>
+          <button type="button" class="reference-filter" data-platform="tiktok" aria-pressed="false">${platformIconHtml('tiktok','',18)}TikTok</button>
+          <button type="button" class="reference-filter" data-platform="youtube" aria-pressed="false">${platformIconHtml('youtube','',18)}YouTube</button>
+        </div>` : ''}
+        <div class="reference-social-grid" id="refGrid">${(r.references && r.references.length) ? r.references.map(buildRefCardHtml).join('') : '<div class="reference-empty-state">Belum ada referensi media sosial.</div>'}</div>
         <div class="quick-ref-row reference-link-form">
           <input type="url" id="quickRefInput" placeholder="Tempel link Instagram, TikTok, YouTube...">
           <button id="quickRefBtn">+ Tambah</button>
@@ -954,6 +960,22 @@ function openDetail(id, showAllTesti){
       });
       // Pindah tab selalu memakai header ringkas, meski tab tujuan tidak punya konten.
       setHeaderCollapsed(true);
+    };
+  });
+  const socialGrid = document.getElementById('refGrid');
+  hydrateReferenceThumbnails(socialGrid);
+  document.querySelectorAll('.reference-filter').forEach(button=>{
+    button.onclick = ()=>{
+      const selected = button.dataset.platform;
+      document.querySelectorAll('.reference-filter').forEach(option=>{
+        const active = option === button;
+        option.classList.toggle('active', active);
+        option.setAttribute('aria-pressed', String(active));
+      });
+      socialGrid.querySelectorAll('.ref-card-wrap').forEach(card=>{
+        card.hidden = selected !== 'all' && card.dataset.refPlatform !== selected;
+      });
+      socialGrid.scrollLeft = 0;
     };
   });
   const hoursToggleEl = document.getElementById('summaryHoursToggle');
