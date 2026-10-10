@@ -716,8 +716,8 @@ function openDetail(id, showAllTesti){
       <section class="menu-section">
         <div class="menu-section-head">
           <div>
-            <h4>Rekomendasi Pengunjung</h4>
-            <p>Menu yang paling banyak direkomendasikan oleh pengunjung.</p>
+            <div class="detail-info-title"><h4>Rekomendasi Pengunjung</h4><button type="button" class="detail-info-trigger" aria-label="Info: Rekomendasi Pengunjung" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                        <p class="detail-info-popover" role="tooltip" hidden>Menu yang paling banyak direkomendasikan oleh pengunjung.</p>
           </div>
         </div>
         <div class="menu-recommend-list" id="favChipList">${(()=>{
@@ -750,8 +750,8 @@ function openDetail(id, showAllTesti){
       <section class="menu-section menu-price-section">
         <div class="menu-section-head">
           <div>
-            <h4>Daftar Menu &amp; Harga</h4>
-            <p>Foto buku menu, papan menu, atau daftar harga dari restoran ini.</p>
+            <div class="detail-info-title"><h4>Daftar Menu &amp; Harga</h4><button type="button" class="detail-info-trigger" aria-label="Info: Daftar Menu & Harga" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                        <p class="detail-info-popover" role="tooltip" hidden>Foto buku menu, papan menu, atau daftar harga dari restoran ini.</p>
           </div>
         </div>
         ${buildMenuPhotosCarouselHtml(imgs, r.menuPhotos)}
@@ -771,8 +771,8 @@ function openDetail(id, showAllTesti){
         <section class="review-compose-section">
           <div class="review-compose-intro">
             <div>
-              <h4>${myRatingEntry || myTestiEntry ? 'Ulasan Anda' : 'Bagikan pengalaman Anda'}</h4>
-              <p>Nilai enam aspek restoran. Cerita pengalaman bersifat opsional.</p>
+              <div class="detail-info-title"><h4>${myRatingEntry || myTestiEntry ? 'Ulasan Anda' : 'Bagikan pengalaman Anda'}</h4><button type="button" class="detail-info-trigger" aria-label="Info: Bagikan pengalaman Anda" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                            <p class="detail-info-popover" role="tooltip" hidden>Nilai enam aspek restoran. Cerita pengalaman bersifat opsional.</p>
             </div>
             <button type="button" class="btn btn-primary review-compose-toggle" id="reviewComposerToggle">
               ${myRatingEntry || myTestiEntry ? 'Edit Ulasan' : 'Tulis Ulasan'}
@@ -807,8 +807,8 @@ function openDetail(id, showAllTesti){
         <section class="review-list-section">
           <div class="review-list-head">
             <div>
-              <h4>Ulasan Pengunjung</h4>
-              <p>Rating dan pengalaman dari pengunjung restoran ini.</p>
+              <div class="detail-info-title"><h4>Ulasan Pengunjung</h4><button type="button" class="detail-info-trigger" aria-label="Info: Ulasan Pengunjung" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                            <p class="detail-info-popover" role="tooltip" hidden>Rating dan pengalaman dari pengunjung restoran ini.</p>
             </div>
             <span>${buildCombinedReviews(r).length} ulasan</span>
           </div>
@@ -821,8 +821,8 @@ function openDetail(id, showAllTesti){
       <section class="reference-section">
         <div class="reference-section-head">
           <div>
-            <h4>Foto Makanan</h4>
-            <p>Foto hidangan yang dipesan pengunjung. Saat upload, nama menu dapat ditandai satu atau beberapa sekaligus.</p>
+            <div class="detail-info-title"><h4>Foto Makanan</h4><button type="button" class="detail-info-trigger" aria-label="Info: Foto Makanan" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                        <p class="detail-info-popover" role="tooltip" hidden>Foto hidangan yang dipesan pengunjung. Saat upload, nama menu dapat ditandai satu atau beberapa sekaligus.</p>
           </div>
           <span class="reference-count">${foodPhotos.length} foto</span>
         </div>
@@ -838,8 +838,8 @@ function openDetail(id, showAllTesti){
       <section class="reference-section">
         <div class="reference-section-head">
           <div>
-            <h4>Foto Suasana</h4>
-            <p>Interior, eksterior, meja, dan suasana restoran dari kunjungan pengguna.</p>
+            <div class="detail-info-title"><h4>Foto Suasana</h4><button type="button" class="detail-info-trigger" aria-label="Info: Foto Suasana" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                        <p class="detail-info-popover" role="tooltip" hidden>Interior, eksterior, meja, dan suasana restoran dari kunjungan pengguna.</p>
           </div>
           <span class="reference-count">${ambiencePhotos.length} foto</span>
         </div>
@@ -855,8 +855,8 @@ function openDetail(id, showAllTesti){
       ${legacyVisitPhotos.length ? `<section class="reference-section reference-legacy-section">
         <div class="reference-section-head">
           <div>
-            <h4>Foto Kunjungan Sebelumnya</h4>
-            <p>Foto lama yang dibuat sebelum kategori Makanan dan Suasana tersedia.</p>
+            <div class="detail-info-title"><h4>Foto Kunjungan Sebelumnya</h4><button type="button" class="detail-info-trigger" aria-label="Info: Foto Kunjungan Sebelumnya" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                        <p class="detail-info-popover" role="tooltip" hidden>Foto lama yang dibuat sebelum kategori Makanan dan Suasana tersedia.</p>
           </div>
           <span class="reference-count">${legacyVisitPhotos.length} foto</span>
         </div>
@@ -866,8 +866,8 @@ function openDetail(id, showAllTesti){
       <section class="reference-section reference-social-section">
         <div class="reference-section-head">
           <div>
-            <h4>Referensi Media Sosial</h4>
-            <p>Reels, TikTok, YouTube, atau link lain yang membantu mengenal restoran ini.</p>
+            <div class="detail-info-title"><h4>Referensi Media Sosial</h4><button type="button" class="detail-info-trigger" aria-label="Info: Referensi Media Sosial" aria-expanded="false" aria-haspopup="true"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.6-2.2 1.8-2.2 3.6"/><circle class="detail-info-dot" cx="12" cy="17.3" r="0.8"/></svg></button></div>
+                        <p class="detail-info-popover" role="tooltip" hidden>Reels, TikTok, YouTube, atau link lain yang membantu mengenal restoran ini.</p>
           </div>
         </div>
         <div class="reference-social-grid" id="refGrid">${(r.references && r.references.length) ? r.references.map(buildRefCardHtml).join('') : '<div class="reference-empty-state">Belum ada referensi media sosial.</div>'}</div>
@@ -956,6 +956,36 @@ function openDetail(id, showAllTesti){
       setHeaderCollapsed(true);
     };
   });
+  // Petunjuk singkat per bagian: tersembunyi sampai tombol info ditekan.
+  const closeDetailInfo = (except)=>{
+    detailPanelEl.querySelectorAll('.detail-info-trigger').forEach(trigger=>{
+      if(trigger === except) return;
+      trigger.setAttribute('aria-expanded','false');
+      const popup = trigger.parentElement.nextElementSibling;
+      if(popup && popup.classList.contains('detail-info-popover')) popup.hidden = true;
+    });
+  };
+  detailPanelEl.querySelectorAll('.detail-info-trigger').forEach(trigger=>{
+    const popup = trigger.parentElement.nextElementSibling;
+    if(!popup || !popup.classList.contains('detail-info-popover')) return;
+    trigger.onclick = (event)=>{
+      event.stopPropagation();
+      const wasOpen = trigger.getAttribute('aria-expanded') === 'true';
+      closeDetailInfo();
+      if(!wasOpen){trigger.setAttribute('aria-expanded','true');popup.hidden=false;}
+    };
+  });
+  // Pasang sekali pada panel yang dibuat ulang setiap kali detail dibuka.
+  if(detailPanelEl._detailInfoOutsideClick) document.removeEventListener('click',detailPanelEl._detailInfoOutsideClick);
+  if(detailPanelEl._detailInfoEscape) document.removeEventListener('keydown',detailPanelEl._detailInfoEscape);
+  detailPanelEl._detailInfoOutsideClick = (event)=>{
+    if(!event.target.closest('.detail-info-title, .detail-info-popover')) closeDetailInfo();
+  };
+  detailPanelEl._detailInfoEscape = (event)=>{
+    if(event.key === 'Escape') closeDetailInfo();
+  };
+  document.addEventListener('click',detailPanelEl._detailInfoOutsideClick);
+  document.addEventListener('keydown',detailPanelEl._detailInfoEscape);
   const socialGrid = document.getElementById('refGrid');
   hydrateReferenceThumbnails(socialGrid);
   const hoursToggleEl = document.getElementById('summaryHoursToggle');
