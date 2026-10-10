@@ -1,88 +1,587 @@
-/* P1 Tahap 6 — Community feed, integrated with existing primary navigation. */
+/* GastronoMap — Community: feed, stories, composition and conversations. */
 (()=>{
-  'use strict';
-  const view=document.getElementById('communityView');
-  const body=view?.querySelector('.primary-view__body');
-  if(!body) return;
-  const feed=document.createElement('div');
-  feed.id='communityFeed';
-  feed.className='community-feed';
-  body.replaceChildren(feed);
-  const node=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
-  const fmt=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'});
-  let requestId=0;
-  function status(message,retry=false){
-    const wrap=node('div','community-feed-state',message);
-    if(retry){const btn=node('button','community-feed-retry','Coba lagi');btn.type='button';btn.onclick=loadCommunityFeed;wrap.append(btn);}
-    feed.replaceChildren(wrap);
+'use strict';
+const view=document.getElementById('communityView');
+const body=view?.querySelector('.primary-view__body');
+if(!body) return;
+const ICONS={
+  heart:'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z',
+  comment:'M21 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 21l1.9-5.5a9 9 0 0 1-.9-4A8.5 8.5 0 1 1 21 11.5Z',
+  share:'M12 16V3m0 0L7 8m5-5 5 5M5 14v6h14v-6',
+  bookmark:'M6 3h12v18l-6-4-6 4V3Z',
+  plus:'M12 5v14M5 12h14',
+  close:'M5 5l14 14M19 5 5 19',
+  image:'M4 3h16a1 1 0 0 1 1 1v16H3V4a1 1 0 0 1 1-1ZM3 16l5-5 4 4 3-3 6 6M8 8h.01',
+  pin:'M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0ZM12 10h.01',
+  chevron:'M9 18l6-6-6-6',
+  send:'M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z',
+  back:'M15 18l-6-6 6-6',
+  trash:'M4 7h16M10 3h4M6 7l1 14h10l1-14M10 11v6M14 11v6',
+  arrow:'M5 12h14M13 6l6 6-6 6',
+  refresh:'M20 11a8 8 0 1 0-2 5M20 4v7h-7'
+};
+const $=(tag,cls,text)=>{
+  const element=document.createElement(tag);
+  if(cls)element.className=cls;
+  if(text!==undefined)element.textContent=text;
+  return element;
+};
+function glyph(name,filled=false){
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 24 24');
+  svg.setAttribute('aria-hidden','true');
+  svg.setAttribute('class','community-icon');
+  const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d',ICONS[name]||ICONS.arrow);
+  path.setAttribute('fill',filled?'currentColor':'none');
+  path.setAttribute('stroke','currentColor');
+  path.setAttribute('stroke-width','1.8');
+  path.setAttribute('stroke-linecap','round');
+  path.setAttribute('stroke-linejoin','round');
+  svg.append(path);
+  return svg;
+}
+function button(text,cls,handler,iconName){
+  const b=$('button',cls);
+  b.type='button';
+  if(iconName)b.append(glyph(iconName));
+  if(text!==undefined&&text!==null)b.append($('span','',text));
+  if(handler)b.addEventListener('click',handler);
+  return b;
+}
+const prettyTime=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'});
+const state={posts:[],filter:'latest',gps:null,request:0,selectedPost:null,detailComments:[],commentLikes:new Set(),loading:false,deepLink:new URLSearchParams(location.search).get('post')};
+const user=()=>typeof myUserId==='string'&&myUserId?myUserId:null;
+const toast=message=>typeof showToast==='function'?showToast(message):console.info(message);
+const requireAuth=()=>typeof requireLogin==='function'&&requireLogin();
+function safeImage(url,cls,alt){
+  if(typeof url!=='string'||!/^https:\/\//i.test(url))return null;
+  const image=$('img',cls);
+  image.src=url;image.alt=alt||'';image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';
+  return image;
+}
+function avatar(profile){
+  const image=safeImage(profile?.avatar_url,'community-avatar','Foto profil');
+  if(image)return image;
+  return $('span','community-avatar community-avatar--empty',(profile?.display_name||profile?.username||'P').slice(0,1).toUpperCase());
+}
+function displayName(profile){return profile?.display_name||profile?.username||'Pengguna GastronoMap';}
+function distanceKm(a,b,c,d){
+  const toRad=Math.PI/180, x=(c-a)*toRad, y=(d-b)*toRad;
+  const h=Math.sin(x/2)**2+Math.cos(a*toRad)*Math.cos(c*toRad)*Math.sin(y/2)**2;
+  return 12742*Math.asin(Math.min(1,Math.sqrt(h)));
+}
+function modal(className,title){
+  const surface=$('div','community-modal '+className);
+  surface.hidden=true;surface.setAttribute('role','dialog');surface.setAttribute('aria-modal','true');surface.setAttribute('aria-label',title);
+  const shade=$('div','community-modal-shade');
+  const panel=$('section','community-modal-panel');
+  surface.append(shade,panel);
+  shade.onclick=()=>closeModal(surface);
+  document.body.append(surface);
+  return {surface,panel};
+}
+let openedModal=null,returnFocus=null;
+function openModal(surface){
+  if(openedModal&&openedModal!==surface)openedModal.hidden=true;
+  returnFocus=document.activeElement;surface.hidden=false;openedModal=surface;
+  document.body.classList.add('community-dialog-open');
+}
+function closeModal(surface){
+  surface.hidden=true;
+  if(openedModal===surface){openedModal=null;document.body.classList.remove('community-dialog-open');}
+  if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});
+}
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape'||!openedModal)return;
+  if(openedModal===composer.surface)closeComposer();
+  else closeDetail();
+});
+function status(message,action){
+  feed.replaceChildren();
+  const wrapper=$('div','community-feed-state');
+  wrapper.append($('div','community-feed-state-title',message));
+  if(action)wrapper.append(button('Coba lagi','community-try',loadCommunityFeed,'refresh'));
+  feed.append(wrapper);
+}
+/* Header and filters remain within the established Community page and bottom navigation. */
+body.replaceChildren();
+const intro=$('div','community-intro');
+const introText=$('div','community-intro-text');
+introText.append($('p','community-eyebrow','CERITA & REKOMENDASI'));
+introText.append($('h2','','Rasa lebih seru, kalau dibagi.'));
+introText.append($('p','community-intro-subtitle','Temukan pengalaman kuliner, tempat favorit, dan cerita dari pecinta makanan.'));
+const createButton=button('Bagikan Cerita','community-create-button',openComposer,'plus');
+intro.append(introText,createButton);
+const filters=$('div','community-filters');
+filters.setAttribute('role','group');filters.setAttribute('aria-label','Filter postingan');
+const filterNames=[['latest','Terbaru'],['popular','Populer'],['nearby','Di Sekitar']];
+const filterButtons=new Map();
+for(const [key,label] of filterNames){
+  const b=button(label,'community-filter',()=>selectFilter(key));
+  b.setAttribute('aria-pressed',key==='latest'?'true':'false');
+  filterButtons.set(key,b);filters.append(b);
+}
+const feed=$('div','community-feed');
+feed.id='communityFeed';
+feed.setAttribute('aria-live','polite');
+body.append(intro,filters,feed);
+function selectFilter(key){
+  if(key==='nearby'&&!state.gps){
+    if(!navigator.geolocation){toast('Lokasi perangkat tidak tersedia.');return;}
+    toast('Meminta izin lokasi untuk menampilkan postingan terdekat.');
+    navigator.geolocation.getCurrentPosition(
+      pos=>{state.gps={lat:pos.coords.latitude,lng:pos.coords.longitude};state.filter=key;renderFeed();},
+      ()=>toast('Lokasi tidak diizinkan atau gagal ditemukan.'),
+      {enableHighAccuracy:false,maximumAge:300000,timeout:10000}
+    );
+    return;
   }
-  function safeImage(url,cls,alt){
-    if(typeof url!=='string'||!/^https:\/\//i.test(url))return null;
-    const img=node('img',cls);img.src=url;img.alt=alt;img.loading='lazy';img.decoding='async';img.referrerPolicy='no-referrer';return img;
+  state.filter=key;renderFeed();
+}
+function filteredPosts(){
+  const posts=[...state.posts];
+  if(state.filter==='popular')posts.sort((a,b)=>(b.likeCount*2+b.commentCount)-(a.likeCount*2+a.commentCount)||new Date(b.created_at)-new Date(a.created_at));
+  if(state.filter==='nearby')return posts.filter(p=>p.resto&&Number.isFinite(p.resto.lat)&&Number.isFinite(p.resto.lng)&&distanceKm(state.gps.lat,state.gps.lng,p.resto.lat,p.resto.lng)<=25);
+  return posts;
+}
+function renderGallery(post,isDetail){
+  if(!post.media.length)return null;
+  const gallery=$('div','community-gallery '+(isDetail?'community-gallery--detail':'community-gallery--'+Math.min(4,post.media.length)));
+  const showing=isDetail?post.media:post.media.slice(0,4);
+  for(let index=0;index<showing.length;index++){
+    const photo=showing[index],item=$('button','community-gallery-item');
+    item.type='button';item.setAttribute('aria-label','Buka foto '+(index+1)+' dari '+post.media.length);
+    const image=safeImage(photo.url,'community-gallery-image','Foto pengalaman kuliner');
+    if(image)item.append(image);
+    if(!isDetail&&index===3&&post.media.length>4)item.append($('span','community-gallery-more','+'+(post.media.length-4)));
+    item.onclick=isDetail?()=>{}:()=>openDetail(post.id);
+    gallery.append(item);
   }
-  function renderPost(post,profiles,restos,media,likes,comments){
-    const card=node('article','community-post');
-    const header=node('div','community-post-header');
-    const profile=profiles.get(post.user_id);
-    const avatar=safeImage(profile?.avatar_url,'community-post-avatar','Foto profil');
-    if(avatar)header.append(avatar);else header.append(node('span','community-post-avatar community-post-avatar--fallback',(profile?.username||'P').slice(0,1).toUpperCase()));
-    const identity=node('div','community-post-identity');
-    identity.append(node('strong','',profile?.username||'Pengguna GastronoMap'));
-    identity.append(node('time','community-post-time',fmt.format(new Date(post.created_at))));
-    header.append(identity);card.append(header);
-    if(post.caption)card.append(node('p','community-post-caption',post.caption));
-    const photos=media.get(post.id)||[];
-    if(photos.length){
-      const gallery=node('div','community-post-gallery');
-      for(const photo of photos){const img=safeImage(photo.url,'community-post-photo','Foto pengalaman kuliner');if(img)gallery.append(img);}
-      if(gallery.childElementCount)card.append(gallery);
+  if(isDetail){
+    const counter=$('div','community-gallery-count',post.media.length+' foto · Geser untuk melihat');
+    const wrapper=$('div','community-gallery-wrap');wrapper.append(gallery,counter);return wrapper;
+  }
+  return gallery;
+}
+function renderPost(post,isDetail=false){
+  const card=$('article','community-post'+(isDetail?' community-post--full':''));
+  const header=$('div','community-post-header');
+  header.append(avatar(post.profile));
+  const person=$('div','community-post-person');
+  person.append($('strong','',displayName(post.profile)));
+  person.append($('time','community-post-time',prettyTime.format(new Date(post.created_at))+(post.location_name?' · '+post.location_name:'')));
+  header.append(person);
+  if(post.user_id===user()&&isDetail)header.append(button('Hapus','community-delete',()=>deletePost(post),'trash'));
+  card.append(header);
+  if(post.caption)card.append($('p','community-post-caption',post.caption));
+  const gallery=renderGallery(post,isDetail);if(gallery)card.append(gallery);
+  if(post.resto){
+    const tag=button(null,'community-resto-tag',()=>{
+      if(openedModal===detail.surface)closeDetail();
+      navigatePrimaryView('home');openDetailRestaurant(post.resto_id);
+    });
+    const miniature=(post.media[0]&&safeImage(post.media[0].url,'community-resto-mini',''))||$('span','community-resto-mini community-resto-mini--empty');
+    const info=$('span','community-resto-info');
+    info.append($('strong','',post.resto.name));
+    info.append($('small','',post.resto.address||'Lihat detail restoran'));
+    tag.append(miniature,info,glyph('chevron'));card.append(tag);
+  }
+  const actions=$('div','community-post-actions');
+  const like=button(String(post.likeCount),'community-post-action'+(post.liked?' is-active':''),()=>toggleLike(post),'heart');
+  like.setAttribute('aria-label',(post.liked?'Batal suka':'Suka')+' · '+post.likeCount);
+  like.setAttribute('aria-pressed',String(post.liked));
+  if(post.liked){like.firstChild.querySelector('path').setAttribute('fill','currentColor');}
+  const comment=button(String(post.commentCount),'community-post-action',()=>openDetail(post.id),'comment');
+  comment.setAttribute('aria-label','Lihat komentar · '+post.commentCount);
+  const share=button('Bagikan','community-post-action',()=>sharePost(post),'share');
+  const saved=button(null,'community-post-action community-post-save'+(post.saved?' is-active':''),()=>toggleSave(post),'bookmark');
+  saved.setAttribute('aria-label',post.saved?'Hapus dari simpanan':'Simpan postingan');
+  saved.setAttribute('aria-pressed',String(post.saved));
+  if(post.saved)saved.firstChild.querySelector('path').setAttribute('fill','currentColor');
+  actions.append(like,comment,share,saved);
+  card.append(actions);
+  return card;
+}
+function renderFeed(){
+  for(const [key,btn] of filterButtons){const active=key===state.filter;btn.classList.toggle('is-active',active);btn.setAttribute('aria-pressed',String(active));}
+  const posts=filteredPosts();
+  if(!posts.length){
+    status(state.filter==='nearby'?'Belum ada cerita restoran dalam radius 25 km.':state.posts.length?'Tidak ada cerita untuk filter ini.':'Belum ada cerita di Community. Jadilah yang pertama membagikan pengalaman kuliner!');
+    return;
+  }
+  feed.replaceChildren(...posts.map(p=>renderPost(p)));
+}
+function openDetailRestaurant(id){
+  if(typeof openDetail==='function')openDetail(id);
+}
+function safeResult(result){if(result.error)throw result.error;return result.data||[];}
+async function loadCommunityFeed(){
+  const ticket=++state.request;
+  state.loading=true;
+  status('Menyiapkan cerita kuliner…');
+  try{
+    let posts=safeResult(await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at').order('created_at',{ascending:false}).limit(50));
+    if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)&&!posts.some(p=>p.id===state.deepLink)){
+      const result=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at').eq('id',state.deepLink).maybeSingle();
+      if(!result.error&&result.data)posts.push(result.data);
     }
-    if(post.resto_id&&restos.has(post.resto_id)){
-      const tag=node('button','community-post-resto','Lihat resto · '+restos.get(post.resto_id));
-      tag.type='button';
-      tag.onclick=()=>{navigatePrimaryView('home');openDetail(post.resto_id);};
-      card.append(tag);
+    if(ticket!==state.request)return;
+    if(!posts.length){state.posts=[];renderFeed();return;}
+    const ids=posts.map(p=>p.id), users=[...new Set(posts.map(p=>p.user_id))], restos=[...new Set(posts.map(p=>p.resto_id).filter(Boolean))];
+    const queries=[
+      sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position',{ascending:true}),
+      sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
+      sb.from('comments').select('post_id').in('post_id',ids),
+      sb.from('profiles').select('id,display_name,username,avatar_url').in('id',users),
+      restos.length?sb.from('restos').select('id,name,address,lat,lng').in('id',restos):Promise.resolve({data:[]})
+    ];
+    if(user())queries.push(sb.from('post_saves').select('post_id').eq('user_id',user()).in('post_id',ids));
+    const results=await Promise.all(queries);
+    if(ticket!==state.request)return;
+    const [mediaRows,likeRows,commentRows,profileRows,restoRows,saveRows]=results.map(safeResult);
+    const mediaBy=new Map(),likesBy=new Map(),commentsBy=new Map();
+    for(const m of mediaRows){if(!mediaBy.has(m.post_id))mediaBy.set(m.post_id,[]);mediaBy.get(m.post_id).push(m);}
+    for(const l of likeRows){if(!likesBy.has(l.post_id))likesBy.set(l.post_id,[]);likesBy.get(l.post_id).push(l.user_id);}
+    for(const c of commentRows)commentsBy.set(c.post_id,(commentsBy.get(c.post_id)||0)+1);
+    const profiles=new Map(profileRows.map(p=>[p.id,p])),restoMap=new Map(restoRows.map(r=>[r.id,r]));
+    const saved=new Set((saveRows||[]).map(p=>p.post_id));
+    state.posts=posts.map(p=>({
+      ...p,
+      media:mediaBy.get(p.id)||[],
+      profile:profiles.get(p.user_id)||null,
+      resto:restoMap.get(p.resto_id)||null,
+      likeCount:(likesBy.get(p.id)||[]).length,
+      liked:(likesBy.get(p.id)||[]).includes(user()),
+      commentCount:commentsBy.get(p.id)||0,
+      saved:saved.has(p.id)
+    }));
+    renderFeed();
+    if(state.deepLink){
+      const target=state.deepLink;state.deepLink=null;
+      if(state.posts.some(p=>p.id===target))openDetail(target);
     }
-    if(post.location_name)card.append(node('div','community-post-location','Lokasi: '+post.location_name));
-    const actions=node('div','community-post-actions');
-    actions.append(node('span','','Suka · '+(likes.get(post.id)||0)));
-    actions.append(node('span','','Komentar · '+(comments.get(post.id)||0)));
-    actions.append(node('span','','Bagikan'));
-    actions.setAttribute('aria-label','Interaksi posting akan tersedia pada tahap berikutnya');
-    card.append(actions);
-    return card;
+  }catch(err){
+    if(ticket!==state.request)return;
+    console.error('Community feed:',err);
+    status('Cerita belum bisa dimuat. Periksa koneksi lalu coba lagi.',true);
+  }finally{if(ticket===state.request)state.loading=false;}
+}
+async function toggleLike(post){
+  if(!requireAuth())return;
+  try{
+    const wasLiked=post.liked;
+    const response=wasLiked
+      ?await sb.from('post_likes').delete().eq('post_id',post.id).eq('user_id',user())
+      :await sb.from('post_likes').insert({post_id:post.id,user_id:user()});
+    if(response.error)throw response.error;
+    post.liked=!wasLiked;post.likeCount+=wasLiked?-1:1;renderFeed();
+    if(openedModal===detail.surface&&state.selectedPost?.id===post.id)renderDetailPost(post);
+  }catch(error){console.error(error);toast('Gagal memperbarui suka. Silakan coba lagi.');}
+}
+async function toggleSave(post){
+  if(!requireAuth())return;
+  try{
+    const old=post.saved;
+    const result=old
+      ?await sb.from('post_saves').delete().eq('post_id',post.id).eq('user_id',user())
+      :await sb.from('post_saves').insert({post_id:post.id,user_id:user()});
+    if(result.error)throw result.error;
+    post.saved=!old;renderFeed();
+    if(openedModal===detail.surface&&state.selectedPost?.id===post.id)renderDetailPost(post);
+    toast(post.saved?'Postingan disimpan.':'Postingan dihapus dari simpanan.');
+  }catch(error){console.error(error);toast('Gagal menyimpan postingan.');}
+}
+async function sharePost(post){
+  const url=new URL(location.href);
+  url.searchParams.set('post',post.id);
+  url.hash='';
+  const message='Cerita kuliner di GastronoMap';
+  try{
+    if(navigator.share){await navigator.share({title:message,url:url.href});return;}
+    if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(url.href);toast('Tautan postingan disalin.');return;}
+    window.prompt('Salin tautan postingan',url.href);
+  }catch(err){if(err?.name!=='AbortError')toast('Tidak dapat membagikan postingan.');}
+}
+/* Composer — separate from the central Add Resto action. */
+const composer=modal('community-composer','Buat postingan Community');
+const composerHeader=$('header','community-modal-header');
+const composerClose=button(null,'community-icon-button',closeComposer,'close');composerClose.setAttribute('aria-label','Tutup');
+const publishButton=button('Posting','community-publish',publish);
+composerHeader.append(composerClose,$('h2','','Buat Postingan'),publishButton);
+const composeContent=$('div','community-compose-content');
+const composeIdentity=$('div','community-compose-identity');
+const composeAvatar=$('span','community-avatar community-avatar--empty','P');
+const composeBy=$('div','community-compose-by');
+composeBy.append($('strong','','Pengguna GastronoMap'),$('span','','Publik · Dapat dilihat semua pengguna'));
+composeIdentity.append(composeAvatar,composeBy);
+const caption=$('textarea','community-compose-caption');
+caption.placeholder='Ceritakan pengalaman kulinermu…';caption.maxLength=5000;caption.rows=5;
+caption.setAttribute('aria-label','Cerita pengalaman kuliner');
+const charCount=$('div','community-char-count','0 / 5000');
+const thumbnails=$('div','community-photos');
+const photoInput=$('input','community-file-input');
+photoInput.type='file';photoInput.accept='image/jpeg,image/png,image/webp';photoInput.multiple=true;photoInput.hidden=true;
+const addPhotoButton=button('Tambah foto (maks. 5)','community-photo-add',()=>photoInput.click(),'image');
+const fields=$('div','community-compose-fields');
+const locationLabel=$('label','community-field-label','Lokasi (opsional)');
+const locationInput=$('input','community-field-input');locationInput.placeholder='Contoh: Bandung, Jawa Barat';locationInput.maxLength=120;
+const restoLabel=$('label','community-field-label','Tandai restoran (opsional)');
+const restoInput=$('input','community-field-input');restoInput.placeholder='Cari restoran di GastronoMap…';restoInput.autocomplete='off';
+const restoResults=$('div','community-resto-results');
+const chosenResto=$('div','community-chosen-resto');chosenResto.hidden=true;
+fields.append(locationLabel,locationInput,restoLabel,restoInput,chosenResto,restoResults);
+composeContent.append(composeIdentity,caption,charCount,thumbnails,addPhotoButton,photoInput,fields);
+composer.panel.append(composerHeader,composeContent);
+let photoFiles=[],taggedResto=null,uploadBusy=false,searchTimer=null,searchSequence=0;
+function clearPhotos(){
+  for(const p of photoFiles)URL.revokeObjectURL(p.preview);
+  photoFiles=[];renderPhotos();
+}
+function closeComposer(){
+  if(uploadBusy)return;
+  closeModal(composer.surface);clearPhotos();caption.value='';locationInput.value='';restoInput.value='';
+  taggedResto=null;chosenResto.hidden=true;restoResults.replaceChildren();updateComposerState();
+}
+function openComposer(){
+  if(!requireAuth())return;
+  composeBy.firstChild.textContent=myUsername||'Pengguna GastronoMap';
+  composeAvatar.textContent=(myUsername||'P').slice(0,1).toUpperCase();
+  openModal(composer.surface);caption.focus();
+}
+function updateComposerState(){
+  charCount.textContent=caption.value.length+' / 5000';
+  publishButton.disabled=uploadBusy||(!caption.value.trim()&&!photoFiles.length);
+  publishButton.lastChild.textContent=uploadBusy?'Mengirim…':'Posting';
+}
+caption.addEventListener('input',updateComposerState);
+function renderPhotos(){
+  thumbnails.replaceChildren();
+  for(let i=0;i<photoFiles.length;i++){
+    const item=photoFiles[i],tile=$('div','community-photo-tile');
+    const preview=safeImage(item.preview,'community-photo-preview','Pratinjau foto '+(i+1));
+    // Local blob URLs are safe for local previews; never use them for remote feed content.
+    const img=preview||$('img','community-photo-preview');
+    img.src=item.preview;img.alt='Pratinjau foto '+(i+1);
+    const tools=$('div','community-photo-tools');
+    const moveLeft=button(null,'community-photo-tool',()=>movePhoto(i,-1),'back');
+    moveLeft.setAttribute('aria-label','Geser foto ke kiri');moveLeft.disabled=i===0;
+    const moveRight=button(null,'community-photo-tool',()=>movePhoto(i,1),'chevron');
+    moveRight.setAttribute('aria-label','Geser foto ke kanan');moveRight.disabled=i===photoFiles.length-1;
+    const remove=button(null,'community-photo-tool',()=>{URL.revokeObjectURL(item.preview);photoFiles.splice(i,1);renderPhotos();},'close');
+    remove.setAttribute('aria-label','Hapus foto');tools.append(moveLeft,moveRight,remove);
+    tile.append(img,tools);thumbnails.append(tile);
   }
-  async function loadCommunityFeed(){
-    const current=++requestId;
-    status('Memuat cerita komunitas…');
-    try{
-      const {data:posts,error}=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at').order('created_at',{ascending:false}).limit(20);
-      if(error)throw error;
-      if(current!==requestId)return;
-      if(!posts?.length){status('Belum ada postingan Community. Cerita kuliner pertama akan tampil di sini.');return;}
-      const ids=posts.map(p=>p.id);
-      const userIds=[...new Set(posts.map(p=>p.user_id))];
-      const restoIds=[...new Set(posts.map(p=>p.resto_id).filter(Boolean))];
-      const requests=[
-        sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position'),
-        sb.from('post_likes').select('post_id').in('post_id',ids),
-        sb.from('comments').select('post_id').in('post_id',ids),
-        sb.from('profiles').select('id,username,avatar_url').in('id',userIds)
-      ];
-      if(restoIds.length)requests.push(sb.from('restos').select('id,name').in('id',restoIds));
-      const results=await Promise.all(requests);
-      if(current!==requestId)return;
-      for(const result of results){if(result.error)throw result.error;}
-      const media=new Map(),likes=new Map(),comments=new Map();
-      for(const item of results[0].data||[]){if(!media.has(item.post_id))media.set(item.post_id,[]);media.get(item.post_id).push(item);}
-      for(const item of results[1].data||[])likes.set(item.post_id,(likes.get(item.post_id)||0)+1);
-      for(const item of results[2].data||[])comments.set(item.post_id,(comments.get(item.post_id)||0)+1);
-      const profiles=new Map((results[3].data||[]).map(p=>[p.id,p]));
-      const restos=new Map((results[4]?.data||[]).map(r=>[r.id,r.name]));
-      feed.replaceChildren(...posts.map(p=>renderPost(p,profiles,restos,media,likes,comments)));
-    }catch(error){if(current!==requestId)return;console.error('Community feed:',error);status('Feed Community belum dapat dimuat. Periksa koneksi lalu coba lagi.',true);}
+  addPhotoButton.hidden=photoFiles.length>=5;
+  updateComposerState();
+}
+function movePhoto(i,by){
+  const other=i+by;if(other<0||other>=photoFiles.length)return;
+  [photoFiles[i],photoFiles[other]]=[photoFiles[other],photoFiles[i]];renderPhotos();
+}
+photoInput.addEventListener('change',()=>{
+  const files=[...photoInput.files];photoInput.value='';
+  for(const file of files){
+    if(photoFiles.length>=5){toast('Maksimal 5 foto per postingan.');break;}
+    if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>6291456){
+      toast('Gunakan JPG, PNG, atau WebP berukuran maksimal 6 MB.');continue;
+    }
+    photoFiles.push({file,preview:URL.createObjectURL(file)});
   }
-  document.getElementById('navCommunityBtn')?.addEventListener('click',loadCommunityFeed);
-  window.addEventListener('popstate',()=>{if(history.state?.gmView==='community')loadCommunityFeed();});
-  window.loadCommunityFeed=loadCommunityFeed;
+  renderPhotos();
+});
+function showChosenResto(){
+  chosenResto.replaceChildren();
+  if(!taggedResto){chosenResto.hidden=true;return;}
+  chosenResto.hidden=false;
+  chosenResto.append($('span','',taggedResto.name),button('Hapus','community-small-link',()=>{taggedResto=null;showChosenResto();}));
+}
+restoInput.addEventListener('input',()=>{
+  taggedResto=null;showChosenResto();clearTimeout(searchTimer);
+  const typed=restoInput.value.trim();if(typed.length<2){restoResults.replaceChildren();return;}
+  const ticket=++searchSequence;
+  searchTimer=setTimeout(async()=>{
+    const result=await sb.from('restos').select('id,name,address').ilike('name','%'+typed.replace(/[%_\\]/g,'')+'%').limit(8);
+    if(ticket!==searchSequence)return;
+    restoResults.replaceChildren();
+    if(result.error)return;
+    for(const r of result.data||[]){
+      const pick=button(null,'community-resto-option',()=>{
+        taggedResto=r;restoInput.value='';restoResults.replaceChildren();showChosenResto();
+      });
+      pick.append($('strong','',r.name),$('small','',r.address||''));restoResults.append(pick);
+    }
+  },250);
+});
+async function publish(){
+  if(uploadBusy||!requireAuth())return;
+  const text=caption.value.trim();
+  if(!text&&!photoFiles.length){toast('Tambahkan cerita atau foto terlebih dahulu.');return;}
+  uploadBusy=true;updateComposerState();
+  let createdPost=null;const uploaded=[];
+  try{
+    const inserted=await sb.from('posts').insert({
+      user_id:user(),caption:text,location_name:locationInput.value.trim()||null,
+      resto_id:taggedResto?.id||null
+    }).select('id').single();
+    if(inserted.error)throw inserted.error;
+    createdPost=inserted.data.id;
+    const media=[];
+    for(let i=0;i<photoFiles.length;i++){
+      const file=photoFiles[i].file;
+      const extension=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
+      const random=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+i;
+      const path=user()+'/'+createdPost+'/'+random+'.'+extension;
+      const upload=await sb.storage.from('community-posts').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+      if(upload.error)throw upload.error;
+      uploaded.push(path);
+      media.push({post_id:createdPost,position:i,url:sb.storage.from('community-posts').getPublicUrl(path).data.publicUrl});
+    }
+    if(media.length){const written=await sb.from('post_media').insert(media);if(written.error)throw written.error;}
+    uploadBusy=false;closeComposer();
+    state.filter='latest';toast('Cerita berhasil diposting.');await loadCommunityFeed();
+    view.scrollTo({top:0,behavior:'smooth'});
+  }catch(error){
+    console.error('Gagal membuat postingan:',error);
+    if(createdPost){await sb.from('posts').delete().eq('id',createdPost);}
+    if(uploaded.length){await sb.storage.from('community-posts').remove(uploaded);}
+    toast('Postingan gagal dikirim. Coba lagi.');
+  }finally{uploadBusy=false;updateComposerState();}
+}
+updateComposerState();
+/* Detail and threaded comments. */
+const detail=modal('community-detail','Detail postingan dan komentar');
+const detailHeader=$('header','community-modal-header');
+const detailBack=button(null,'community-icon-button',closeDetail,'back');
+detailBack.setAttribute('aria-label','Kembali ke Community');
+detailHeader.append(detailBack,$('h2','','Postingan'),$('span','community-modal-header-space'));
+const detailScroll=$('div','community-detail-scroll');
+const detailPost=$('div','community-detail-post');
+const commentsTitle=$('h3','community-comments-title','Komentar');
+const commentsBody=$('div','community-comments');
+detailScroll.append(detailPost,commentsTitle,commentsBody);
+const commentForm=$('form','community-comment-form');
+const replyLabel=$('div','community-reply-label');replyLabel.hidden=true;
+const commentRow=$('div','community-comment-row');
+const commentInput=$('textarea','community-comment-input');
+commentInput.rows=1;commentInput.maxLength=2000;commentInput.placeholder='Tulis komentar…';
+commentInput.setAttribute('aria-label','Tulis komentar');
+const sendButton=button(null,'community-comment-send',null,'send');sendButton.type='submit';sendButton.setAttribute('aria-label','Kirim komentar');
+commentRow.append(commentInput,sendButton);commentForm.append(replyLabel,commentRow);
+detail.panel.append(detailHeader,detailScroll,commentForm);
+let replyTo=null,commentBusy=false;
+function closeDetail(){
+  closeModal(detail.surface);state.selectedPost=null;replyTo=null;
+  const address=new URL(location.href);
+  if(address.searchParams.has('post')){address.searchParams.delete('post');history.replaceState(history.state,'',address.href);}
+}
+function renderDetailPost(post){
+  detailPost.replaceChildren(renderPost(post,true));
+  commentsTitle.textContent='Komentar · '+post.commentCount;
+}
+function setReply(comment){
+  replyTo=comment;
+  replyLabel.hidden=false;replyLabel.replaceChildren();
+  replyLabel.append($('span','','Membalas '+displayName(comment.profile)),button('Batal','community-small-link',()=>{replyTo=null;replyLabel.hidden=true;}));
+  commentInput.focus();
+}
+function commentItem(c,replies){
+  const wrap=$('div','community-comment'+(c.parent_id?' community-comment--reply':''));
+  wrap.append(avatar(c.profile));
+  const content=$('div','community-comment-content');
+  const heading=$('div','community-comment-heading');
+  heading.append($('strong','',displayName(c.profile)),$('time','',prettyTime.format(new Date(c.created_at))));
+  content.append(heading,$('p','',c.body));
+  const bar=$('div','community-comment-tools');
+  const like=button(String(c.likeCount),'community-comment-like'+(c.liked?' is-active':''),()=>toggleCommentLike(c),'heart');
+  like.setAttribute('aria-label',c.liked?'Batal suka komentar':'Suka komentar');
+  if(c.liked)like.firstChild.querySelector('path').setAttribute('fill','currentColor');
+  bar.append(like,button('Balas','community-small-link',()=>setReply(c)));
+  content.append(bar);wrap.append(content);
+  const container=$('div','community-comment-thread');container.append(wrap);
+  for(const child of replies)container.append(commentItem(child,[]));
+  return container;
+}
+function renderComments(){
+  commentsBody.replaceChildren();
+  const list=state.detailComments;
+  if(!list.length){commentsBody.append($('div','community-comments-empty','Belum ada komentar. Mulai percakapan pertama.'));return;}
+  const roots=list.filter(c=>!c.parent_id||!list.some(x=>x.id===c.parent_id));
+  for(const c of roots)commentsBody.append(commentItem(c,list.filter(x=>x.parent_id===c.id)));
+}
+async function loadComments(postId){
+  commentsBody.replaceChildren($('div','community-comments-empty','Memuat komentar…'));
+  try{
+    const response=await sb.from('comments').select('id,post_id,user_id,parent_id,body,created_at').eq('post_id',postId).order('created_at',{ascending:true}).limit(200);
+    const comments=safeResult(response);
+    if(state.selectedPost?.id!==postId)return;
+    const users=[...new Set(comments.map(c=>c.user_id))];
+    const results=await Promise.all([
+      users.length?sb.from('profiles').select('id,display_name,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
+      comments.length?sb.from('comment_likes').select('comment_id,user_id').in('comment_id',comments.map(c=>c.id)):Promise.resolve({data:[]})
+    ]);
+    if(state.selectedPost?.id!==postId)return;
+    const [profiles,likes]=results.map(safeResult),byId=new Map(profiles.map(p=>[p.id,p]));
+    const counts=new Map(),mine=new Set();
+    for(const like of likes){counts.set(like.comment_id,(counts.get(like.comment_id)||0)+1);if(like.user_id===user())mine.add(like.comment_id);}
+    state.detailComments=comments.map(c=>({...c,profile:byId.get(c.user_id),likeCount:counts.get(c.id)||0,liked:mine.has(c.id)}));
+    renderComments();
+  }catch(error){console.error(error);commentsBody.replaceChildren($('div','community-comments-empty','Komentar belum dapat dimuat.'));}
+}
+async function toggleCommentLike(comment){
+  if(!requireAuth())return;
+  try{
+    const result=comment.liked
+      ?await sb.from('comment_likes').delete().eq('comment_id',comment.id).eq('user_id',user())
+      :await sb.from('comment_likes').insert({comment_id:comment.id,user_id:user()});
+    if(result.error)throw result.error;
+    comment.liked=!comment.liked;comment.likeCount+=comment.liked?1:-1;renderComments();
+  }catch(error){console.error(error);toast('Gagal memperbarui suka komentar.');}
+}
+function openDetail(postId){
+  const post=state.posts.find(p=>p.id===postId);
+  if(!post)return;
+  state.selectedPost=post;replyTo=null;replyLabel.hidden=true;commentInput.value='';
+  renderDetailPost(post);detailScroll.scrollTop=0;openModal(detail.surface);
+  detailBack.focus({preventScroll:true});loadComments(postId);
+}
+commentForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(commentBusy||!state.selectedPost||!requireAuth())return;
+  const post=state.selectedPost,comment=commentInput.value.trim();
+  if(!comment)return;
+  commentBusy=true;sendButton.disabled=true;
+  try{
+    const r=await sb.from('comments').insert({post_id:post.id,user_id:user(),parent_id:replyTo?.id||null,body:comment});
+    if(r.error)throw r.error;
+    post.commentCount++;replyTo=null;replyLabel.hidden=true;commentInput.value='';
+    renderFeed();renderDetailPost(post);await loadComments(post.id);
+    detailScroll.scrollTo({top:detailScroll.scrollHeight,behavior:'smooth'});
+  }catch(error){console.error(error);toast('Komentar gagal dikirim.');}
+  finally{commentBusy=false;sendButton.disabled=false;}
+});
+async function deletePost(post){
+  if(post.user_id!==user()||!window.confirm('Hapus postingan ini? Tindakan tidak dapat dibatalkan.'))return;
+  try{
+    const result=await sb.from('posts').delete().eq('id',post.id).eq('user_id',user());
+    if(result.error)throw result.error;
+    const base=sb.storage.from('community-posts').getPublicUrl('').data.publicUrl;
+    const uploaded=post.media.map(m=>m.url.startsWith(base)?decodeURIComponent(m.url.slice(base.length)).replace(/^\/+/,''):null).filter(Boolean);
+    if(uploaded.length)await sb.storage.from('community-posts').remove(uploaded);
+    closeDetail();toast('Postingan dihapus.');await loadCommunityFeed();
+  }catch(error){console.error(error);toast('Postingan gagal dihapus.');}
+}
+document.getElementById('navCommunityBtn')?.addEventListener('click',loadCommunityFeed);
+document.querySelectorAll('#bottomNav .nav-item:not(#navCommunityBtn)').forEach(b=>b.addEventListener('click',()=>{
+  if(openedModal===detail.surface)closeDetail();
+}));
+window.addEventListener('popstate',e=>{
+  if((e.state&&e.state.gmView)==='community')loadCommunityFeed();
+  else if(openedModal===detail.surface)closeDetail();
+});
+window.loadCommunityFeed=loadCommunityFeed;
+if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)){
+  navigatePrimaryView('community',{history:false});
+  loadCommunityFeed();
+}
 })();
