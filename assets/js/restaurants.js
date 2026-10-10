@@ -1430,7 +1430,7 @@ function openForm(existing){
   pickedLatLng = existing ? L.latLng(existing.lat, existing.lng) : null;
   document.getElementById('formTitle').textContent = existing ? 'Edit Resto' : 'Tambah Resto';
   document.getElementById('formModal').classList.toggle('is-edit-mode', !!existing);
-  if(!existing) goToWizardStep(1); // reset wizard ke step 1 tiap kali buka form Tambah Resto baru
+  draftReady = false; // tidak menimpa draft sebelum pemulihan selesai
   document.getElementById('f_address').value = existing ? (existing.address || '') : '';
   document.getElementById('f_phone').value = existing ? (existing.phone || '') : '';
   document.getElementById('locSuggestions').classList.add('hidden');
@@ -1509,6 +1509,13 @@ function openForm(existing){
   }
 
   document.getElementById('modalOverlay').classList.remove('hidden');
+  const saveBtn = document.getElementById('saveForm');
+  saveBtn.disabled = false;
+  saveBtn.textContent = existing ? 'Simpan Perubahan' : 'Kirim Resto';
+  document.getElementById('restoSaveStatus').classList.add('hidden');
+  document.getElementById('draftRestoredNotice').classList.add('hidden');
+  if(!existing){ goToWizardStep(1); restoreAddRestoDraft({keepLocation:!!quickLoc}); }
+  else { saveBtn.classList.remove('hidden'); }
 }
 
 function renderMenuPhotoGrid(){
@@ -1605,60 +1612,177 @@ function addRefUrlRow(value=''){
   document.getElementById('refUrlList').appendChild(row);
 }
 
-function closeForm(){
+function closeForm(options = {}){
+  if(isRestoSaving && !options.skipDraft)return;
+  if(!options.skipDraft)saveAddRestoDraft();
+  draftReady = false;
   pickingLocationMode = false;
   document.getElementById('modalOverlay').classList.add('hidden');
   document.getElementById('pinPeekBar').classList.add('hidden');
   if(tempMarker){ map.removeLayer(tempMarker); tempMarker = null; }
 }
 
-/* ================= WIZARD TAMBAH RESTO (4 langkah: Info/Detail/Foto/Selesai) =================
-   Hanya berlaku untuk mode TAMBAH BARU (lihat #formModal.is-edit-mode di CSS -- mode edit tetap
-   satu halaman panjang seperti sebelumnya, karena hanya admin yang mengedit dan mereka sudah
-   terbiasa dengan tampilan lama). Wizard ini murni navigasi/tampilan -- semua field tetap ada di
-   DOM yang sama seperti sebelumnya, jadi handleSave() tidak perlu diubah sama sekali. */
+/* ================= P1 TAHAP 5: ADD RESTO WIZARD + SESI DRAFT ================= */
 let currentWizardStep = 1;
+let draftReady = false;
+let isRestoSaving = false;
+function getAddRestoDraftKey(){return myUserId ? 'gastronomap:add-resto-draft:'+myUserId : null;}
+function saveAddRestoDraft(){
+  if(!draftReady || editingId || !myUserId || isRestoSaving) return;
+  const key=getAddRestoDraftKey(); if(!key)return;
+  const draft={
+    name:document.getElementById('f_name').value,
+    address:document.getElementById('f_address').value,
+    phone:document.getElementById('f_phone').value,
+    type:document.getElementById('f_type').value,
+    price:document.getElementById('f_price').value,
+    lat:pickedLatLng ? pickedLatLng.lat : null,
+    lng:pickedLatLng ? pickedLatLng.lng : null,
+    hoursByDay:readDayHoursFromForm(),
+    payments:Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(x=>x.dataset.payment),
+    favorites:Array.from(document.querySelectorAll('#favList .fav-row input')).map(x=>x.value),
+    references:Array.from(document.querySelectorAll('#refUrlList .ref-url-row input')).map(x=>x.value),
+    menuImages:formMenuImages.slice(),
+    rating:{...formRatingDraft},
+    testimonial:document.getElementById('f_testi').value,
+    step:currentWizardStep,
+    savedAt:Date.now()
+  };
+  try{sessionStorage.setItem(key,JSON.stringify(draft));}catch(error){console.warn('Draft tidak dapat disimpan:',error);}
+}
+function clearAddRestoDraft(){
+  const key=getAddRestoDraftKey();
+  if(key)try{sessionStorage.removeItem(key);}catch(error){console.warn('Draft tidak dapat dihapus:',error);}
+  document.getElementById('draftRestoredNotice').classList.add('hidden');
+}
+function restoreAddRestoDraft(options={}){
+  const key=getAddRestoDraftKey();
+  let draft=null;
+  try{draft=key && JSON.parse(sessionStorage.getItem(key)||'null');}catch(error){console.warn('Draft rusak:',error);}
+  if(draft && typeof draft==='object'){
+    const value=(id,v)=>{if(typeof v==='string')document.getElementById(id).value=v;};
+    value('f_name',draft.name);value('f_address',draft.address);value('f_phone',draft.phone);
+    value('f_type',draft.type);value('f_price',draft.price);value('f_testi',draft.testimonial);
+    if(draft.hoursByDay && typeof draft.hoursByDay==='object')renderDayHoursRows(draft.hoursByDay);
+    document.querySelectorAll('#paymentPicker .platform-toggle').forEach(el=>el.classList.toggle('active',(draft.payments||[]).includes(el.dataset.payment)));
+    const favList=document.getElementById('favList');favList.innerHTML='';
+    (Array.isArray(draft.favorites)&&draft.favorites.length?draft.favorites:['']).forEach(value=>addFavRow(value));
+    const refList=document.getElementById('refUrlList');refList.innerHTML='';
+    (Array.isArray(draft.references)&&draft.references.length?draft.references:['']).forEach(value=>addRefUrlRow(value));
+    if(Array.isArray(draft.menuImages)) {formMenuImages=draft.menuImages.filter(u=>typeof u==='string');renderMenuPhotoGrid();}
+    formRatingDraft=(draft.rating && typeof draft.rating==='object')?draft.rating:{};
+    document.querySelectorAll('#formRatingForm .star-picker').forEach(picker=>{
+      const n=Number(formRatingDraft[picker.dataset.crit]||0);
+      picker.querySelectorAll('span').forEach(star=>star.classList.toggle('filled',Number(star.dataset.v)<=n));
+    });
+    if(!options.keepLocation && Number.isFinite(draft.lat) && Number.isFinite(draft.lng)){
+      placeDraggableMarker(draft.lat,draft.lng,'draft dipulihkan','manual',{skipReverseGeocode:true});
+    }
+    goToWizardStep(Math.min(4,Math.max(1,Number(draft.step)||1)));
+    document.getElementById('draftRestoredNotice').classList.remove('hidden');
+  }else{
+    document.getElementById('draftRestoredNotice').classList.add('hidden');
+  }
+  draftReady=true;
+  saveAddRestoDraft();
+}
+function validateAddRestoBasics(){
+  const name=document.getElementById('f_name').value.trim();
+  const phone=document.getElementById('f_phone').value.trim();
+  if(name.length<3){showToast('Nama resto minimal 3 karakter');document.getElementById('f_name').focus();return false;}
+  if(!document.getElementById('f_type').value){showToast('Pilih kategori resto');return false;}
+  if(phone && !/^[+\d\s().-]{7,24}$/.test(phone)){showToast('Nomor telepon tidak valid');document.getElementById('f_phone').focus();return false;}
+  return true;
+}
+function validateAddRestoLocation(){
+  if(!pickedLatLng || !Number.isFinite(pickedLatLng.lat) || !Number.isFinite(pickedLatLng.lng)){showToast('Pilih titik lokasi resto di peta');return false;}
+  const candidates=findAddRestoDuplicateCandidates(document.getElementById('f_name').value.trim(),pickedLatLng.lat,pickedLatLng.lng);
+  const blocked=candidates.find(x=>x.similar && x.distance<=25);
+  if(blocked){showToast('Resto sangat mirip sudah ada di titik ini: '+blocked.resto.name);return false;}
+  return true;
+}
+function validateAddRestoExtras(){
+  const count=RATING_CRITERIA.filter(c=>Number(formRatingDraft[c.key])>0).length;
+  if(count>0 && count!==RATING_CRITERIA.length){showToast('Isi keenam aspek rating atau kosongkan semuanya');return false;}
+  const refs=Array.from(document.querySelectorAll('#refUrlList .ref-url-row input')).map(x=>x.value.trim()).filter(Boolean);
+  for(const ref of refs){
+    try{const url=new URL(ref);if(!['http:','https:'].includes(url.protocol))throw Error('Protokol tidak valid');}
+    catch(error){showToast('Link referensi harus berupa URL lengkap https://...');return false;}
+  }
+  return true;
+}
 function goToWizardStep(n){
-  currentWizardStep = n;
-  document.querySelectorAll('.wizard-step').forEach(el=>{
-    el.classList.toggle('active', Number(el.dataset.step) === n);
-  });
+  currentWizardStep=n;
+  document.querySelectorAll('.wizard-step').forEach(el=>el.classList.toggle('active',Number(el.dataset.step)===n));
   document.querySelectorAll('.wizard-step-item').forEach(el=>{
-    const s = Number(el.dataset.stepItem);
-    el.classList.toggle('active', s === n);
-    el.querySelector('.wizard-step-dot').classList.toggle('active', s === n);
-    el.querySelector('.wizard-step-dot').classList.toggle('done', s < n);
-    el.querySelector('.wizard-step-dot').textContent = s < n ? '✓' : s;
+    const s=Number(el.dataset.stepItem),dot=el.querySelector('.wizard-step-dot');
+    el.classList.toggle('active',s===n);
+    dot.classList.toggle('active',s===n);
+    dot.classList.toggle('done',s<n);
+    dot.textContent=s<n?'✓':s;
+    if(s===n)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');
   });
-  document.querySelectorAll('.wizard-step-connector').forEach(el=>{
-    el.classList.toggle('done', Number(el.dataset.connector) < n);
-  });
-  // Tombol "Simpan Resto" cuma tampil di step 4 (Selesai) -- step 1-3 pakai "Lanjut" bawaan wizard.
-  document.getElementById('saveForm').classList.toggle('hidden', n < 4);
-  if(n === 4) renderWizardReview();
-  document.getElementById('formModal').scrollTop = 0;
+  document.querySelectorAll('.wizard-step-connector').forEach(el=>el.classList.toggle('done',Number(el.dataset.connector)<n));
+  const btn=document.getElementById('saveForm');
+  btn.classList.toggle('hidden',n<4);
+  if(n===2)refreshAddRestoDuplicateHint();
+  if(n===4)renderWizardReview();
+  document.getElementById('formModal').scrollTop=0;
+  saveAddRestoDraft();
 }
 function renderWizardReview(){
-  const name = document.getElementById('f_name').value.trim() || '-';
-  const address = document.getElementById('f_address').value.trim() || '-';
-  const type = document.getElementById('f_type').value || '-';
-  const price = document.getElementById('f_price').value || '-';
-  document.getElementById('wizardReviewBox').innerHTML = `
-    <div class="wr-row"><span class="wr-label">Nama</span><span class="wr-value">${escapeHtml(name)}</span></div>
-    <div class="wr-row"><span class="wr-label">Alamat</span><span class="wr-value">${escapeHtml(address)}</span></div>
-    <div class="wr-row"><span class="wr-label">Kategori</span><span class="wr-value">${escapeHtml(type)} · ${escapeHtml(price)}</span></div>
-  `;
+  const val=id=>document.getElementById(id).value.trim()||'—';
+  const row=(label,value)=>'<div class="wr-row"><span class="wr-label">'+escapeHtml(label)+'</span><span class="wr-value">'+escapeHtml(String(value))+'</span></div>';
+  const section=(title,step)=>'<div class="wr-section"><span>'+escapeHtml(title)+'</span><button type="button" data-wizard-edit="'+step+'">Edit</button></div>';
+  const favorites=Array.from(document.querySelectorAll('#favList .fav-row input')).map(x=>x.value.trim()).filter(Boolean);
+  const references=Array.from(document.querySelectorAll('#refUrlList .ref-url-row input')).map(x=>x.value.trim()).filter(Boolean);
+  const payments=Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(x=>x.dataset.payment);
+  const ratingCount=RATING_CRITERIA.filter(c=>formRatingDraft[c.key]).length;
+  const loc=pickedLatLng?pickedLatLng.lat.toFixed(5)+', '+pickedLatLng.lng.toFixed(5):'Belum dipilih';
+  document.getElementById('wizardReviewBox').innerHTML=
+    section('Informasi Dasar',1)+row('Nama',val('f_name'))+row('Kategori',val('f_type'))+
+    row('Harga',val('f_price'))+row('Telepon',val('f_phone'))+
+    section('Lokasi',2)+row('Alamat',val('f_address'))+row('Pin',loc)+
+    section('Detail Tambahan',3)+row('Pembayaran',payments.join(', ')||'—')+
+    row('Menu favorit',favorites.length+' menu')+
+    row('Foto menu',formMenuImages.length+' foto')+row('Foto kunjungan',formVisitPhotos.length+' foto')+
+    row('Referensi',references.length+' link')+
+    row('Rating',ratingCount===6?'6 aspek':'Tidak diisi')+
+    row('Testimoni',val('f_testi')==='—'?'Tidak diisi':'Sudah diisi');
+  document.querySelectorAll('#wizardReviewBox [data-wizard-edit]').forEach(btn=>{
+    btn.onclick=()=>goToWizardStep(Number(btn.dataset.wizardEdit));
+  });
 }
-document.getElementById('wizardNext1').onclick = ()=>{
-  if(!document.getElementById('f_name').value.trim()){ showToast('Isi nama resto dulu'); return; }
-  if(!pickedLatLng){ showToast('Pilih lokasi resto di peta dulu'); return; }
-  goToWizardStep(2);
-};
-document.getElementById('wizardBack2').onclick = ()=> goToWizardStep(1);
-document.getElementById('wizardNext2').onclick = ()=> goToWizardStep(3);
-document.getElementById('wizardBack3').onclick = ()=> goToWizardStep(2);
-document.getElementById('wizardNext3').onclick = ()=> goToWizardStep(4);
-document.getElementById('wizardBack4').onclick = ()=> goToWizardStep(3);
+function findAddRestoDuplicateCandidates(name,lat,lng){
+  if(!name || !Number.isFinite(lat) || !Number.isFinite(lng))return [];
+  return Object.values(allRestos).filter(r=>r && r.id!==editingId && Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng))).map(r=>{
+    const distance=distanceMetersBetween(lat,lng,Number(r.lat),Number(r.lng));
+    return {resto:r,distance,similar:namesLookSimilar(name,r.name)};
+  }).filter(x=>x.distance<=250 && (x.similar||x.distance<=8)).sort((a,b)=>a.distance-b.distance).slice(0,4);
+}
+function refreshAddRestoDuplicateHint(){
+  const box=document.getElementById('duplicateRestoHint');
+  if(!box || editingId || !pickedLatLng){if(box)box.classList.add('hidden');return;}
+  const matches=findAddRestoDuplicateCandidates(document.getElementById('f_name').value.trim(),pickedLatLng.lat,pickedLatLng.lng);
+  if(!matches.length){box.classList.add('hidden');return;}
+  const blocked=matches.some(m=>m.similar && m.distance<=25);
+  box.innerHTML='<strong>'+(blocked?'Resto serupa sudah terdaftar di dekat pin':'Periksa resto di sekitar titik ini')+'</strong>'+
+    '<ul>'+matches.map(m=>'<li>'+escapeHtml(m.resto.name)+' — '+Math.round(m.distance)+' m'+(m.similar?' (nama mirip)':'')+'</li>').join('')+'</ul>'+
+    '<span>'+(blocked?'Ubah lokasi atau periksa resto yang sudah ada.':'Pastikan tidak menambahkan resto yang sama dua kali.')+'</span>';
+  box.classList.remove('hidden');
+}
+document.getElementById('wizardNext1').onclick=()=>{if(validateAddRestoBasics())goToWizardStep(2);};
+document.getElementById('wizardBack2').onclick=()=>goToWizardStep(1);
+document.getElementById('wizardNext2').onclick=()=>{if(validateAddRestoLocation())goToWizardStep(3);};
+document.getElementById('wizardBack3').onclick=()=>goToWizardStep(2);
+document.getElementById('wizardNext3').onclick=()=>{if(validateAddRestoExtras())goToWizardStep(4);};
+document.getElementById('wizardBack4').onclick=()=>goToWizardStep(3);
+document.getElementById('discardRestoDraftBtn').onclick=()=>{clearAddRestoDraft();draftReady=false;openForm(null);};
+let addRestoDraftTimer=null;
+const scheduleAddRestoDraft=()=>{clearTimeout(addRestoDraftTimer);addRestoDraftTimer=setTimeout(()=>{saveAddRestoDraft();refreshAddRestoDuplicateHint();},350);};
+document.getElementById('formModal').addEventListener('input',scheduleAddRestoDraft);
+document.getElementById('formModal').addEventListener('change',scheduleAddRestoDraft);
+document.getElementById('formModal').addEventListener('click',scheduleAddRestoDraft);
 
 /* ================= CEK DUPLIKAT LOKASI (crowdsource) ================= */
 // Haversine sederhana, cukup akurat untuk radius kecil (meter-level).
@@ -1671,120 +1795,110 @@ function distanceMetersBetween(lat1, lng1, lat2, lng2){
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 function normalizeRestoName(name){
-  return (name || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  return String(name||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
 }
-function namesLookSimilar(a, b){
-  const na = normalizeRestoName(a), nb = normalizeRestoName(b);
-  if(!na || !nb) return false;
-  return na === nb || na.includes(nb) || nb.includes(na);
+
+function namesLookSimilar(a,b){
+  const na=normalizeRestoName(a),nb=normalizeRestoName(b);
+  if(!na||!nb)return false;
+  if(na===nb)return true;
+  const as=new Set(na.split(' ')),bs=new Set(nb.split(' '));
+  const same=Array.from(as).filter(t=>bs.has(t)).length;
+  return same>=2 && same/Math.max(as.size,bs.size)>=0.85;
 }
-// Dipanggil sebelum simpan resto BARU: cari resto lain dalam radius 5m dari pin.
-// - Nama mirip & <=5m  -> diblokir (kemungkinan besar duplikat)
-// - Nama beda & <=5m   -> peringatan, boleh lanjut kalau user yakin (mis. beda tenant di foodcourt)
-// Return true kalau boleh lanjut simpan, false kalau harus dibatalkan.
-function checkDuplicateLocation(name, lat, lng){
-  const DUP_RADIUS_M = 5;
-  let nearest = null;
-  Object.values(allRestos).forEach(r=>{
-    if(r.lat == null || r.lng == null) return;
-    const d = distanceMetersBetween(lat, lng, r.lat, r.lng);
-    if(d <= DUP_RADIUS_M && (!nearest || d < nearest.d)) nearest = { r, d };
-  });
-  if(!nearest) return true;
-  const distTxt = nearest.d < 1 ? '<1 meter' : `${nearest.d.toFixed(1)} meter`;
-  if(namesLookSimilar(name, nearest.r.name)){
-    showToast(`Sudah ada resto serupa: "${nearest.r.name}" (${distTxt} dari titik ini). Cek dulu apakah ini resto yang sama.`);
-    return false;
-  }
-  return confirm(`Ada resto lain persis di lokasi ini: "${nearest.r.name}" (${distTxt}). Yakin ini resto yang berbeda (mis. tenant lain di foodcourt/ruko yang sama)?`);
+
+function checkDuplicateLocation(name,lat,lng){
+  const matches=findAddRestoDuplicateCandidates(name,lat,lng);
+  const blocked=matches.find(m=>m.similar && m.distance<=25);
+  if(blocked){showToast('Resto serupa sudah terdaftar: '+blocked.resto.name);return false;}
+  const nearest=matches[0];
+  if(!nearest)return true;
+  const reason=nearest.similar?'bernama mirip':'berada di lokasi yang sangat dekat';
+  return confirm('Ada resto '+reason+': "'+nearest.resto.name+'" ('+Math.round(nearest.distance)+' m). Yakin ini resto berbeda?');
 }
 
 async function handleSave(){
-  const name = document.getElementById('f_name').value.trim();
-  if(!name){ showToast('Nama resto wajib diisi'); return; }
-  if(!pickedLatLng){ showToast('Pilih lokasi di peta dulu'); return; }
-  if(!requireLogin()) return;
-  if(!editingId && !checkDuplicateLocation(name, pickedLatLng.lat, pickedLatLng.lng)) return;
-  const imgUrls = formMenuImages;
-  const favMenus = Array.from(document.querySelectorAll('.fav-row input')).map(i=>i.value.trim()).filter(Boolean);
-  const refUrlsRaw = Array.from(document.querySelectorAll('.ref-url-row input')).map(i=>i.value.trim()).filter(Boolean);
-  const platforms = isAdmin
-    ? Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>{
-        const input = document.querySelector(`.platform-url-input[data-platform="${el.dataset.platform}"]`);
-        return { platform: el.dataset.platform, url: (input && input.value.trim()) || '' };
-      })
-    : []; // User biasa: ketersediaan online diusulkan lewat halaman detail (openLinkSubmitPopup), bukan form ini.
-  if(isAdmin && platforms.some(p=> !p.url)){
-    showToast('Link wajib diisi kalau platform ketersediaan online dipilih');
-    return;
-  }
-  const paymentMethods = Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(el=>el.dataset.payment);
-  const data = {
-    id: editingId || null,
-    name,
-    address: document.getElementById('f_address').value.trim(),
-    phone: document.getElementById('f_phone').value.trim(),
-    type: document.getElementById('f_type').value,
-    priceRange: document.getElementById('f_price').value,
-    hoursByDay: readDayHoursFromForm(),
-    onlinePlatforms: platforms,
-    paymentMethods: paymentMethods,
-    menuImages: imgUrls,
-    lat: pickedLatLng.lat,
-    lng: pickedLatLng.lng
+  if(isRestoSaving)return;
+  const editMode=!!editingId;
+  if(!validateAddRestoBasics()){if(!editMode)goToWizardStep(1);return;}
+  if(!validateAddRestoLocation()){if(!editMode)goToWizardStep(2);return;}
+  if(!validateAddRestoExtras()){if(!editMode)goToWizardStep(3);return;}
+  if(!requireLogin())return;
+  const name=document.getElementById('f_name').value.trim();
+  if(!editMode && !checkDuplicateLocation(name,pickedLatLng.lat,pickedLatLng.lng))return;
+  const favMenus=Array.from(document.querySelectorAll('#favList .fav-row input')).map(i=>i.value.trim()).filter(Boolean);
+  const refUrlsRaw=Array.from(document.querySelectorAll('#refUrlList .ref-url-row input')).map(i=>i.value.trim()).filter(Boolean);
+  const platforms=isAdmin?Array.from(document.querySelectorAll('#platformPicker .platform-toggle.active')).map(el=>{
+    const input=document.querySelector('.platform-url-input[data-platform="'+el.dataset.platform+'"]');
+    return {platform:el.dataset.platform,url:input?input.value.trim():''};
+  }):[];
+  if(isAdmin && platforms.some(p=>!p.url)){showToast('Link wajib diisi jika platform online dipilih');if(!editMode)goToWizardStep(3);return;}
+  const data={
+    id:editingId||null,name,address:document.getElementById('f_address').value.trim(),
+    phone:document.getElementById('f_phone').value.trim(),type:document.getElementById('f_type').value,
+    priceRange:document.getElementById('f_price').value,hoursByDay:readDayHoursFromForm(),
+    onlinePlatforms:platforms,
+    paymentMethods:Array.from(document.querySelectorAll('#paymentPicker .platform-toggle.active')).map(el=>el.dataset.payment),
+    menuImages:formMenuImages.slice(),lat:pickedLatLng.lat,lng:pickedLatLng.lng
   };
+  const btn=document.getElementById('saveForm'),status=document.getElementById('restoSaveStatus');
+  isRestoSaving=true;btn.disabled=true;btn.textContent='Menyimpan...';
+  status.classList.remove('hidden');status.textContent='Menyimpan data resto...';
+  let coreSaved=false;
+  const failures=[];
+  const failure=(label,error)=>{failures.push(label);console.error('Add Resto — '+label,error);};
   try{
-    const restoId = await upsertRestoCore(data);
-    // Menu favorit, referensi, foto kunjungan, rating & testimoni di form ini hanya dipakai
-    // untuk ISIAN AWAL resto baru. Untuk resto yang sudah ada, tambah/kelola lewat panel detail
-    // (supaya jelas siapa penulisnya).
-    if(!editingId){
-      if(favMenus.length){
-        for(const menuName of favMenus){
-          try{
-            await addMenuRecommendation(restoId, menuName);
-          }catch(error){
-            console.error('Gagal menyimpan rekomendasi menu:', error);
-          }
-        }
+    const restoId=await upsertRestoCore(data);
+    coreSaved=true;
+    if(!editMode){
+      status.textContent='Resto tersimpan. Mengirim kontribusi tambahan...';
+      for(const menuName of favMenus){
+        try{const ok=await addMenuRecommendation(restoId,menuName);if(!ok)failures.push('menu favorit');}
+        catch(error){failure('menu favorit',error);}
       }
       if(refUrlsRaw.length){
-        const refRows = refUrlsRaw.map(rawUrl=>{
-          let url; try{ url = new URL(rawUrl).href; }catch(e){ url = rawUrl; }
-          return {resto_id: restoId, user_id: myUserId, url, platform: detectPlatform(url)};
-        });
-        const { error } = await sb.from('references_link').insert(refRows);
-        if(error) console.error(error);
+        try{
+          const rows=refUrlsRaw.map(url=>({resto_id:restoId,user_id:myUserId,url:new URL(url).href,platform:detectPlatform(url)}));
+          const {error}=await sb.from('references_link').insert(rows);
+          if(error)throw error;
+        }catch(error){failure('referensi',error);}
       }
-      if(formVisitPhotos.length){
-        for(const p of formVisitPhotos){ await uploadVisitPhotoBlob(p.blob, restoId); }
+      for(const photo of formVisitPhotos){
+        try{const uploaded=await uploadVisitPhotoBlob(photo.blob,restoId);if(!uploaded)throw Error('Upload gagal');}
+        catch(error){failure('foto kunjungan',error);}
       }
-      const ratedCrit = RATING_CRITERIA.filter(c => formRatingDraft[c.key]);
-      if(ratedCrit.length === RATING_CRITERIA.length){
-        const critValues = RATING_CRITERIA.map(c => formRatingDraft[c.key]);
-        const overall = critValues.reduce((a,b)=>a+b,0) / critValues.length;
-        const row = {resto_id: restoId, user_id: myUserId, overall};
-        RATING_CRITERIA.forEach(c=>{ row[c.key] = formRatingDraft[c.key]; });
-        const { error } = await sb.from('ratings').upsert(row);
-        if(error) console.error(error);
-      } else if(ratedCrit.length > 0){
-        showToast('Rating tidak disimpan: isi semua kriteria dulu, atau kosongkan semua.');
+      if(RATING_CRITERIA.every(c=>formRatingDraft[c.key])){
+        try{
+          const values=RATING_CRITERIA.map(c=>Number(formRatingDraft[c.key]));
+          const rating={resto_id:restoId,user_id:myUserId,overall:values.reduce((a,b)=>a+b,0)/values.length};
+          RATING_CRITERIA.forEach(c=>rating[c.key]=formRatingDraft[c.key]);
+          const {error}=await sb.from('ratings').upsert(rating);
+          if(error)throw error;
+        }catch(error){failure('rating',error);}
       }
-      const testiVal = document.getElementById('f_testi').value.trim();
-      if(testiVal){
-        const { error } = await sb.from('testimonials').upsert({resto_id: restoId, user_id: myUserId, text: testiVal, updated_at: new Date().toISOString()});
-        if(error) console.error(error);
+      const testi=document.getElementById('f_testi').value.trim();
+      if(testi){
+        try{
+          const {error}=await sb.from('testimonials').upsert({resto_id:restoId,user_id:myUserId,text:testi,updated_at:new Date().toISOString()});
+          if(error)throw error;
+        }catch(error){failure('testimoni',error);}
       }
     }
-    closeForm();
-    showToast(editingId ? 'Perubahan disimpan' : 'Resto ditambahkan');
-    editingId = null;
-    formVisitPhotos.forEach(p => URL.revokeObjectURL(p.previewUrl));
-    formVisitPhotos = [];
-    resetFormRatingPicker();
-    document.getElementById('f_testi').value = '';
-    await loadAllRestos();
-  }catch(e){
-    showToast('Gagal menyimpan: ' + e.message);
+    draftReady=false;clearAddRestoDraft();closeForm({skipDraft:true});
+    editingId=null;
+    formVisitPhotos.forEach(p=>URL.revokeObjectURL(p.previewUrl));
+    formVisitPhotos=[];resetFormRatingPicker();
+    document.getElementById('f_testi').value='';
+    try{await loadAllRestos();}catch(error){failure('memuat ulang daftar resto',error);}
+    if(failures.length)showToast('Resto tersimpan, tetapi beberapa data tambahan gagal: '+Array.from(new Set(failures)).join(', '));
+    else showToast(editMode?'Perubahan resto berhasil disimpan':isAdmin?'Resto ditambahkan dan terverifikasi':'Resto terdaftar — menunggu verifikasi admin');
+  }catch(error){
+    status.textContent='Gagal menyimpan resto. Periksa jaringan lalu coba kembali.';
+    showToast('Gagal menyimpan: '+error.message);
+    console.error('Gagal menyimpan resto',error);
+  }finally{
+    isRestoSaving=false;
+    btn.disabled=false;btn.textContent=editMode?'Simpan Perubahan':'Kirim Resto';
+    if(coreSaved)status.classList.add('hidden');
   }
 }
