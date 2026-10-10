@@ -1705,7 +1705,7 @@ function validateAddRestoLocation(){
 function validateAddRestoExtras(){
   const count=RATING_CRITERIA.filter(c=>Number(formRatingDraft[c.key])>0).length;
   if(count>0 && count!==RATING_CRITERIA.length){showToast('Isi keenam aspek rating atau kosongkan semuanya');return false;}
-  const refs=Array.from(document.querySelectorAll('#refUrlList .ref-url-row input')).map(x=>x.value.trim()).filter(Boolean);
+  const refs=editingId?[]:Array.from(document.querySelectorAll('#refUrlList .ref-url-row input')).map(x=>x.value.trim()).filter(Boolean);
   for(const ref of refs){
     try{const url=new URL(ref);if(!['http:','https:'].includes(url.protocol))throw Error('Protokol tidak valid');}
     catch(error){showToast('Link referensi harus berupa URL lengkap https://...');return false;}
@@ -1756,7 +1756,7 @@ function renderWizardReview(){
 }
 function findAddRestoDuplicateCandidates(name,lat,lng){
   if(!name || !Number.isFinite(lat) || !Number.isFinite(lng))return [];
-  return Object.values(allRestos).filter(r=>r && r.id!==editingId && Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng))).map(r=>{
+  return Object.values(allRestos).filter(r=>r && r.id!==editingId && r.lat!=null && r.lng!=null && Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng))).map(r=>{
     const distance=distanceMetersBetween(lat,lng,Number(r.lat),Number(r.lng));
     return {resto:r,distance,similar:namesLookSimilar(name,r.name)};
   }).filter(x=>x.distance<=250 && (x.similar||x.distance<=8)).sort((a,b)=>a.distance-b.distance).slice(0,4);
