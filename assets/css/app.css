@@ -892,7 +892,6 @@ body{
 .detail-pill.open-no{background:#FDE7E4;color:#D94C41;}
 .detail-pill.open-no .detail-status-dot{background:#D94C41;color:#fff;}
 .detail-open-detail{font-size:11.5px;color:#686D69;}
-.detail-open-detail::first-letter{color:#2FA66A;}
 
 /* 4 CTA utama mengikuti proporsi dan hierarki pada referensi */
 .detail-cta-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:17px 0 4px;}
