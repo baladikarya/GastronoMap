@@ -511,153 +511,154 @@
     <button type="button" class="btn btn-primary" id="pinPeekConfirmBtn">Lanjutkan ✓</button>
   </div>
 
-  <div id="modalOverlay" class="hidden">
-    <div id="formModal">
-      <h2 id="formTitle">Tambah Resto</h2>
 
-      <div class="wizard-stepper" id="wizardStepper">
+  <div id="modalOverlay" class="hidden">
+    <div id="formModal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+      <h2 id="formTitle">Tambah Resto</h2>
+      <p id="wizardDescription" class="wizard-description">Tambahkan tempat makan yang belum terdaftar. Kolom bertanda * wajib diisi.</p>
+      <div id="draftRestoredNotice" class="wizard-draft-notice hidden" role="status">
+        <span>Draft sebelumnya dipulihkan. Foto kunjungan perlu dipilih kembali.</span>
+        <button type="button" id="discardRestoDraftBtn">Mulai baru</button>
+      </div>
+      <div class="wizard-stepper" id="wizardStepper" aria-label="Tahapan tambah resto">
         <div class="wizard-step-item" data-step-item="1"><div class="wizard-step-dot">1</div><span class="wizard-step-label">Info</span></div>
         <div class="wizard-step-connector" data-connector="1"></div>
-        <div class="wizard-step-item" data-step-item="2"><div class="wizard-step-dot">2</div><span class="wizard-step-label">Detail</span></div>
+        <div class="wizard-step-item" data-step-item="2"><div class="wizard-step-dot">2</div><span class="wizard-step-label">Lokasi</span></div>
         <div class="wizard-step-connector" data-connector="2"></div>
-        <div class="wizard-step-item" data-step-item="3"><div class="wizard-step-dot">3</div><span class="wizard-step-label">Foto</span></div>
+        <div class="wizard-step-item" data-step-item="3"><div class="wizard-step-dot">3</div><span class="wizard-step-label">Detail</span></div>
         <div class="wizard-step-connector" data-connector="3"></div>
-        <div class="wizard-step-item" data-step-item="4"><div class="wizard-step-dot">4</div><span class="wizard-step-label">Selesai</span></div>
+        <div class="wizard-step-item" data-step-item="4"><div class="wizard-step-dot">4</div><span class="wizard-step-label">Review</span></div>
       </div>
 
       <div class="wizard-step" data-step="1">
-      <div class="field" style="position:relative;">
-        <label>Nama Resto</label>
-        <input type="text" id="f_name" placeholder="ex: Bakmie Pak Slamet">
-        <div id="nameSuggestions" class="loc-suggestions-box hidden"></div>
+        <h3 class="wizard-section-title">Informasi Dasar</h3>
+        <p class="wizard-section-help">Mulai dengan identitas tempat makan.</p>
+        <div class="field" style="position:relative;">
+          <label for="f_name">Nama Resto <span class="wizard-required">*</span></label>
+          <input type="text" id="f_name" maxlength="120" autocomplete="off" placeholder="Contoh: Bakmie Pak Slamet" aria-required="true">
+          <div id="nameSuggestions" class="loc-suggestions-box hidden"></div>
+        </div>
+        <div class="field">
+          <label for="f_type">Kategori <span class="wizard-required">*</span></label>
+          <select id="f_type" aria-required="true"></select>
+        </div>
+        <div class="field">
+          <label for="f_price">Range Harga / orang <span class="wizard-optional">(opsional)</span></label>
+          <select id="f_price">
+            <option value="< Rp 25rb">&lt; Rp 25rb</option>
+            <option value="Rp 25rb - 50rb">Rp 25rb – 50rb</option>
+            <option value="Rp 50rb - 100rb">Rp 50rb – 100rb</option>
+            <option value="Rp 100rb - 250rb">Rp 100rb – 250rb</option>
+            <option value="> Rp 250rb">&gt; Rp 250rb</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f_phone">No. Telepon/HP <span class="wizard-optional">(opsional)</span></label>
+          <input type="tel" id="f_phone" inputmode="tel" placeholder="Contoh: 081234567890 atau 021-5551234">
+        </div>
+        <div class="wizard-nav">
+          <button type="button" class="btn btn-primary" id="wizardNext1" style="width:100%;">Lanjut: Lokasi →</button>
+        </div>
       </div>
-
-      <div class="field" style="position:relative;">
-        <label>Alamat</label>
-        <input type="text" id="f_address" placeholder="Ketik alamat resto">
-        <div id="locSuggestions" class="loc-suggestions-box hidden"></div>
-      </div>
-
-      <div style="display:flex;gap:8px;margin-top:8px;margin-bottom:13px;">
-        <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Saya berada di sini</button>
-        <button type="button" id="adjustPinLinkBtn" class="btn btn-secondary hidden" style="flex:0 0 auto;" title="Lihat & sesuaikan pin di peta">🗺️</button>
-      </div>
-
-      <div id="pinStatusCaption" class="hidden"></div>
-
-      <div class="field">
-        <label>No. Telepon/HP</label>
-        <input type="tel" id="f_phone" placeholder="mis. 081234567890 atau 021-5551234">
-      </div>
-
-      <div class="field"><label>Tipe</label>
-        <select id="f_type"></select>
-      </div>
-
-      <div class="field">
-        <label>Jam Buka per Hari</label>
-        <div id="dayHoursList"></div>
-      </div>
-
-      <div class="wizard-nav">
-        <button type="button" class="btn btn-primary" id="wizardNext1" style="width:100%;">Lanjut →</button>
-      </div>
-      </div><!-- /step 1 -->
 
       <div class="wizard-step" data-step="2">
-      <div class="field"><label>Range Harga / orang</label>
-        <select id="f_price">
-          <option value="< Rp 25rb">&lt; Rp 25rb</option>
-          <option value="Rp 25rb - 50rb">Rp 25rb – 50rb</option>
-          <option value="Rp 50rb - 100rb">Rp 50rb – 100rb</option>
-          <option value="Rp 100rb - 250rb">Rp 100rb – 250rb</option>
-          <option value="> Rp 250rb">&gt; Rp 250rb</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Menu Favorit / Rekomendasi</label>
-        <div id="favList"></div>
-        <button type="button" id="addFavBtn">+ Tambah menu favorit</button>
-      </div>
-
-      <div class="field" id="refFieldWrap">
-        <label>Referensi (link Reels IG/YouTube/TikTok)</label>
-        <div id="refUrlList"></div>
-        <button type="button" id="addRefUrlBtn">+ Tambah link referensi</button>
-        <div id="refFieldEditNote" class="hidden" style="font-size:11.5px;color:var(--muted);margin-top:4px;">Untuk resto yang sudah ada, tambah/hapus referensi lewat panel detail (tombol ✕ pada tiap link), bukan dari sini.</div>
-      </div>
-
-      <div class="field" id="platformPickerField">
-        <label>Ketersediaan Online <span style="font-weight:400;color:var(--muted);">(khusus admin -- user bisa usulkan link lewat halaman detail resto setelah tersimpan)</span></label>
-        <div class="platform-picker" id="platformPicker"></div>
-      </div>
-
-      <div class="field">
-        <label>Metode Pembayaran</label>
-        <div class="platform-picker" id="paymentPicker">
-          <div class="platform-toggle" data-payment="cash" style="--pcolor:#8B5A2B">💵 Cash</div>
-          <div class="platform-toggle" data-payment="cashless" style="--pcolor:#1F7A6C">💳 Cashless</div>
+        <h3 class="wizard-section-title">Tentukan Lokasi</h3>
+        <p class="wizard-section-help">Cari alamat, gunakan GPS, atau pilih dan geser pin di peta. Pin wajib ditentukan.</p>
+        <div class="field" style="position:relative;">
+          <label for="f_address">Alamat <span class="wizard-optional">(opsional)</span></label>
+          <input type="text" id="f_address" placeholder="Ketik nama jalan atau alamat resto">
+          <div id="locSuggestions" class="loc-suggestions-box hidden"></div>
+        </div>
+        <div class="wizard-location-actions">
+          <button type="button" id="useMyLocationBtn" class="btn btn-primary">📍 Gunakan GPS Saya</button>
+          <button type="button" id="adjustPinLinkBtn" class="btn btn-secondary hidden" title="Lihat & sesuaikan pin di peta">🗺️ Sesuaikan Pin</button>
+        </div>
+        <div id="pinStatusCaption" class="hidden" role="status"></div>
+        <div id="duplicateRestoHint" class="wizard-duplicate-hint hidden" role="status"></div>
+        <div class="wizard-nav">
+          <button type="button" class="btn btn-secondary" id="wizardBack2">← Kembali</button>
+          <button type="button" class="btn btn-primary" id="wizardNext2" style="flex:2;">Lanjut: Detail →</button>
         </div>
       </div>
-
-      <div class="wizard-nav">
-        <button type="button" class="btn btn-secondary" id="wizardBack2">← Kembali</button>
-        <button type="button" class="btn btn-primary" id="wizardNext2" style="flex:2;">Lanjut →</button>
-      </div>
-      </div><!-- /step 2 -->
 
       <div class="wizard-step" data-step="3">
-      <div class="field">
-        <label>Foto Menu</label>
-        <div class="photo-grid" id="menuPhotoGrid"></div>
-        <input type="file" id="menuPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
-        <input type="file" id="menuPhotoGalleryInput" accept="image/*" class="hidden">
-        <div class="quick-photo-row">
-          <button type="button" id="menuPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-          <button type="button" id="menuPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+        <h3 class="wizard-section-title">Detail Tambahan</h3>
+        <p class="wizard-section-help">Semua bagian berikut opsional. Isi yang diketahui saja.</p>
+        <div class="field">
+          <label>Jam Buka per Hari <span class="wizard-optional">(opsional)</span></label>
+          <div id="dayHoursList"></div>
+        </div>
+        <div class="field">
+          <label>Metode Pembayaran <span class="wizard-optional">(opsional)</span></label>
+          <div class="platform-picker" id="paymentPicker">
+            <div class="platform-toggle" data-payment="cash" style="--pcolor:#8B5A2B">💵 Cash</div>
+            <div class="platform-toggle" data-payment="cashless" style="--pcolor:#1F7A6C">💳 Cashless</div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Menu Favorit / Rekomendasi <span class="wizard-optional">(opsional)</span></label>
+          <div id="favList"></div>
+          <button type="button" id="addFavBtn">+ Tambah menu favorit</button>
+        </div>
+        <div class="field">
+          <label>Foto Menu <span class="wizard-optional">(opsional)</span></label>
+          <div class="photo-grid" id="menuPhotoGrid"></div>
+          <input type="file" id="menuPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+          <input type="file" id="menuPhotoGalleryInput" accept="image/*" class="hidden">
+          <div class="quick-photo-row">
+            <button type="button" id="menuPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+            <button type="button" id="menuPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+          </div>
+        </div>
+        <div class="field" id="visitPhotoFieldWrap">
+          <label>Foto Kunjungan <span class="wizard-optional">(opsional)</span></label>
+          <div class="photo-grid" id="visitPhotoGrid"></div>
+          <input type="file" id="visitPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
+          <input type="file" id="visitPhotoGalleryInput" accept="image/*" class="hidden">
+          <div class="quick-photo-row">
+            <button type="button" id="visitPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
+            <button type="button" id="visitPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
+          </div>
+        </div>
+        <div class="field" id="refFieldWrap">
+          <label>Referensi IG / YouTube / TikTok <span class="wizard-optional">(opsional)</span></label>
+          <div id="refUrlList"></div>
+          <button type="button" id="addRefUrlBtn">+ Tambah link referensi</button>
+          <div id="refFieldEditNote" class="hidden" style="font-size:11.5px;color:var(--muted);margin-top:4px;">Untuk resto yang sudah ada, tambah/hapus referensi lewat panel detail.</div>
+        </div>
+        <div class="field" id="platformPickerField">
+          <label>Ketersediaan Online <span class="wizard-optional">(khusus admin)</span></label>
+          <div class="platform-picker" id="platformPicker"></div>
+        </div>
+        <div class="field" id="formRatingFieldWrap">
+          <label>Rating Pengunjung <span class="wizard-optional">(opsional, isi keenam aspek)</span></label>
+          <div id="formRatingForm"></div>
+        </div>
+        <div class="field" id="formTestiFieldWrap">
+          <label for="f_testi">Testimoni Pengunjung <span class="wizard-optional">(opsional)</span></label>
+          <textarea id="f_testi" placeholder="Bagaimana suasana atau pengalaman Anda di sini?"></textarea>
+        </div>
+        <div class="wizard-nav">
+          <button type="button" class="btn btn-secondary" id="wizardBack3">← Kembali</button>
+          <button type="button" class="btn btn-primary" id="wizardNext3" style="flex:2;">Review →</button>
         </div>
       </div>
-
-      <div class="field" id="visitPhotoFieldWrap">
-        <label>Foto Kunjungan</label>
-        <div class="photo-grid" id="visitPhotoGrid"></div>
-        <input type="file" id="visitPhotoCameraInput" accept="image/*" capture="environment" class="hidden">
-        <input type="file" id="visitPhotoGalleryInput" accept="image/*" class="hidden">
-        <div class="quick-photo-row">
-          <button type="button" id="visitPhotoCameraBtn" class="btn btn-secondary">📷 Ambil Foto</button>
-          <button type="button" id="visitPhotoGalleryBtn" class="btn btn-secondary">🖼️ Galeri</button>
-        </div>
-      </div>
-
-      <div class="wizard-nav">
-        <button type="button" class="btn btn-secondary" id="wizardBack3">← Kembali</button>
-        <button type="button" class="btn btn-primary" id="wizardNext3" style="flex:2;">Lanjut →</button>
-      </div>
-      </div><!-- /step 3 -->
 
       <div class="wizard-step" data-step="4">
-      <div class="wizard-review-box" id="wizardReviewBox"></div>
-
-      <div class="field" id="formRatingFieldWrap">
-        <label>Rating Pengunjung</label>
-        <div id="formRatingForm"></div>
+        <h3 class="wizard-section-title">Periksa Data Resto</h3>
+        <p class="wizard-section-help">Pastikan nama dan pin lokasi sudah benar sebelum dikirim.</p>
+        <div class="wizard-review-box" id="wizardReviewBox"></div>
+        <p class="wizard-verification-note">Resto dari pengguna akan terdaftar dengan status <strong>Belum Terverifikasi</strong> hingga diperiksa admin.</p>
+        <div class="wizard-nav">
+          <button type="button" class="btn btn-secondary" id="wizardBack4">← Kembali</button>
+        </div>
       </div>
-
-      <div class="field" id="formTestiFieldWrap">
-        <label>Testimoni Pengunjung</label>
-        <textarea id="f_testi" placeholder="Bagaimana suasana atau pengalaman Anda di sini?"></textarea>
-      </div>
-
-      <div class="wizard-nav">
-        <button type="button" class="btn btn-secondary" id="wizardBack4">← Kembali</button>
-      </div>
-      </div><!-- /step 4 -->
 
       <div id="formActions">
-        <button class="btn btn-secondary" id="cancelForm" style="flex:1;">Batal</button>
-        <button class="btn btn-primary" id="saveForm" style="flex:2;">Simpan Resto</button>
+        <button type="button" class="btn btn-secondary" id="cancelForm" style="flex:1;">Tutup</button>
+        <button type="button" class="btn btn-primary hidden" id="saveForm" style="flex:2;">Kirim Resto</button>
       </div>
+      <p id="restoSaveStatus" class="wizard-save-status hidden" role="status" aria-live="polite"></p>
     </div>
   </div>
 
