@@ -603,9 +603,9 @@ function openDetail(id, showAllTesti){
     if(todayHours.closed){
       openStatusDetail = 'Tutup hari ini';
     }else if(isOpenNow){
-      openStatusDetail = `Buka · Tutup ${clockLabel(todayHours.close)}`;
+      openStatusDetail = `Tutup ${clockLabel(todayHours.close)}`;
     }else{
-      openStatusDetail = `Tutup · Buka ${clockLabel(todayHours.open)}`;
+      openStatusDetail = `Buka ${clockLabel(todayHours.open)}`;
     }
   }
   const openStatusPillHtml = r.hoursByDay
