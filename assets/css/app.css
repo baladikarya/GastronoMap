@@ -2053,3 +2053,21 @@ button.platform-chip.summary-platform-chip{appearance:none;}
 #formModal.is-edit-mode #saveForm{display:block !important;}
 #saveForm:disabled,.wizard-nav button:disabled{opacity:.55;cursor:wait;}
 @media(max-width:360px){.wizard-step-item{width:48px}.wizard-step-label{font-size:9px}.wizard-duplicate-hint{font-size:11px}}
+
+
+/* Add Resto — contextual help, consistent with Detail Resto (?) triggers. */
+#formModal .wizard-help-block{position:relative;min-width:0;margin:0 0 18px;}
+#formModal .wizard-help-block.is-open{z-index:45;}
+#formModal .wizard-help-title{display:flex;align-items:center;gap:4px;min-width:0;}
+#formModal .wizard-help-title h2{margin:0;line-height:1.28;}
+#formModal .wizard-help-title .wizard-section-title{margin:0;line-height:1.35;}
+#formModal .wizard-help-title .wizard-help-trigger{flex-shrink:0;}
+#formModal .wizard-help-popover{
+  position:absolute;top:calc(100% + 5px);left:0;z-index:45;
+  width:max-content;max-width:min(310px,calc(100vw - 65px));
+  margin:0;padding:10px 12px;border:1px solid #E3E9E4;border-radius:10px;
+  background:#fff;color:var(--ink);font:400 12px/1.55 'Work Sans',sans-serif;
+  box-shadow:0 8px 28px rgba(20,32,28,.16);
+  overflow-wrap:anywhere;
+}
+#formModal .wizard-help-popover[hidden]{display:none!important;}
