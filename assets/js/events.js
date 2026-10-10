@@ -85,6 +85,8 @@ function navigateBackHome(){
 document.getElementById('navHomeBtn').onclick = ()=> navigatePrimaryView('home');
 document.getElementById('navCommunityBtn').onclick = ()=> navigatePrimaryView('community');
 document.getElementById('navAddBtn').onclick = ()=>{
+  // Keep Add Resto as the central action, including when invoked from Community.
+  navigatePrimaryView('home');
   setHomeView('map');
   refreshMyGpsLocation();
   openForm(null);
