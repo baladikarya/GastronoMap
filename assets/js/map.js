@@ -426,6 +426,8 @@ async function placeDraggableMarker(lat, lng, sourceLabel, initialState, opts){
     const pos = tempMarker.getLatLng();
     pickedLatLng = pos;
     setPinStatus(`Posisi disesuaikan manual: ${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`, 'manual');
+    if(typeof refreshAddRestoDuplicateHint === 'function') refreshAddRestoDuplicateHint();
+    if(typeof saveAddRestoDraft === 'function') saveAddRestoDraft();
     // Pin yang menentukan, alamat yang mengikuti -- bukan sebaliknya.
     const suggested = await reverseGeocodeAddress(pos.lat, pos.lng);
     if(suggested) document.getElementById('f_address').value = suggested;
@@ -436,6 +438,8 @@ async function placeDraggableMarker(lat, lng, sourceLabel, initialState, opts){
   const state = initialState || 'auto';
   const label = state === 'manual' ? 'Lokasi dipilih' : 'Pin otomatis ditempatkan';
   setPinStatus(`${label}${sourceLabel ? ' (' + sourceLabel + ')' : ''}: ${lat.toFixed(5)}, ${lng.toFixed(5)}. Geser kalau kurang pas.`, state);
+  if(typeof refreshAddRestoDuplicateHint === 'function') refreshAddRestoDuplicateHint();
+  if(typeof saveAddRestoDraft === 'function') saveAddRestoDraft();
   if(!opts.skipReverseGeocode){
     const suggested = await reverseGeocodeAddress(lat, lng);
     if(suggested) document.getElementById('f_address').value = suggested;
