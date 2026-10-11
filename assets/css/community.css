@@ -88,6 +88,8 @@
   color:var(--muted);text-align:center;line-height:1.7;font-size:13px;
 }
 .community-feed-state-title{max-width:310px;margin:0 auto;}
+.community-feed-empty-note{padding:25px 16px 34px;text-align:center;color:var(--muted);font:12px/1.7 var(--font-body);}
+.community-feed-empty-note p{margin:0;}
 .community-feed-empty{display:grid;justify-items:center;gap:12px;padding:48px 24px;background:linear-gradient(150deg,#fff,#fcf8ee);border-style:solid;}
 .community-empty-art{width:76px;height:76px;display:grid;place-items:center;border-radius:24px;background:#f4ead8;color:var(--amber-dark);transform:rotate(-6deg);margin-bottom:8px;}
 .community-empty-art .community-icon{width:35px;height:35px;}
