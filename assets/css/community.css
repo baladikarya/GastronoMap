@@ -179,7 +179,9 @@
 .community-comment-delete .community-icon{width:15px;height:15px;}
 .community-comment-delete:hover,.community-comment-delete:focus-visible{color:var(--red);}
 
-.community-comment--reply{margin-left:44px;border-left:2px solid var(--line);padding-left:12px;}
+.community-comment--reply{margin-left:0;}
+.community-comment-children{display:grid;gap:12px;margin:12px 0 0 20px;padding-left:12px;border-left:2px solid var(--line);min-width:0;}
+@media(max-width:600px){.community-comment-children{margin-left:12px;padding-left:9px;}}
 .community-comment-form{flex-shrink:0;border-top:1px solid var(--line);padding:12px 17px max(14px,env(safe-area-inset-bottom));background:#fff;}
 .community-comment-row{display:flex;gap:9px;align-items:flex-end;}
 .community-comment-input{flex:1;min-width:0;min-height:42px;max-height:110px;resize:vertical;border:1px solid var(--line);border-radius:14px;padding:11px 13px;background:var(--paper);font:12px/1.5 var(--font-body);color:var(--ink);outline:none;}
