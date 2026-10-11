@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="assets/css/app.css">
 <link rel="stylesheet" href="assets/css/navigation.css">
 <link rel="stylesheet" href="assets/css/community.css">
+<link rel="stylesheet" href="assets/css/profile.css">
 </head>
 <body>
 <div id="app">
@@ -80,6 +81,26 @@
         <label>Usia</label>
         <input type="number" id="profileAgeInput" placeholder="mis. 27" min="1" max="119">
       </div>
+      <div class="field" style="text-align:left;">
+        <label>Bio</label>
+        <textarea id="profileBioInput" rows="3" maxlength="200" placeholder="Ceritakan sedikit tentang hobi kuliner Anda"></textarea>
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>Kota</label>
+        <input type="text" id="profileCityInput" maxlength="80" placeholder="mis. Jakarta">
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>Website (opsional)</label>
+        <input type="url" id="profileWebsiteInput" maxlength="200" placeholder="https://">
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>Instagram (opsional)</label>
+        <input type="text" id="profileInstagramInput" maxlength="80" placeholder="@username">
+      </div>
+      <div class="field" style="text-align:left;">
+        <label>TikTok (opsional)</label>
+        <input type="text" id="profileTiktokInput" maxlength="80" placeholder="@username">
+      </div>
       <button id="profileSaveBtn" class="btn btn-primary" style="width:100%;margin-top:6px;">Simpan Profil</button>
       <button id="profileCancelBtn" class="btn btn-secondary" style="width:100%;margin-top:8px;">Batalkan</button>
       <div id="profileStatus"></div>
@@ -129,6 +150,7 @@
       </div>
       <button class="account-menu-item danger" id="logoutBtn">🚪 Logout</button>
       </div>
+      <div id="profileDashboard" aria-live="polite"></div>
     </div>
   </section>
 
@@ -696,5 +718,6 @@
 <script src="assets/js/events.js"></script>
 <script src="assets/js/bootstrap.js"></script>
 <script src="assets/js/community.js"></script>
+<script src="assets/js/profile.js"></script>
 </body>
 </html>

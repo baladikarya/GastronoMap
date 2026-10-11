@@ -16,16 +16,22 @@ async function applySession(session){
   if(session && session.user){
     myUserId = session.user.id;
     myEmail = session.user.email;
-    const { data: profile } = await sb.from('profiles').select('role, username, gender, age, avatar_url').eq('id', myUserId).single();
+    const { data: profile } = await sb.from('profiles').select('role, username, gender, age, avatar_url, bio, city, website_url, instagram, tiktok').eq('id', myUserId).single();
     isAdmin = !!(profile && profile.role === 'admin');
     myUsername = profile ? (profile.username || null) : null;
     myGender = profile ? (profile.gender || null) : null;
     myAge = profile ? (profile.age || null) : null;
     myAvatarUrl = profile ? (profile.avatar_url || null) : null;
+    myBio = profile?.bio || null;
+    myCity = profile?.city || null;
+    myWebsite = profile?.website_url || null;
+    myInstagram = profile?.instagram || null;
+    myTiktok = profile?.tiktok || null;
     if(!myUsername) setTimeout(openProfileCompletionModal, 400); // beri jeda dikit supaya tidak "nabrak" transisi login
   }else{
     myUserId = null; myEmail = null; isAdmin = false;
     myUsername = null; myGender = null; myAge = null; myAvatarUrl = null;
+    myBio = null; myCity = null; myWebsite = null; myInstagram = null; myTiktok = null;
   }
   updateUserBadge();
   await loadVisited();
@@ -161,6 +167,11 @@ function openProfileCompletionModal(forceEdit){
   document.getElementById('profileUsernameInput').value = myUsername || '';
   document.getElementById('profileGenderInput').value = myGender || '';
   document.getElementById('profileAgeInput').value = myAge || '';
+  document.getElementById('profileBioInput').value = myBio || '';
+  document.getElementById('profileCityInput').value = myCity || '';
+  document.getElementById('profileWebsiteInput').value = myWebsite || '';
+  document.getElementById('profileInstagramInput').value = myInstagram || '';
+  document.getElementById('profileTiktokInput').value = myTiktok || '';
   document.getElementById('profileStatus').textContent = '';
   if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('profileOverlay').classList.remove('hidden');
@@ -170,16 +181,26 @@ async function saveProfile(){
   const username = document.getElementById('profileUsernameInput').value.trim();
   const gender = document.getElementById('profileGenderInput').value;
   const ageRaw = document.getElementById('profileAgeInput').value.trim();
+  const bio = document.getElementById('profileBioInput').value.trim();
+  const city = document.getElementById('profileCityInput').value.trim();
+  const website = document.getElementById('profileWebsiteInput').value.trim();
+  const instagram = document.getElementById('profileInstagramInput').value.trim();
+  const tiktok = document.getElementById('profileTiktokInput').value.trim();
   const statusEl = document.getElementById('profileStatus');
   if(!username){ statusEl.textContent = 'Username wajib diisi'; return; }
   if(username.length < 3){ statusEl.textContent = 'Username minimal 3 karakter'; return; }
   const age = ageRaw ? parseInt(ageRaw, 10) : null;
+  if(website && !/^https?:\/\/[^\s]+$/i.test(website)){statusEl.textContent='Website harus diawali http:// atau https://';return;}
   statusEl.textContent = 'Menyimpan...';
   const { error } = await sb.from('profiles').update({
-    username, gender: gender || null, age: (age && age > 0 && age < 120) ? age : null
+    username, gender: gender || null, age: (age && age > 0 && age < 120) ? age : null,
+    bio: bio || null, city: city || null, website_url: website || null,
+    instagram: instagram || null, tiktok: tiktok || null
   }).eq('id', myUserId);
   if(error){ statusEl.textContent = 'Gagal: ' + error.message; return; }
   myUsername = username; myGender = gender || null; myAge = age || null;
+  myBio = bio || null; myCity = city || null; myWebsite = website || null;
+  myInstagram = instagram || null; myTiktok = tiktok || null;
   updateUserBadge();
   document.getElementById('profileOverlay').classList.add('hidden');
   if(currentPrimaryView === 'profile') openAccountPanel();
@@ -215,6 +236,7 @@ function openAccountPanel(){
   document.getElementById('guideSubmenu').classList.add('hidden');
   document.getElementById('guideMenuArrow').classList.remove('open');
   document.getElementById('accountOverlay').classList.remove('hidden');
+  if(typeof window.renderProfileDashboard === 'function') window.renderProfileDashboard();
 }
 
 /* Badge jumlah laporan berstatus pending pada tombol menu admin "Kelola Laporan" */

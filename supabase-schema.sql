@@ -29,6 +29,11 @@ alter table public.profiles
   add column if not exists gender text,
   add column if not exists age integer,
   add column if not exists avatar_url text,
+  add column if not exists bio text,
+  add column if not exists city text,
+  add column if not exists website_url text,
+  add column if not exists instagram text,
+  add column if not exists tiktok text,
   add column if not exists is_verified_contributor boolean not null default false,
   add column if not exists resto_approved_count integer not null default 0,
   add column if not exists full_review_count integer not null default 0,
@@ -524,8 +529,8 @@ create policy leaderboard_public_read on public.leaderboard_points for select to
 -- Column-level protection for profile roles / verification fields.
 revoke all on public.profiles from anon;
 grant select on public.profiles to authenticated;
-revoke update on public.profiles from authenticated;
-grant update (display_name,username,gender,age,avatar_url) on public.profiles to authenticated;
+revoke update on public.profiles from public, anon, authenticated;
+grant update (display_name,username,gender,age,avatar_url,bio,city,website_url,instagram,tiktok) on public.profiles to authenticated;
 
 grant select on public.restos,public.ratings,public.testimonials,public.favorite_menu,
   public.references_link,public.visit_photos,public.menu_photos,public.cities,

@@ -681,6 +681,12 @@ window.addEventListener('popstate',e=>{
   else if(openedModal===detail.surface)closeDetail();
 });
 window.loadCommunityFeed=loadCommunityFeed;
+window.openCommunityPost=async function(id){
+  if(!/^[0-9a-f-]{36}$/i.test(id))return;
+  state.deepLink=id;
+  navigatePrimaryView('community');
+  await loadCommunityFeed();
+};
 if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)){
   navigatePrimaryView('community',{history:false});
   loadCommunityFeed();

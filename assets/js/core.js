@@ -35,6 +35,7 @@ function refreshMyGpsLocation(){
 let timeFilter = null; // {day:"Senin", time:"18:00"} or null = tidak difilter
 let myUserId = null, myEmail = null, isAdmin = false;
 let myUsername = null, myGender = null, myAge = null, myAvatarUrl = null;
+let myBio = null, myCity = null, myWebsite = null, myInstagram = null, myTiktok = null;
 let profilesMap = {}; // { userId: username } -- dipakai untuk menampilkan nama penulis testimoni
 let visitedIds = new Set(); // ID resto yang sudah ditandai dikunjungi OLEH USER INI (personal, tidak memengaruhi orang lain)
 let wishlistIds = new Set(); // ID resto yang di-wishlist OLEH USER INI (personal, tidak memengaruhi orang lain)
