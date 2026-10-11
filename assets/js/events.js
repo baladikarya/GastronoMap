@@ -335,6 +335,11 @@ document.querySelectorAll('.report-filter-tab').forEach(tab=>{
   };
 });
 
+document.getElementById('leaderboardCityFilter').onchange=(event)=>{
+  currentLeaderboardCity=event.target.value;
+  renderLeaderboard();
+};
+document.getElementById('leaderboardRefreshBtn').onclick=loadAndRenderLeaderboard;
 document.getElementById('closeLeaderboardBtn').onclick = navigateBackHome;
 document.getElementById('leaderboardOverlay').onclick = (e)=>{ if(e.target.id === 'leaderboardOverlay') navigateBackHome(); };
 document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(tab=>{
@@ -342,6 +347,7 @@ document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forE
     document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(t=> t.classList.remove('active'));
     tab.classList.add('active');
     currentLeaderboardPeriod = tab.dataset.period;
+    currentLeaderboardCity = 'all';
     loadAndRenderLeaderboard();
   };
 });
