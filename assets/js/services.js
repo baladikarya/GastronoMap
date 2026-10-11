@@ -1001,16 +1001,16 @@ async function renderLeaderboardPersonal(request){
   const data=Array.isArray(summary.data)?summary.data[0]:summary.data;
   const verified=Boolean(p.is_verified_contributor);
   const domicile=String(p.city||'').trim();
-  const group=leaderboardRows.filter(x=>leaderboardCity(x)===domicile).sort((a,b)=>Number(b.points)-Number(a.points)||
+  const group=(currentLeaderboardCity==='all'?leaderboardRows:leaderboardRows.filter(x=>leaderboardCity(x)===domicile)).slice().sort((a,b)=>Number(b.points)-Number(a.points)||
     String(a.username||'').localeCompare(String(b.username||''),'id-ID')||
     String(a.user_id).localeCompare(String(b.user_id)));
-  const rank=verified&&domicile?group.findIndex(x=>x.user_id===myUserId)+1:0;
+  const rank=verified&&(currentLeaderboardCity==='all'||domicile)?group.findIndex(x=>x.user_id===myUserId)+1:0;
   const periodEntry=leaderboardRows.find(x=>x.user_id===myUserId);
   const approved=Math.min(3,Number(p.resto_approved_count)||0),reviews=Math.min(5,Number(p.full_review_count)||0);
   const progress=verified?'': '<div class="gm-lb-progress-compact"><span>Menuju Verified Contributor</span>'+
     '<small>'+approved+'/3 resto disetujui · '+reviews+'/5 review lengkap</small></div>';
   wrap.innerHTML='<section class="gm-lb-personal"><div class="gm-lb-personal-compact">'+
-    '<div><strong>Peringkat Saya</strong><small>'+(rank?'#'+rank:'Belum masuk ranking')+' · '+escapeHtml(domicile||'Domisili belum diisi')+'</small></div>'+
+    '<div><strong>Peringkat Saya</strong><small>'+(rank?'#'+rank:'Belum masuk ranking')+' · '+escapeHtml(currentLeaderboardCity==='all'?'Nasional':(domicile||'Domisili belum diisi'))+'</small></div>'+
     '<div class="gm-lb-personal-score"><strong>'+leaderboardNumber(periodEntry?.points)+' pts</strong>'+
     '<button type="button" class="gm-lb-points-link" id="gmLbPointsLink" aria-label="Lihat riwayat poin di Profile">›</button></div></div>'+
     progress+'</section>';
