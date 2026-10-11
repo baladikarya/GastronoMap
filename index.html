@@ -278,7 +278,16 @@
     <div id="leaderboardPanel">
       <button class="plain-close-btn" id="closeLeaderboardBtn">✕</button>
       <div class="gm-lb-heading"><h2>Leaderboard</h2><button id="leaderboardInfoBtn" type="button" aria-label="Tentang Leaderboard" aria-expanded="false" aria-controls="leaderboardIntro">ⓘ</button></div>
-      <div id="leaderboardIntro" class="gm-lb-info hidden" role="note"><strong>Tentang Leaderboard</strong><p>Peringkat kontributor teraktif berdasarkan domisili. Nama pengguna tampil setelah 3 restoran disetujui atau 5 review lengkap (rating, testimoni, dan foto kunjungan pada restoran yang sama).</p></div>
+      <div id="leaderboardIntro" class="gm-lb-info-modal hidden" role="dialog" aria-modal="true" aria-labelledby="gmLbInfoTitle">
+        <div class="gm-lb-info-backdrop" id="gmLbInfoBackdrop"></div>
+        <div class="gm-lb-info-dialog" tabindex="-1">
+          <div class="gm-lb-info-head"><h3 id="gmLbInfoTitle">Tentang Leaderboard</h3><button id="gmLbInfoClose" type="button" aria-label="Tutup informasi Leaderboard">×</button></div>
+          <p>Leaderboard menampilkan peringkat kontributor teraktif berdasarkan domisili. Pilih <strong>Semua domisili</strong> untuk melihat peringkat gabungan nasional.</p>
+          <div class="gm-lb-info-verified"><span class="gm-lb-info-icon">♛</span><div>Nama kamu akan tampil setelah memenuhi salah satu syarat:<ul><li>3 resto disetujui, atau</li><li>5 review lengkap dengan rating, testimoni, dan foto kunjungan pada resto yang sama.</li></ul></div></div>
+          <div class="gm-lb-info-section"><span class="gm-lb-info-section-icon" aria-hidden="true">▦</span><div><strong>Periode Ranking</strong><ul><li>Bulanan: poin dalam 1 bulan terakhir</li><li>Tahunan: poin dalam 1 tahun terakhir</li><li>All-time: total poin sepanjang waktu</li></ul></div></div>
+          <div class="gm-lb-info-section"><span class="gm-lb-info-section-icon" aria-hidden="true">⌖</span><div><strong>Domisili</strong><p>Ranking berdasarkan domisili pada profil pengguna. Semua domisili menampilkan peringkat nasional.</p></div></div>
+        </div>
+      </div>
       <div class="leaderboard-period-tabs" id="leaderboardPeriodTabs">
         <button class="leaderboard-period-tab active" data-period="month">Bulanan</button>
         <button class="leaderboard-period-tab" data-period="year">Tahunan</button>
