@@ -489,7 +489,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan status dibaca tersimpan di akun dan tersinkronisasi antarperangkat.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v146</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v147</small></span></div></div>'+
  '';
 }
 async function openPost(id,returnToProfile=false){
