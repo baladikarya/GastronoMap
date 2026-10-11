@@ -911,86 +911,129 @@ async function updatePendingLinkSubmissionsBadge(){
   }catch(e){ btn.textContent = '🔗 Kelola Link Online'; }
 }
 
-/* ================= LEADERBOARD KONTRIBUTOR ================= */
-let currentLeaderboardPeriod = 'month';
-
-function leaderboardPeriodStart(period){
-  const now = new Date();
-  if(period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  if(period === 'year') return new Date(now.getFullYear(), 0, 1).toISOString();
-  return null; // all-time
-}
+/* ================= LEADERBOARD KONTRIBUTOR — P1 TAHAP 9 ================= */
+let currentLeaderboardPeriod='month';
+let currentLeaderboardCity='all';
+let leaderboardRows=[];
+let leaderboardRequest=0;
+let leaderboardLoaded=false;
+const leaderboardNumber=n=>Number(n||0).toLocaleString('id-ID');
+const leaderboardCity=r=>String(r.city||'Domisili belum diisi').trim()||'Domisili belum diisi';
+const leaderboardAvatar=name=>'<span class="gm-lb-avatar" aria-hidden="true">'+escapeHtml(Array.from(String(name||'?').trim())[0]||'?').toUpperCase()+'</span>';
 
 async function openLeaderboard(){
-  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView==='undefined'||currentPrimaryView!=='profile')
+    document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('leaderboardOverlay').classList.remove('hidden');
-  currentLeaderboardPeriod = 'month';
-  document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(t=> t.classList.toggle('active', t.dataset.period === 'month'));
-  await loadAndRenderLeaderboard();
+  if(!leaderboardLoaded) await loadAndRenderLeaderboard();
+}
+
+function renderLeaderboard(){
+  const wrap=document.getElementById('leaderboardContent');
+  const rows=currentLeaderboardCity==='all'?leaderboardRows:leaderboardRows.filter(x=>leaderboardCity(x)===currentLeaderboardCity);
+  if(!rows.length){
+    wrap.innerHTML='<div class="gm-lb-empty">Belum ada Verified Contributor dengan poin pada periode dan domisili yang dipilih.</div>';
+    return;
+  }
+  const groups=new Map();
+  rows.forEach(r=>{const city=leaderboardCity(r);if(!groups.has(city))groups.set(city,[]);groups.get(city).push(r);});
+  wrap.innerHTML=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],'id-ID')).map(([city,items])=>{
+    const sorted=items.slice().sort((a,b)=>Number(b.points)-Number(a.points)||
+      String(a.username||'').localeCompare(String(b.username||''),'id-ID')||
+      String(a.user_id).localeCompare(String(b.user_id)));
+    const card=(entry,index,podium)=>{
+      const me=entry.user_id===myUserId;
+      const name=me?'Kamu':entry.username||'Pengguna';
+      const content=leaderboardAvatar(name)+'<span class="gm-lb-name">'+escapeHtml(name)+'</span>'+
+        '<span class="gm-lb-verified">✓ Verified</span><strong class="gm-lb-points">'+leaderboardNumber(entry.points)+' pts</strong>';
+      return podium?'<div class="gm-lb-podium-card gm-lb-place-'+(index+1)+(me?' is-me':'')+'">'+
+        '<span class="gm-lb-rank">#'+(index+1)+'</span>'+content+'</div>':
+        '<div class="gm-lb-row'+(me?' is-me':'')+'"><span class="gm-lb-rank">'+(index+1)+'</span>'+
+        content+'</div>';
+    };
+    const podium=sorted.slice(0,3).map((x,i)=>({x,i}));
+    const arranged=[podium[1],podium[0],podium[2]];
+    const top='<div class="gm-lb-podium">'+arranged.map(p=>p?card(p.x,p.i,true):'<div></div>').join('')+'</div>';
+    const rest=sorted.slice(3,20).map((r,i)=>card(r,i+3,false)).join('');
+    return '<section class="gm-lb-city"><div class="gm-lb-city-header"><h3>'+escapeHtml(city)+'</h3>'+
+      '<span>'+leaderboardNumber(sorted.length)+' kontributor</span></div>'+top+
+      (rest?'<div class="gm-lb-rows">'+rest+'</div>':'')+'</section>';
+  }).join('');
+}
+
+async function renderLeaderboardPersonal(request){
+  const wrap=document.getElementById('leaderboardMyProgress');
+  if(isAdmin){
+    wrap.innerHTML='<section class="gm-lb-personal">Admin tidak menerima poin dan tidak mengikuti Leaderboard.</section>';
+    return;
+  }
+  if(!myUserId){
+    wrap.innerHTML='<section class="gm-lb-personal">Masuk untuk melihat poin dan progres Verified Contributor. <button type="button" id="gmLbLogin">Masuk</button></section>';
+    document.getElementById('gmLbLogin').onclick=()=>document.getElementById('loginOverlay').classList.remove('hidden');
+    return;
+  }
+  const [profile,summary]=await Promise.all([
+    sb.from('profiles').select('city,resto_approved_count,full_review_count,is_verified_contributor').eq('id',myUserId).maybeSingle(),
+    sb.rpc('gm_my_profile_stats')
+  ]);
+  if(request!==leaderboardRequest)return;
+  if(profile.error||summary.error){
+    wrap.innerHTML='<section class="gm-lb-personal gm-lb-error">Statistik pribadi gagal dimuat. Gunakan tombol Perbarui untuk mencoba lagi.</section>';return;
+  }
+  const p=profile.data||{};
+  const data=Array.isArray(summary.data)?summary.data[0]:summary.data;
+  const verified=Boolean(p.is_verified_contributor);
+  const domicile=String(p.city||'').trim();
+  const group=leaderboardRows.filter(x=>leaderboardCity(x)===domicile).sort((a,b)=>Number(b.points)-Number(a.points)||
+    String(a.username||'').localeCompare(String(b.username||''),'id-ID')||
+    String(a.user_id).localeCompare(String(b.user_id)));
+  const rank=verified&&domicile?group.findIndex(x=>x.user_id===myUserId)+1:0;
+  const periodEntry=leaderboardRows.find(x=>x.user_id===myUserId);
+  const approved=Math.min(3,Number(p.resto_approved_count)||0),reviews=Math.min(5,Number(p.full_review_count)||0);
+  const progress=verified?'<p class="gm-lb-caption">Status Verified Contributor aktif. Terima kasih atas kontribusimu.</p>':
+    '<p class="gm-lb-caption">Syarat verifikasi: 3 resto disetujui <strong>atau</strong> 5 review lengkap (rating, testimoni, dan foto kunjungan pada resto yang sama).</p>'+
+    '<div class="gm-lb-meter-label">Resto disetujui <strong>'+approved+'/3</strong></div><div class="gm-lb-meter"><span style="width:'+(approved/3*100)+'%"></span></div>'+
+    '<div class="gm-lb-meter-label">Review lengkap <strong>'+reviews+'/5</strong></div><div class="gm-lb-meter"><span style="width:'+(reviews/5*100)+'%"></span></div>';
+  wrap.innerHTML='<section class="gm-lb-personal"><div class="gm-lb-personal-head"><h3>Peringkat Saya</h3>'+
+    '<span class="gm-lb-status">'+(verified?'✓ Verified Contributor':'Belum terverifikasi')+'</span></div>'+
+    '<div class="gm-lb-stats"><div><small>Poin periode ini</small><strong>'+leaderboardNumber(periodEntry?.points)+'</strong></div>'+
+    '<div><small>Total poin</small><strong>'+leaderboardNumber(data?.points)+'</strong></div>'+
+    '<div><small>Rank domisili</small><strong>'+(rank?'#'+rank:'—')+'</strong></div></div>'+
+    '<p class="gm-lb-caption">Domisili: '+escapeHtml(domicile||'Belum diisi')+'. Poin periode dan peringkat mengikuti domisili profil, bukan kota resto.</p>'+
+    progress+'<button type="button" class="gm-lb-points-link" id="gmLbPointsLink">Lihat rincian & riwayat poin di Profile →</button></section>';
+  document.getElementById('gmLbPointsLink').onclick=()=>{
+    if(typeof navigatePrimaryView==='function')navigatePrimaryView('profile');
+    if(typeof ProfilePage!=='undefined'&&typeof ProfilePage.open==='function')ProfilePage.open('points');
+  };
 }
 
 async function loadAndRenderLeaderboard(){
+  const request=++leaderboardRequest;
   const wrap=document.getElementById('leaderboardContent');
-  const progressWrap=document.getElementById('leaderboardMyProgress');
-  progressWrap.innerHTML='';
-  wrap.innerHTML='<div style="font-size:12.5px;color:var(--muted);">Memuat papan peringkat...</div>';
-
-  // One authoritative ledger, aggregated server-side. City is the user's
-  // current domicile (profiles.city), never the restaurant's city_id.
-  const [{data,error},progress]=await Promise.all([
-    sb.rpc('gm_leaderboard',{p_period:currentLeaderboardPeriod}),
-    myUserId && !isAdmin
-      ? sb.from('profiles').select('city,resto_approved_count,full_review_count,is_verified_contributor')
-          .eq('id',myUserId).maybeSingle()
-      : Promise.resolve({data:null,error:null})
-  ]);
+  const progress=document.getElementById('leaderboardMyProgress');
+  const updated=document.getElementById('leaderboardUpdated');
+  wrap.innerHTML='<div class="gm-lb-loading" role="status">Memuat papan peringkat…</div>';
+  progress.innerHTML='<div class="gm-lb-loading">Memuat statistik pribadi…</div>';
+  updated.textContent='';
+  const {data,error}=await sb.rpc('gm_leaderboard',{p_period:currentLeaderboardPeriod});
+  if(request!==leaderboardRequest)return;
   if(error){
-    wrap.innerHTML='<div style="font-size:12.5px;color:var(--red);">Gagal memuat: '+escapeHtml(error.message)+'</div>';
+    leaderboardLoaded=false;
+    wrap.innerHTML='<div class="gm-lb-error" role="alert">Ranking gagal dimuat. Periksa koneksi dan coba lagi. <button id="gmLbRetry" type="button">Coba lagi</button></div>';
+    document.getElementById('gmLbRetry').onclick=loadAndRenderLeaderboard;
+    progress.innerHTML='';
     return;
   }
-
-  if(isAdmin){
-    progressWrap.innerHTML='<div class="leaderboard-progress-card">Akun Admin tidak memperoleh poin dan tidak mengikuti Leaderboard.</div>';
-  }else if(myUserId && progress.error){
-    progressWrap.innerHTML='<div class="leaderboard-progress-card">Progres contributor belum dapat dimuat.</div>';
-  }else if(progress.data){
-    const p=progress.data;
-    const city=String(p.city||'').trim();
-    if(!city){
-      progressWrap.innerHTML+='<div class="leaderboard-progress-card">Isi Domisili pada Profile untuk tampil di kelompok kota Anda.</div>';
-    }
-    if(!p.is_verified_contributor){
-      const approved=Math.min(p.resto_approved_count||0,3);
-      const reviews=Math.min(p.full_review_count||0,5);
-      progressWrap.innerHTML+='<div class="leaderboard-progress-card">Nama Anda tampil setelah '+approved+'/3 restoran terverifikasi atau '+reviews+'/5 review lengkap.</div>';
-    }
-  }
-
-  const cities=new Map();
-  for(const item of data||[]){
-    if(!item.user_id)continue;
-    const city=String(item.city||'Domisili belum diisi');
-    if(!cities.has(city))cities.set(city,[]);
-    cities.get(city).push(item);
-  }
-  if(!cities.size){
-    wrap.innerHTML='<div style="font-size:12.5px;color:var(--muted);">Belum ada kontributor terverifikasi yang memiliki poin pada periode ini.</div>';
-    return;
-  }
-  wrap.innerHTML=[...cities.entries()].sort((a,b)=>a[0].localeCompare(b[0],'id')).map(([city,rows])=>{
-    const sorted=rows.sort((a,b)=>Number(b.points)-Number(a.points)||
-      String(a.username||'').localeCompare(String(b.username||''),'id'));
-    const list=sorted.slice(0,20).map((entry,i)=>{
-      const me=entry.user_id===myUserId;
-      return '<div class="leaderboard-row '+(me?'is-me':'')+'">'+
-        '<span class="leaderboard-rank">'+(i+1)+'</span>'+
-        '<span class="leaderboard-name">'+(me?'Kamu':escapeHtml(entry.username||'Pengguna'))+'</span>'+
-        '<span class="leaderboard-pts">'+Number(entry.points||0).toLocaleString('id-ID')+' pts</span></div>';
-    }).join('');
-    return '<div class="leaderboard-city-block">'+
-      '<div class="leaderboard-city-title">Domisili: '+escapeHtml(city)+'</div>'+
-      list+'</div>';
-  }).join('');
+  leaderboardLoaded=true;
+  leaderboardRows=Array.isArray(data)?data:[];
+  const citySelect=document.getElementById('leaderboardCityFilter');
+  const cities=[...new Set(leaderboardRows.map(leaderboardCity))].sort((a,b)=>a.localeCompare(b,'id-ID'));
+  citySelect.innerHTML='<option value="all">Semua domisili</option>'+cities.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
+  if(currentLeaderboardCity!=='all'&&!cities.includes(currentLeaderboardCity))currentLeaderboardCity='all';
+  citySelect.value=currentLeaderboardCity;
+  renderLeaderboard();
+  updated.textContent='Diperbarui '+new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Jakarta'})+' WIB';
+  await renderLeaderboardPersonal(request);
 }
 async function loadAndRenderAdminReports(){
   const list = document.getElementById('adminReportsList');
