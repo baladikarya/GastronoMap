@@ -9,7 +9,7 @@ let pointHistory=[];
 let ticket=0;
 let profileUser=null;
 let notificationPrefs={interaction:true,system:true},notificationUnreadCount=0,notificationLimit=50,notificationHasMore=false;
-let notificationChannel=null,notificationChannelUser=null,notificationRequest=0;
+let notificationChannel=null,notificationChannelUser=null,notificationRequest=0,badgeRequest=0;
 const pageScroll=Object.create(null);
 const backStack=[];
 let pendingScroll=null;
@@ -424,7 +424,6 @@ async function markNotificationsRead(items){
    if(error)throw error;
    restos.forEach(id=>seenRestoIds.add(id));
    if(typeof renderMarkers==='function')renderMarkers();
-   if(typeof updateNewRestoMenuBadge==='function')updateNewRestoMenuBadge();
   }
   items.forEach(x=>x.read=true);
   renderNotifications();
@@ -437,7 +436,7 @@ async function markNotificationsRead(items){
  }
 }
 async function loadNotificationBadge(){
- const uid=currentUser();
+ const uid=currentUser(),request=++badgeRequest;
  if(!uid){notificationUnreadCount=0;return;}
  try{
   const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
@@ -453,7 +452,7 @@ async function loadNotificationBadge(){
   ]);
   countResults.forEach(x=>{if(x.error)throw x.error;});
   const restoRows=rows(restosResult),seen=new Set(rows(seenResult).map(x=>x.resto_id));
-  if(uid!==currentUser())return;
+  if(uid!==currentUser()||request!==badgeRequest)return;
   notificationUnreadCount=countResults.reduce((total,x)=>total+(x.count||0),0)+
    restoRows.filter(x=>x.created_by!==uid&&!seen.has(x.id)).length;
   const badge=root.querySelector('[data-action="notifications"] .profile-menu-count');
@@ -490,7 +489,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan status dibaca tersimpan di akun dan tersinkronisasi antarperangkat.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v145</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v146</small></span></div></div>'+
  '';
 }
 async function openPost(id,returnToProfile=false){
