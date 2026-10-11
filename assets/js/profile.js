@@ -595,6 +595,7 @@ root.addEventListener('change',(event)=>{
  const el=event.target.closest('[data-setting]');if(!el)return;
  const p=prefs();p[el.dataset.setting]=el.checked;saveLocal('preferences',p);
 });
+window.openProfilePoints=function(){ setPage('points'); };
 window.renderProfileDashboard=function(){
  const uid=currentUser();
  if(profileUser!==uid){
