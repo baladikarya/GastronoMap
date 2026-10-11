@@ -23,7 +23,8 @@ create policy "notifications_read_own" on public.notifications for select to aut
 drop policy if exists "notifications_update_own" on public.notifications;
 create policy "notifications_update_own" on public.notifications for update to authenticated
  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
-grant select, update on public.notifications to authenticated;
+grant select on public.notifications to authenticated;
+grant update (read_at) on public.notifications to authenticated;
 revoke insert, delete on public.notifications from anon, authenticated;
 
 create table if not exists public.notification_preferences (
@@ -161,7 +162,14 @@ drop trigger if exists gm_notify_contribution on public.contribution_points;
 create trigger gm_notify_contribution after insert on public.contribution_points for each row execute function private.gm_notify_contribution();
 
 -- Keep privileged helpers inaccessible for direct API callers.
-revoke all on all functions in schema private from public, anon, authenticated;
+revoke all on function private.gm_notification_actor(uuid) from public, anon, authenticated;
+revoke all on function private.gm_push_notification(uuid,uuid,text,text,text,uuid,uuid,uuid,uuid,text) from public, anon, authenticated;
+revoke all on function private.gm_notify_like() from public, anon, authenticated;
+revoke all on function private.gm_notify_comment() from public, anon, authenticated;
+revoke all on function private.gm_notify_report() from public, anon, authenticated;
+revoke all on function private.gm_notify_link() from public, anon, authenticated;
+revoke all on function private.gm_notify_resto() from public, anon, authenticated;
+revoke all on function private.gm_notify_contribution() from public, anon, authenticated;
 revoke all on schema private from public, anon, authenticated;
 
 -- Publish own notification changes for live counters in the logged-in client.
