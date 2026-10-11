@@ -277,17 +277,17 @@
   <div id="leaderboardOverlay" class="hidden">
     <div id="leaderboardPanel">
       <button class="plain-close-btn" id="closeLeaderboardBtn">✕</button>
-      <h2>🏆 Kontributor</h2>
-      <p id="leaderboardIntro">Kontributor teraktif per kota. Namamu tampil setelah 3 resto disetujui atau 5 review lengkap (rating + testimoni + foto kunjungan pada resto yang sama).</p>
+      <div class="gm-lb-heading"><h2>Leaderboard</h2><button id="leaderboardInfoBtn" type="button" aria-label="Tentang Leaderboard" aria-expanded="false" aria-controls="leaderboardIntro">ⓘ</button></div>
+      <div id="leaderboardIntro" class="gm-lb-info hidden" role="note"><strong>Tentang Leaderboard</strong><p>Peringkat kontributor teraktif berdasarkan domisili. Nama pengguna tampil setelah 3 restoran disetujui atau 5 review lengkap (rating, testimoni, dan foto kunjungan pada restoran yang sama).</p></div>
       <div class="leaderboard-period-tabs" id="leaderboardPeriodTabs">
         <button class="leaderboard-period-tab active" data-period="month">Bulanan</button>
         <button class="leaderboard-period-tab" data-period="year">Tahunan</button>
         <button class="leaderboard-period-tab" data-period="all">All-time</button>
       </div>
       <div class="gm-leaderboard-controls">
-        <label for="leaderboardCityFilter">Domisili kontributor</label>
+        <label for="leaderboardCityFilter" class="gm-lb-visually-hidden">Domisili kontributor</label>
         <select id="leaderboardCityFilter" aria-label="Filter domisili"><option value="all">Semua domisili</option></select>
-        <button id="leaderboardRefreshBtn" type="button">Perbarui</button>
+        <button id="leaderboardRefreshBtn" type="button" aria-label="Perbarui peringkat" title="Perbarui peringkat">↻</button>
       </div>
       <p id="leaderboardUpdated" class="gm-leaderboard-updated" role="status" aria-live="polite"></p>
       <div id="leaderboardMyProgress"></div>
