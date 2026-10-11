@@ -441,15 +441,21 @@ async function loadNotificationBadge(){
  if(!uid){notificationUnreadCount=0;return;}
  try{
   const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
-  const [unread,restosResult,seenResult]=await Promise.all([
-   sb.from('notifications').select('id',{count:'exact',head:true}).eq('user_id',uid).is('read_at',null),
-   sb.from('restos').select('id,created_by').gte('created_at',since).limit(100),
-   sb.from('seen_restos').select('resto_id').eq('user_id',uid)
+  const active=prefs(),counts=[];
+  if(active.interaction)counts.push(sb.from('notifications').select('id',{count:'exact',head:true})
+   .eq('user_id',uid).is('read_at',null).in('kind',['like','comment','reply']));
+  if(active.system)counts.push(sb.from('notifications').select('id',{count:'exact',head:true})
+   .eq('user_id',uid).is('read_at',null).in('kind',['report','link','resto_submitted','resto_verified','contribution']));
+  const [countResults,restosResult,seenResult]=await Promise.all([
+   Promise.all(counts),
+   active.system?sb.from('restos').select('id,created_by').gte('created_at',since).limit(100):Promise.resolve({data:[]}),
+   active.system?sb.from('seen_restos').select('resto_id').eq('user_id',uid):Promise.resolve({data:[]})
   ]);
-  if(unread.error)throw unread.error;
+  countResults.forEach(x=>{if(x.error)throw x.error;});
   const restoRows=rows(restosResult),seen=new Set(rows(seenResult).map(x=>x.resto_id));
   if(uid!==currentUser())return;
-  notificationUnreadCount=(unread.count||0)+restoRows.filter(x=>x.created_by!==uid&&!seen.has(x.id)).length;
+  notificationUnreadCount=countResults.reduce((total,x)=>total+(x.count||0),0)+
+   restoRows.filter(x=>x.created_by!==uid&&!seen.has(x.id)).length;
   const badge=root.querySelector('[data-action="notifications"] .profile-menu-count');
   if(badge)badge.textContent=notificationUnreadCount?String(notificationUnreadCount):'0';
  }catch(err){console.error('Gagal menghitung notifikasi:',err);}
@@ -462,6 +468,7 @@ async function loadNotificationPreferences(uid){
   notificationPrefs={interaction:data?.interaction!==false,system:data?.system!==false};
   if(page==='settings')renderSettings();
   if(page==='notifications')renderNotifications();
+  loadNotificationBadge();
  }catch(err){console.error('Gagal memuat preferensi notifikasi:',err);}
 }
 function subscribeNotifications(uid){
@@ -681,6 +688,7 @@ root.addEventListener('change',async (event)=>{
   updated_at:new Date().toISOString()},{onConflict:'user_id'});
  if(error){notificationPrefs=before;el.checked=before[field];showToast('Gagal menyimpan preferensi: '+error.message);}
  el.disabled=false;
+ loadNotificationBadge();
  if(page==='notifications')renderNotifications();
 });
 window.openProfilePoints=function(){ setPage('points'); };
