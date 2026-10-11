@@ -335,6 +335,11 @@ document.querySelectorAll('.report-filter-tab').forEach(tab=>{
   };
 });
 
+document.getElementById('leaderboardInfoBtn').onclick=()=>{
+  const info=document.getElementById('leaderboardIntro');
+  const opened=info.classList.toggle('hidden')===false;
+  document.getElementById('leaderboardInfoBtn').setAttribute('aria-expanded',String(opened));
+};
 document.getElementById('leaderboardCityFilter').onchange=(event)=>{
   currentLeaderboardCity=event.target.value;
   renderLeaderboard();
