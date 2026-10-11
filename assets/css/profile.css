@@ -189,3 +189,14 @@
 #profileDashboard .profile-notification.unread:focus-visible{outline-offset:-3px;}
 #profileDashboard .profile-notice-toolbar button:disabled{opacity:.5;cursor:default;}
 @media (max-width:360px){.profile-notice-toolbar{flex-wrap:wrap;}.profile-notice-toolbar .profile-compact-btn{margin-left:auto;}}
+
+/* Read-notification management */
+#profileDashboard .profile-notification-entry{display:flex;align-items:stretch;border-bottom:1px solid var(--line);background:var(--card);}
+#profileDashboard .profile-notification-entry:last-child{border-bottom:0;}
+#profileDashboard .profile-notification-entry .profile-notification{flex:1;min-width:0;border-bottom:0;}
+#profileDashboard .profile-notification-delete{flex:0 0 38px;border:0;background:transparent;color:var(--muted);font-size:22px;cursor:pointer;}
+#profileDashboard .profile-notification-delete:hover{color:var(--ink);background:var(--paper);}
+#profileDashboard .profile-notification-select{display:flex;align-items:center;justify-content:center;flex:0 0 38px;}
+#profileDashboard .profile-notification-select input{width:17px;height:17px;accent-color:var(--amber);}
+#profileDashboard .profile-notification-entry button:focus-visible,#profileDashboard .profile-notice-toolbar button:focus-visible{outline:2px solid var(--amber);outline-offset:-2px;}
+#profileDashboard .profile-notice-toolbar{flex-wrap:wrap;}
