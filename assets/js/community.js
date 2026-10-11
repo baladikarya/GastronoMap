@@ -156,12 +156,16 @@ function renderGallery(post,isDetail){
   const gallery=$('div','community-gallery '+(isDetail?'community-gallery--detail':'community-gallery--'+Math.min(4,post.media.length)));
   const showing=isDetail?post.media:post.media.slice(0,4);
   for(let index=0;index<showing.length;index++){
-    const photo=showing[index],item=$('button','community-gallery-item');
-    item.type='button';item.setAttribute('aria-label','Buka foto '+(index+1)+' dari '+post.media.length);
-    const image=safeImage(photo.url,'community-gallery-image','Foto pengalaman kuliner');
+    const photo=showing[index];
+    const item=$(!isDetail?'button':'div','community-gallery-item');
+    if(!isDetail){
+      item.type='button';
+      item.setAttribute('aria-label','Buka foto '+(index+1)+' dari '+post.media.length);
+      item.addEventListener('click',()=>openDetail(post.id));
+    }
+    const image=safeImage(photo.url,'community-gallery-image','Foto pengalaman kuliner '+(index+1));
     if(image)item.append(image);
     if(!isDetail&&index===3&&post.media.length>4)item.append($('span','community-gallery-more','+'+(post.media.length-4)));
-    item.onclick=isDetail?()=>{}:()=>openDetail(post.id);
     gallery.append(item);
   }
   if(isDetail){
@@ -499,8 +503,8 @@ function setReply(comment){
   replyLabel.append($('span','','Membalas '+displayName(comment.profile)),button('Batal','community-small-link',()=>{replyTo=null;replyLabel.hidden=true;}));
   commentInput.focus();
 }
-function commentItem(c,replies){
-  const wrap=$('div','community-comment'+(c.parent_id?' community-comment--reply':''));
+function commentItem(c,depth=0){
+  const wrap=$('div','community-comment'+(depth>0?' community-comment--reply':''));
   wrap.append(avatar(c.profile));
   const content=$('div','community-comment-content');
   const heading=$('div','community-comment-heading');
@@ -518,22 +522,33 @@ function commentItem(c,replies){
   }
   content.append(bar);wrap.append(content);
   const container=$('div','community-comment-thread');container.append(wrap);
-  for(const child of replies)container.append(commentItem(child,[]));
   return container;
 }
 function renderComments(){
   commentsBody.replaceChildren();
   const list=state.detailComments;
   if(!list.length){commentsBody.append($('div','community-comments-empty','Belum ada komentar. Mulai percakapan pertama.'));return;}
-  const byParent=new Map(),seen=new Set();
-  for(const c of list){const parent=c.parent_id||null;if(!byParent.has(parent))byParent.set(parent,[]);byParent.get(parent).push(c);}
-  function append(c,depth){
-    if(depth>8||seen.has(c.id))return;
-    seen.add(c.id);commentsBody.append(commentItem(c,[]));
-    for(const child of byParent.get(c.id)||[])append(child,depth+1);
+  const byParent=new Map(),seen=new Set(),ids=new Set(list.map(c=>c.id));
+  for(const c of list){
+    const parent=c.parent_id&&ids.has(c.parent_id)?c.parent_id:null;
+    if(!byParent.has(parent))byParent.set(parent,[]);
+    byParent.get(parent).push(c);
   }
-  for(const c of list.filter(c=>!c.parent_id||!list.some(x=>x.id===c.parent_id)))append(c,0);
-  for(const c of list)if(!seen.has(c.id))append(c,0);
+  function append(c,parent,depth){
+    if(seen.has(c.id))return;
+    seen.add(c.id);
+    const item=commentItem(c,depth);
+    parent.append(item);
+    const children=byParent.get(c.id)||[];
+    if(children.length){
+      const thread=$('div','community-comment-children');
+      item.append(thread);
+      for(const child of children)append(child,thread,depth+1);
+    }
+  }
+  for(const c of byParent.get(null)||[])append(c,commentsBody,0);
+  // Guard against malformed cyclic relationships without duplicating comments.
+  for(const c of list)if(!seen.has(c.id))append(c,commentsBody,0);
 }
 async function loadComments(postId){
   commentsBody.replaceChildren($('div','community-comments-empty','Memuat komentar…'));
