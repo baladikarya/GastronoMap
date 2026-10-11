@@ -487,9 +487,10 @@ const sendButton=button(null,'community-comment-send',null,'send');sendButton.ty
 commentRow.append(commentInput,sendButton);commentForm.append(replyLabel,commentRow);
 detail.panel.append(detailHeader,detailScroll,commentForm);
 let replyTo=null,commentBusy=false;
+const expandedReplies=new Set();
 detail.surface.querySelector('.community-modal-shade').onclick=closeDetail;
 function closeDetail(){
-  closeModal(detail.surface);state.selectedPost=null;replyTo=null;
+  closeModal(detail.surface);state.selectedPost=null;replyTo=null;expandedReplies.clear();
   const address=new URL(location.href);
   if(address.searchParams.has('post')){address.searchParams.delete('post');history.replaceState(history.state,'',address.href);}
 }
@@ -541,9 +542,29 @@ function renderComments(){
     parent.append(item);
     const children=byParent.get(c.id)||[];
     if(children.length){
+      const isOpen=expandedReplies.has(c.id);
+      const toggle=button(
+        isOpen?'Sembunyikan balasan':'Lihat balasan ('+children.length+')',
+        'community-replies-toggle'+(isOpen?' is-open':''),
+        ()=>{if(expandedReplies.has(c.id))expandedReplies.delete(c.id);else expandedReplies.add(c.id);renderComments();},
+        'chevron'
+      );
+      toggle.setAttribute('aria-expanded',String(isOpen));
       const thread=$('div','community-comment-children');
+      thread.hidden=!isOpen;
+      const content=item.querySelector('.community-comment-content');
+      content.append(toggle);
       item.append(thread);
-      for(const child of children)append(child,thread,depth+1);
+      // Mark hidden descendants visited to avoid duplicating them as roots.
+      function markDescendants(id){
+        for(const child of byParent.get(id)||[]){
+          if(seen.has(child.id))continue;
+          seen.add(child.id);
+          markDescendants(child.id);
+        }
+      }
+      if(isOpen){for(const child of children)append(child,thread,depth+1);}
+      else markDescendants(c.id);
     }
   }
   for(const c of byParent.get(null)||[])append(c,commentsBody,0);
@@ -605,7 +626,7 @@ async function toggleCommentLike(comment){
 function openDetail(postId){
   const post=state.posts.find(p=>p.id===postId);
   if(!post)return;
-  state.selectedPost=post;replyTo=null;replyLabel.hidden=true;commentInput.value='';
+  state.selectedPost=post;replyTo=null;replyLabel.hidden=true;commentInput.value='';expandedReplies.clear();
   renderDetailPost(post);detailScroll.scrollTop=0;openModal(detail.surface);
   detailBack.focus({preventScroll:true});loadComments(postId);
 }
@@ -622,6 +643,18 @@ commentForm.addEventListener('submit',async e=>{
   try{
     const r=await sb.from('comments').insert({post_id:post.id,user_id:user(),parent_id:replyTo?.id||null,body:comment});
     if(r.error)throw r.error;
+    const repliedTo=replyTo?.id||null;
+    if(repliedTo){
+      expandedReplies.add(repliedTo);
+      // Expand all ancestors as well, so the newly sent reply is visible.
+      let ancestor=state.detailComments.find(c=>c.id===repliedTo);
+      const visited=new Set();
+      while(ancestor?.parent_id&&!visited.has(ancestor.parent_id)){
+        visited.add(ancestor.parent_id);
+        expandedReplies.add(ancestor.parent_id);
+        ancestor=state.detailComments.find(c=>c.id===ancestor.parent_id);
+      }
+    }
     post.commentCount++;replyTo=null;replyLabel.hidden=true;commentInput.value='';
     renderFeed();renderDetailPost(post);await loadComments(post.id);
     detailScroll.scrollTo({top:detailScroll.scrollHeight,behavior:'smooth'});
