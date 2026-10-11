@@ -213,11 +213,12 @@ function renderFeed(){
   for(const [key,btn] of filterButtons){const active=key===state.filter;btn.classList.toggle('is-active',active);btn.setAttribute('aria-pressed',String(active));}
   const posts=filteredPosts();
   if(!posts.length){
-    const empty=$('div','community-feed-state community-feed-empty');
-    const iconHolder=$('div','community-empty-art');iconHolder.append(glyph('image'));
-    empty.append(iconHolder,$('h3','',state.filter==='nearby'?'Belum ada cerita di dekatmu':'Cerita pertama dimulai di sini'));
-    empty.append($('p','',state.filter==='nearby'?'Belum ada postingan dari restoran dalam radius 25 km. Coba filter Terbaru untuk melihat cerita dari kota lain.':'Bagikan momen makan favoritmu dan bantu pecinta kuliner lain menemukan tempat baru.'));
-    empty.append(button('Bagikan Cerita','community-create-button community-create-button--empty',openComposer,'plus'));
+    const empty=$('div','community-feed-empty-note');
+    empty.append($('p','',state.filter==='nearby'
+      ? 'Belum ada cerita di dekatmu. Coba filter Terbaru untuk melihat cerita lainnya.'
+      : state.posts.length
+        ? 'Belum ada cerita pada filter ini.'
+        : 'Belum ada cerita. Jadilah yang pertama berbagi!'));
     feed.replaceChildren(empty);return;
   }
   feed.replaceChildren(...posts.map(p=>renderPost(p)));
