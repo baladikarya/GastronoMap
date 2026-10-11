@@ -293,7 +293,6 @@ document.getElementById('avatarInput').onchange = (e)=>{
 document.getElementById('editProfileAgainBtn').onclick = ()=> openProfileCompletionModal(true);
 document.getElementById('logoutBtn').onclick = signOut;
 document.getElementById('profileLoginBtn').onclick = ()=> document.getElementById('loginOverlay').classList.remove('hidden');
-document.getElementById('openNewRestoListBtn').onclick = openNewRestoListPanel;
 document.getElementById('guideMenuToggle').onclick = ()=>{
   document.getElementById('guideSubmenu').classList.toggle('hidden');
   document.getElementById('guideMenuArrow').classList.toggle('open');
@@ -302,10 +301,6 @@ document.getElementById('openInstallGuideBtn').onclick = ()=> openGuidePanel('in
 document.getElementById('openUsageGuideBtn').onclick = ()=> openGuidePanel('usage');
 document.getElementById('closeGuideBtn').onclick = ()=> document.getElementById('guideOverlay').classList.add('hidden');
 document.getElementById('guideOverlay').onclick = (e)=>{ if(e.target.id === 'guideOverlay') document.getElementById('guideOverlay').classList.add('hidden'); };
-document.getElementById('closeNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
-document.getElementById('markAllSeenBtn').onclick = markAllNewRestosSeen;
-document.getElementById('dismissNewRestoBtn').onclick = ()=> document.getElementById('newRestoOverlay').classList.add('hidden');
-document.getElementById('newRestoOverlay').onclick = (e)=>{ if(e.target.id === 'newRestoOverlay') document.getElementById('newRestoOverlay').classList.add('hidden'); };
 document.getElementById('openWishlistBtn').onclick = openWishlistPanel;
 document.getElementById('closeWishlistBtn').onclick = ()=> document.getElementById('wishlistOverlay').classList.add('hidden');
 document.getElementById('wishlistOverlay').onclick = (e)=>{ if(e.target.id === 'wishlistOverlay') document.getElementById('wishlistOverlay').classList.add('hidden'); };
