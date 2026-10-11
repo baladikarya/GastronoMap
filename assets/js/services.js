@@ -7,6 +7,7 @@ async function initIdentity(){
     await applySession(session);
     updateUserBadge();
     await loadVisited();
+    if(currentPrimaryView === 'profile') openAccountPanel();
     renderMarkers();
   });
 }
@@ -161,7 +162,7 @@ function openProfileCompletionModal(forceEdit){
   document.getElementById('profileGenderInput').value = myGender || '';
   document.getElementById('profileAgeInput').value = myAge || '';
   document.getElementById('profileStatus').textContent = '';
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('profileOverlay').classList.remove('hidden');
 }
 
@@ -181,12 +182,16 @@ async function saveProfile(){
   myUsername = username; myGender = gender || null; myAge = age || null;
   updateUserBadge();
   document.getElementById('profileOverlay').classList.add('hidden');
+  if(currentPrimaryView === 'profile') openAccountPanel();
   showToast('Profil tersimpan, terima kasih!');
 }
 
 /* ================= PANEL AKUN (avatar, panduan, logout) ================= */
 function openAccountPanel(){
-  if(!myUserId){ document.getElementById('loginOverlay').classList.remove('hidden'); return; }
+  const guest = !myUserId;
+  document.getElementById('profileGuest').classList.toggle('hidden', !guest);
+  document.getElementById('profileAccountMenu').classList.toggle('hidden', guest);
+  document.getElementById('accountHeader').classList.toggle('hidden', guest);
   document.getElementById('accountUsername').textContent = myUsername || '(belum ada username)';
   document.getElementById('accountEmail').textContent = myEmail || '';
   const img = document.getElementById('accountAvatarImg');
@@ -317,7 +322,7 @@ function openGuidePanel(section){
   document.getElementById('guidePanel').querySelector('h2').textContent =
     useInstall ? '📲 Cara Install Aplikasi' : '📖 Panduan Penggunaan GastronoMap';
   document.getElementById('guideContent').innerHTML = useInstall ? INSTALL_GUIDE_HTML : GUIDE_HTML;
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('guideOverlay').classList.remove('hidden');
 }
 
@@ -405,7 +410,7 @@ function showNewRestoPopupIfNeeded(){
    melihat kembali daftarnya kapan saja. */
 function openNewRestoListPanel(){
   if(!requireLogin()) return;
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   renderNewRestoListItems(getNewRestosForMe());
   document.getElementById('newRestoOverlay').classList.remove('hidden');
 }
@@ -445,7 +450,7 @@ function getWishlistedRestosForMe(){
 
 function openWishlistPanel(){
   if(!requireLogin()) return;
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   renderWishlistItems(getWishlistedRestosForMe());
   document.getElementById('wishlistOverlay').classList.remove('hidden');
 }
@@ -459,7 +464,7 @@ let reportContextRestoId = null;
 function openReportModal(restoId, restoName){
   if(!requireLogin()) return;
   reportContextRestoId = restoId || null;
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   const ctxLabel = document.getElementById('reportContextLabel');
   const typeSelect = document.getElementById('reportTypeSelect');
   if(restoId){
@@ -509,7 +514,7 @@ let currentReportFilter = 'pending';
 
 async function openAdminReportsPanel(){
   if(!isAdmin) return;
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('adminReportsOverlay').classList.remove('hidden');
   currentReportFilter = 'pending';
   document.querySelectorAll('.report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
@@ -792,7 +797,7 @@ let currentLinkSubmissionFilter = 'pending';
 
 async function openAdminLinkSubmissionsPanel(){
   if(!isAdmin) return;
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('adminLinkSubmissionsOverlay').classList.remove('hidden');
   currentLinkSubmissionFilter = 'pending';
   document.querySelectorAll('#linkSubmissionFilterTabs .report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
@@ -895,7 +900,7 @@ function leaderboardPeriodStart(period){
 }
 
 async function openLeaderboard(){
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('leaderboardOverlay').classList.remove('hidden');
   currentLeaderboardPeriod = 'month';
   document.querySelectorAll('#leaderboardPeriodTabs .leaderboard-period-tab').forEach(t=> t.classList.toggle('active', t.dataset.period === 'month'));
@@ -1076,7 +1081,7 @@ async function saveReportNote(reportId, note){
    Read-only -- tidak ada tombol ubah status, hanya menampilkan status & catatan admin (jika ada). */
 async function openMyReportsPanel(){
   if(!requireLogin()) return;
-  document.getElementById('accountOverlay').classList.add('hidden');
+  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('myReportsOverlay').classList.remove('hidden');
   await loadAndRenderMyReports();
 }

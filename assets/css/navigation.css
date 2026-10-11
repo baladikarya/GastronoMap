@@ -197,3 +197,33 @@
   #leaderboardOverlay{top:calc(54px + env(safe-area-inset-top)) !important;padding:16px 14px 30px !important;}
   .nav-item{font-size:9.5px;}
 }
+
+/* Profile replaces the former fifth-tab placeholder. Keep the account menu within the main viewport. */
+#accountOverlay{
+  z-index:1100;
+  top:calc(60px + env(safe-area-inset-top));
+  bottom:calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  left:0;right:0;
+  padding:20px 16px 36px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  background:var(--paper);
+}
+#accountPanel{
+  position:relative;top:auto;right:auto;
+  width:100%;max-width:720px;max-height:none;
+  margin:0 auto;padding:0;
+  overflow:visible;box-shadow:none;border-radius:0;background:transparent;
+}
+.profile-page-heading{margin-bottom:22px;}
+.profile-page-heading h1{margin:0;font:700 24px/1.2 var(--font-display);color:var(--ink);}
+.profile-page-heading p{margin:6px 0 0;font:13px/1.5 var(--font-body);color:var(--muted);}
+#accountHeader{padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--card);}
+#profileAccountMenu{padding:8px 12px;border:1px solid var(--line);border-radius:16px;background:var(--card);}
+#profileGuest{padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--card);}
+#profileGuest p{margin:0 0 16px;font-size:14px;line-height:1.6;color:var(--muted);}
+#profileGuest .btn{width:100%;}
+/* Profile is now accessed through the fifth bottom tab rather than the header avatar. */
+#userBadge{display:none !important;}
+@media(max-width:420px){#accountOverlay{top:calc(54px + env(safe-area-inset-top));padding:16px 14px 30px;}}

@@ -15,7 +15,7 @@ const NAV_VIEW_TO_BUTTON = {
   home: 'navHomeBtn',
   community: 'navCommunityBtn',
   leaderboard: 'navLeaderboardBtn',
-  more: 'navMoreBtn'
+  profile: 'navProfileBtn'
 };
 let currentPrimaryView = 'home';
 
@@ -30,7 +30,6 @@ function setActiveNavTab(activeId){
 
 function hidePrimaryViews(){
   document.getElementById('communityView').classList.add('hidden');
-  document.getElementById('moreView').classList.add('hidden');
   document.getElementById('leaderboardOverlay').classList.add('hidden');
 }
 
@@ -58,9 +57,9 @@ function navigatePrimaryView(view, options = {}){
   }else if(target === 'leaderboard'){
     document.getElementById('detailPanel').classList.add('hidden');
     openLeaderboard();
-  }else if(target === 'more'){
+  }else if(target === 'profile'){
     document.getElementById('detailPanel').classList.add('hidden');
-    document.getElementById('moreView').classList.remove('hidden');
+    openAccountPanel();
   }
 
   currentPrimaryView = target;
@@ -92,9 +91,8 @@ document.getElementById('navAddBtn').onclick = ()=>{
   openForm(null);
 };
 document.getElementById('navLeaderboardBtn').onclick = ()=> navigatePrimaryView('leaderboard');
-document.getElementById('navMoreBtn').onclick = ()=> navigatePrimaryView('more');
+document.getElementById('navProfileBtn').onclick = ()=> navigatePrimaryView('profile');
 document.getElementById('communityBackBtn').onclick = navigateBackHome;
-document.getElementById('moreBackBtn').onclick = navigateBackHome;
 
 history.replaceState({ ...(history.state || {}), gmView: 'home' }, '', window.location.href);
 window.addEventListener('popstate', (event)=>{
@@ -282,7 +280,7 @@ document.getElementById('locateBtn').onclick = ()=>{
   showToast('Melacak lokasi Anda secara live 📍');
 };
 document.getElementById('logo').onclick = refreshAllData;
-document.getElementById('accountOverlay').onclick = (e)=>{ if(e.target.id === 'accountOverlay') document.getElementById('accountOverlay').classList.add('hidden'); };
+document.getElementById('accountOverlay').onclick = ()=>{}; // Profile adalah halaman utama, bukan popup.
 document.getElementById('accountAvatarWrap').onclick = ()=> document.getElementById('avatarInput').click();
 document.getElementById('avatarInput').onchange = (e)=>{
   const file = e.target.files && e.target.files[0];
@@ -290,10 +288,8 @@ document.getElementById('avatarInput').onchange = (e)=>{
   if(file) uploadAvatar(file);
 };
 document.getElementById('editProfileAgainBtn').onclick = ()=> openProfileCompletionModal(true);
-document.getElementById('logoutBtn').onclick = ()=>{
-  document.getElementById('accountOverlay').classList.add('hidden');
-  signOut();
-};
+document.getElementById('logoutBtn').onclick = signOut;
+document.getElementById('profileLoginBtn').onclick = ()=> document.getElementById('loginOverlay').classList.remove('hidden');
 document.getElementById('openNewRestoListBtn').onclick = openNewRestoListPanel;
 document.getElementById('guideMenuToggle').onclick = ()=>{
   document.getElementById('guideSubmenu').classList.toggle('hidden');
@@ -410,13 +406,14 @@ async function runSplashSessionCheck(){
   }
 }
 
-document.getElementById('userBadge').onclick = openAccountPanel;
+document.getElementById('userBadge').onclick = ()=> navigatePrimaryView('profile');
 document.getElementById('loginSendBtn').onclick = sendMagicLink;
 document.getElementById('loginGoogleBtn').onclick = signInWithGoogle;
 document.getElementById('loginCancelBtn').onclick = ()=> document.getElementById('loginOverlay').classList.add('hidden');
 document.getElementById('profileSaveBtn').onclick = saveProfile;
 document.getElementById('profileCancelBtn').onclick = ()=>{
   document.getElementById('profileOverlay').classList.add('hidden');
+  if(currentPrimaryView === 'profile') openAccountPanel();
 };
 
 if('serviceWorker' in navigator){

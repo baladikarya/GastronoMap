@@ -86,8 +86,13 @@
     </div>
   </div>
 
-  <div id="accountOverlay" class="hidden">
+  <section id="accountOverlay" class="hidden" aria-labelledby="profilePageTitle">
     <div id="accountPanel">
+      <div class="profile-page-heading"><h1 id="profilePageTitle">Profile</h1><p>Akun dan aktivitas GastronoMap Anda</p></div>
+      <div id="profileGuest" class="hidden">
+        <p>Masuk untuk mengelola profil, wishlist, dan kontribusi Anda.</p>
+        <button type="button" class="btn btn-primary" id="profileLoginBtn">Login / Register</button>
+      </div>
       <div id="accountHeader">
         <div id="accountAvatarWrap">
           <img id="accountAvatarImg" src="" alt="" class="hidden">
@@ -100,6 +105,7 @@
           <div id="accountEmail">-</div>
         </div>
       </div>
+      <div id="profileAccountMenu">
       <button class="account-menu-item" id="editProfileAgainBtn">✏️ Edit Profil</button>
       <button class="account-menu-item" id="openNewRestoListBtn">🆕 List Resto Baru</button>
       <button class="account-menu-item" id="openWishlistBtn">❤️ Wishlist</button>
@@ -122,8 +128,9 @@
         <button class="account-menu-item account-submenu-item" id="openUsageGuideBtn">📘 Panduan Penggunaan</button>
       </div>
       <button class="account-menu-item danger" id="logoutBtn">🚪 Logout</button>
+      </div>
     </div>
-  </div>
+  </section>
 
   <div id="guideOverlay" class="hidden">
     <div id="guidePanel">
@@ -429,9 +436,9 @@
       <span class="nav-icon"><svg class="nav-svg" aria-hidden="true"><use href="assets/icons/ui.svg#leaderboard"></use></svg></span>
       <span class="nav-label">Leaderboard</span>
     </button>
-    <button type="button" class="nav-item" id="navMoreBtn">
-      <span class="nav-icon"><svg class="nav-svg" aria-hidden="true"><use href="assets/icons/ui.svg#more"></use></svg></span>
-      <span class="nav-label">Lainnya</span>
+    <button type="button" class="nav-item" id="navProfileBtn">
+      <span class="nav-icon"><svg class="nav-svg" aria-hidden="true"><use href="assets/icons/ui.svg#user"></use></svg></span>
+      <span class="nav-label">Profile</span>
     </button>
   </div>
 
@@ -444,21 +451,6 @@
     </div>
     <div class="primary-view__body">
       <div id="communityFeed" class="community-feed" aria-live="polite"></div>
-    </div>
-  </section>
-
-  <section id="moreView" class="primary-view hidden" aria-labelledby="moreViewTitle">
-    <div class="primary-view__header">
-      <button type="button" class="primary-view__back" id="moreBackBtn" aria-label="Kembali ke Home">
-        <svg class="nav-svg" aria-hidden="true"><use href="assets/icons/ui.svg#back"></use></svg>
-      </button>
-      <h1 class="primary-view__title" id="moreViewTitle">Tab Kelima</h1>
-    </div>
-    <div class="primary-view__body">
-      <div class="primary-view__placeholder">
-        <h3>Slot navigasi ke-5 belum ditetapkan.</h3>
-        <p>Posisi dan state navigasinya sudah disiapkan tanpa mengunci fungsi akhirnya, sehingga dapat diganti setelah keputusan produk dibuat.</p>
-      </div>
     </div>
   </section>
 
