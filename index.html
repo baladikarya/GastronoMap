@@ -26,6 +26,7 @@
 <link rel="stylesheet" href="assets/css/navigation.css">
 <link rel="stylesheet" href="assets/css/community.css">
 <link rel="stylesheet" href="assets/css/profile.css">
+<link rel="stylesheet" href="assets/css/leaderboard.css">
 </head>
 <body>
 <div id="app">
@@ -283,8 +284,14 @@
         <button class="leaderboard-period-tab" data-period="year">Tahunan</button>
         <button class="leaderboard-period-tab" data-period="all">All-time</button>
       </div>
+      <div class="gm-leaderboard-controls">
+        <label for="leaderboardCityFilter">Domisili kontributor</label>
+        <select id="leaderboardCityFilter" aria-label="Filter domisili"><option value="all">Semua domisili</option></select>
+        <button id="leaderboardRefreshBtn" type="button">Perbarui</button>
+      </div>
+      <p id="leaderboardUpdated" class="gm-leaderboard-updated" role="status" aria-live="polite"></p>
       <div id="leaderboardMyProgress"></div>
-      <div id="leaderboardContent"></div>
+      <div id="leaderboardContent" aria-live="polite"></div>
     </div>
   </div>
 
