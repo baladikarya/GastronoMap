@@ -115,7 +115,7 @@ function renderMain(){
  menuRow('Kelola Link Online','Moderasi pengajuan link restoran','adminLinks','settings')+'</div>':'');
  loadStats(ticket);
 }
-function stat(id,label,action){return '<button type="button" class="profile-stat" data-action="'+action+'" aria-label="Lihat '+label+'"><strong id="'+id+'">–</strong><small>'+label+'</small><span class="profile-stat-chevron" aria-hidden="true">›</span></button>';}
+function stat(id,label,action){return '<button type="button" class="profile-stat" data-action="'+action+'" aria-label="Lihat '+label+'"><strong id="'+id+'">–</strong><small>'+label+'</small></button>';}
 async function loadStats(n){
  const uid=currentUser();
  try{
@@ -179,13 +179,13 @@ async function loadPoints(n){
    const linked=entry.resto_id&&resto(entry.resto_id);
    const target=post?'post':linked?'resto':null;
    const targetId=post?entry.source_id:entry.resto_id;
-   const action=target?'<button type="button" class="profile-compact-btn" data-action="'+target+'" data-id="'+eattr(targetId)+'">Lihat</button>':'';
+   const action=target?openCardButton(target,targetId,post?'Lihat detail postingan':'Lihat detail restoran'):'';
    const detail=post?'Community':linked?nameOf(entry.resto_id):'GastronoMap';
-   return '<div class="profile-points-entry'+(undone?' is-reversed':'')+'"><div><strong>'+
+   return '<article class="profile-points-entry'+(undone?' is-reversed':'')+'">'+action+'<div><strong>'+
     esc(pointCategory[entry.category]||entry.category)+'</strong><small>'+esc(detail)+' · '+
     esc(date(entry.created_at))+'</small>'+(undone?'<em>Reward dibatalkan</em>':'')+
     '</div><span class="profile-points-value">'+(undone?'0':'+'+Number(entry.points))+
-    '</span>'+action+'</div>';
+    '</span></article>';
   }).join('');
   root.querySelector('.profile-dynamic').innerHTML=
    '<div class="profile-points-overview"><span>Total Poin</span><strong>'+
@@ -198,28 +198,40 @@ async function loadPoints(n){
  }
 }
 
+// Full-card invisible button stays separate from Edit / trash for independent actions.
+function openCardButton(action,id,label){
+ return '<button type="button" class="profile-card-open" data-action="'+action+
+  '" data-id="'+eattr(id)+'" aria-label="'+eattr(label)+'"></button>';
+}
+function trashButton(action,id,label){
+ return '<button type="button" class="profile-trash-button" data-action="'+action+
+  '" data-id="'+eattr(id)+'" aria-label="'+eattr(label)+'" title="'+eattr(label)+'">'+
+  '<svg class="profile-trash-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons/ui.svg#trash"></use></svg></button>';
+}
 function restoRow(r,action,extraLabel=''){
  const photo=imageOf(r), type=(r?.type||'Restoran');
- return '<div class="profile-resto-row">'+
+ return '<article class="profile-resto-row">'+
+ openCardButton('resto',r.id,'Lihat detail '+(r?.name||'restoran'))+
  '<div class="profile-resto-thumb">'+(photo?cover(photo):'<span>🍽</span>')+'</div>'+
  '<div class="profile-resto-copy"><strong>'+esc(r?.name||'Restoran')+'</strong><small>'+esc(r?.address||type)+'</small>'+
  (extraLabel?'<span>'+esc(extraLabel)+'</span>':'')+'</div>'+
- '<div class="profile-resto-actions">'+
- '<button type="button" class="profile-compact-btn" data-action="resto" data-id="'+eattr(r.id)+'">Lihat</button>'+
- (action?'<button type="button" class="profile-compact-btn danger" data-action="'+action+'" data-id="'+eattr(r.id)+'" aria-label="Hapus restoran dari daftar">Hapus</button>':'')+
- '</div></div>';
+ (action?trashButton(action,r.id,'Hapus restoran dari daftar'):'')+
+ '</article>';
 }
 function postRow(p,kind){
  const first=p.media?.[0]?.url, id=eattr(p.id);
  return '<article class="profile-post-card">'+
+ openCardButton('post',p.id,'Lihat detail postingan')+
  '<div class="profile-post-preview">'+(first?cover(first):'<div class="profile-post-noimage">CERITA KULINER</div>')+'</div>'+
  '<div class="profile-post-body"><small>'+esc(date(p.created_at))+
  (p.resto_id?' · '+esc(nameOf(p.resto_id)):'')+'</small>'+
  '<p>'+esc(p.caption||'Postingan tanpa caption')+'</p>'+
  (kind==='mine'?'<div class="profile-post-metrics">♡ '+esc(p.likes||0)+' · ◇ '+esc(p.comments||0)+'</div>':'')+
- '<div class="profile-post-buttons"><button type="button" class="profile-compact-btn" data-action="post" data-id="'+id+'">Lihat</button>'+
- (kind==='mine'?'<button type="button" class="profile-compact-btn" data-action="editPost" data-id="'+id+'">Edit</button><button type="button" class="profile-compact-btn danger" data-action="deletePost" data-id="'+id+'">Hapus</button>':
- '<button type="button" class="profile-compact-btn danger" data-action="removeSavedPost" data-id="'+id+'" aria-label="Hapus Simpanan">Hapus</button>')+'</div></div></article>';
+ '<div class="profile-post-buttons">'+
+ (kind==='mine'?'<button type="button" class="profile-compact-btn" data-action="editPost" data-id="'+id+'">Edit</button>'+
+  trashButton('deletePost',p.id,'Hapus postingan'):
+  trashButton('removeSavedPost',p.id,'Hapus dari postingan tersimpan'))+
+ '</div></div></article>';
 }
 async function loadMyPosts(n){
  const uid=currentUser();
@@ -292,10 +304,11 @@ function renderContributions(){
  target.innerHTML='<div class="profile-tabs profile-tabs-scroll">'+tabs.map(x=>'<button data-action="contribTab" data-value="'+x+'" class="'+(contributionTab===x?'selected':'')+'">'+x+'</button>').join('')+'</div>'+
  '<div class="profile-section-meta">'+ownContributions.length+' kontribusi terbaru</div>'+
  (filtered.length?'<div class="profile-contribution-list">'+filtered.map(c=>
- '<article class="profile-contribution-row"><span class="profile-contribution-icon">'+(c.photo?cover(c.photo):({Resto:'⌖',Rating:'☆',Ulasan:'▤',Foto:'▧',Menu:'♨',Referensi:'🔗'}[c.kind]||'•'))+'</span>'+
+ '<article class="profile-contribution-row">'+
+ (c.resto_id&&resto(c.resto_id)?openCardButton('resto',c.resto_id,'Lihat detail restoran '+nameOf(c.resto_id)):'')+
+ '<span class="profile-contribution-icon">'+(c.photo?cover(c.photo):({Resto:'⌖',Rating:'☆',Ulasan:'▤',Foto:'▧',Menu:'♨',Referensi:'🔗'}[c.kind]||'•'))+'</span>'+
  '<div><strong>'+esc(c.title)+'</strong><small>'+esc(nameOf(c.resto_id))+' · '+esc(date(c.created_at))+'</small>'+
  (c.detail?'<p>'+esc(c.detail)+'</p>':'')+'</div>'+
- (c.resto_id&&resto(c.resto_id)?'<button type="button" class="profile-compact-btn" data-action="resto" data-id="'+eattr(c.resto_id)+'">Lihat</button>':'')+
  '</article>').join('')+'</div>':empty('Belum ada kontribusi pada kategori ini.'));
  restorePosition('contributions',ticket);
 }
@@ -383,7 +396,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan tanda sudah dibaca hanya disimpan pada perangkat ini.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v135</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v136</small></span></div></div>'+
  '<div class="profile-links">'+menuRow('Edit Profile','Perbarui informasi pribadi','edit','settings')+
  menuRow('Logout','Keluar dari akun','logout','logout')+'</div>';
 }
@@ -453,6 +466,7 @@ root.addEventListener('click',async (event)=>{
  if(action==='editPost'){
   const post=ownPosts.find(x=>x.id===id),card=btn.closest('.profile-post-card');
   if(!post||!card)return;
+  card.classList.add('is-editing'); // Disable the full-card overlay while typing.
   const body=card.querySelector('.profile-post-body p');
   body.outerHTML='<textarea class="profile-post-editor" maxlength="5000" aria-label="Edit caption">'+esc(post.caption||'')+'</textarea>';
   card.querySelector('.profile-post-buttons').innerHTML='<button type="button" class="profile-compact-btn" data-action="savePost" data-id="'+eattr(id)+'">Simpan</button><button type="button" class="profile-compact-btn" data-action="cancelEdit">Batal</button>';
