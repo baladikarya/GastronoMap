@@ -917,9 +917,23 @@ let currentLeaderboardCity='all';
 let leaderboardRows=[];
 let leaderboardRequest=0;
 let leaderboardLoaded=false;
+let leaderboardAvatarUrls=new Map();
+const leaderboardSafeUrl=value=>{
+  if(typeof value!=='string')return '';
+  try{const u=new URL(value,window.location.origin);return u.protocol==='https:'||u.protocol==='http:'?u.href:'';}catch(_){return '';}
+};
+const leaderboardAvatar=(name,userId)=>{
+  const initial=escapeHtml(Array.from(String(name||'?').trim())[0]||'?').toUpperCase();
+  const url=leaderboardSafeUrl(leaderboardAvatarUrls.get(userId)||(userId===myUserId?myAvatarUrl:''));
+  return '<span class="gm-lb-avatar" aria-hidden="true">'+
+    (url?'<img src="'+escapeHtml(url)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">':'')+
+    '<span class="gm-lb-avatar-initial">'+initial+'</span></span>';
+};
+const leaderboardCrown='<svg class="gm-lb-crown" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5 7.5 12l4.5-7 4.5 7 5-4.5-2 11H4.5l-2-11Z"/><path d="M5 21h14"/></svg>';
+
 const leaderboardNumber=n=>Number(n||0).toLocaleString('id-ID');
 const leaderboardCity=r=>String(r.city||'Domisili belum diisi').trim()||'Domisili belum diisi';
-const leaderboardAvatar=name=>'<span class="gm-lb-avatar" aria-hidden="true">'+escapeHtml(Array.from(String(name||'?').trim())[0]||'?').toUpperCase()+'</span>';
+
 
 async function openLeaderboard(){
   if(typeof currentPrimaryView==='undefined'||currentPrimaryView!=='profile')
@@ -944,9 +958,9 @@ function renderLeaderboard(){
     const card=(entry,index,podium)=>{
       const me=entry.user_id===myUserId;
       const name=me?'Kamu':entry.username||'Pengguna';
-      const avatar=leaderboardAvatar(name);
+      const avatar=leaderboardAvatar(name,entry.user_id);
       if(podium)return '<div class="gm-lb-podium-card gm-lb-place-'+(index+1)+(me?' is-me':'')+'">'+
-        '<div class="gm-lb-contender">'+avatar+'<span class="gm-lb-name">'+escapeHtml(name)+'</span></div>'+
+        '<div class="gm-lb-contender">'+(index===0?leaderboardCrown:'')+avatar+'<span class="gm-lb-name">'+escapeHtml(name)+'</span></div>'+
         '<div class="gm-lb-step"><strong class="gm-lb-step-rank">#'+(index+1)+'</strong>'+
         '<span class="gm-lb-step-points">'+leaderboardNumber(entry.points)+' pts</span></div></div>';
       return '<div class="gm-lb-row'+(me?' is-me':'')+'"><span class="gm-lb-rank">'+(index+1)+'</span>'+
@@ -1024,6 +1038,21 @@ async function loadAndRenderLeaderboard(){
   }
   leaderboardLoaded=true;
   leaderboardRows=Array.isArray(data)?data:[];
+  // Read public profile photos only for contributors present in the ranking.
+  // Keep initials if profile read is restricted or a photo is missing.
+  leaderboardAvatarUrls=new Map();
+  const ids=[...new Set(leaderboardRows.map(row=>row.user_id).filter(Boolean))];
+  if(ids.length){
+    try{
+      const chunks=[];for(let i=0;i<ids.length;i+=100)chunks.push(ids.slice(i,i+100));
+      const results=await Promise.all(chunks.map(chunk=>sb.from('profiles').select('id,avatar_url').in('id',chunk)));
+      if(request!==leaderboardRequest)return;
+      for(const result of results)if(!result.error)for(const profile of result.data||[])
+        if(profile.avatar_url)leaderboardAvatarUrls.set(profile.id,profile.avatar_url);
+    }catch(_){/* Keep initials if public avatars cannot be read. */}
+  }
+  if(request!==leaderboardRequest)return;
+
   const citySelect=document.getElementById('leaderboardCityFilter');
   const cities=[...new Set(leaderboardRows.map(leaderboardCity))].sort((a,b)=>a.localeCompare(b,'id-ID'));
   citySelect.innerHTML='<option value="all">Semua domisili</option>'+cities.map(c=>'<option value="'+escapeHtml(c)+'">'+escapeHtml(c)+'</option>').join('');
