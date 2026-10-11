@@ -73,9 +73,9 @@
 .profile-post-body small{font-size:10.5px;color:var(--muted);}
 .profile-post-body p{font-size:12px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;min-height:52px;margin:7px 0;}
 .profile-post-metrics{font-size:11px;color:var(--muted);margin:8px 0;}
-.profile-post-buttons{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
-.profile-post-buttons button{border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:8px 10px;font-size:11px;color:var(--ink);font-weight:700;}
-.profile-post-buttons button.danger{color:var(--red);}
+.profile-post-buttons{display:flex;flex-wrap:nowrap;gap:5px;margin-top:10px;width:100%;min-width:0;}
+#profileDashboard .profile-post-buttons button{flex:1 1 0;min-width:0;min-height:32px;border:1px solid var(--line);border-radius:8px;background:var(--paper);padding:6px 3px;font-family:var(--font-body);font-size:10px;font-weight:700;line-height:1.2;color:var(--ink);white-space:nowrap;text-align:center;box-sizing:border-box;}
+#profileDashboard .profile-post-buttons button.danger{color:var(--red);}
 .profile-post-editor{display:block;width:100%;min-height:115px;resize:vertical;border:1px solid var(--line);border-radius:9px;background:var(--paper);padding:10px;margin-top:8px;font-size:12px;line-height:1.5;}
 .profile-contribution-row{display:flex;align-items:center;gap:12px;padding:13px 11px;border-bottom:1px solid var(--line);}
 .profile-contribution-row:last-child{border-bottom:0;}
