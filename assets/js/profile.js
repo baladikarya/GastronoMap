@@ -471,7 +471,7 @@ async function deleteReadNotifications(mode,items=[]){
    const seen=new Set(rows(seenResult).map(x=>x.resto_id)),dismissed=new Set(rows(dismissedResult).map(x=>x.resto_id));
    const ids=rows(restosResult).filter(x=>x.created_by!==uid&&seen.has(x.id)&&!dismissed.has(x.id)).map(x=>x.id);
    if(ids.length){
-    const result=await sb.from('dismissed_resto_notifications').upsert(ids.map(resto_id=>({user_id:uid,resto_id})),{onConflict:'user_id,resto_id'});
+    const result=await sb.from('dismissed_resto_notifications').insert(ids.map(resto_id=>({user_id:uid,resto_id})));
     if(result.error)throw result.error;
    }
   }else{
@@ -482,7 +482,7 @@ async function deleteReadNotifications(mode,items=[]){
     if(error)throw error;
    }
    if(synthetic.length){
-    const {error}=await sb.from('dismissed_resto_notifications').upsert(synthetic.map(resto_id=>({user_id:uid,resto_id})),{onConflict:'user_id,resto_id'});
+    const {error}=await sb.from('dismissed_resto_notifications').insert(synthetic.map(resto_id=>({user_id:uid,resto_id})));
     if(error)throw error;
    }
   }
