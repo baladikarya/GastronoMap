@@ -42,3 +42,49 @@
 .gm-lb-empty,.gm-lb-error,.gm-lb-loading{padding:26px 15px;text-align:center;border:1px dashed var(--line);border-radius:14px;background:var(--card);font-size:13px;line-height:1.6;color:var(--muted)}
 .gm-lb-error{color:#a43830;border-color:#e8a9a3}
 @media(max-width:440px){.gm-lb-city,.gm-lb-personal{padding:13px}.gm-lb-podium{gap:5px}.gm-lb-podium-card{padding:13px 5px}.gm-lb-podium-card .gm-lb-avatar{width:39px;height:39px}.gm-lb-row{gap:6px;padding:9px 6px}.gm-lb-row .gm-lb-verified{font-size:9px}.gm-lb-row .gm-lb-points{font-size:11px}.gm-lb-stats{gap:5px}.gm-lb-stats>div{padding:9px 6px}}
+
+
+/* P1 Tahap 9 refinement: uncluttered leaderboard and graduated winners' podium */
+#leaderboardPanel{max-width:720px!important}
+.gm-lb-heading{display:flex;align-items:center;gap:9px;margin:0 0 17px}
+.gm-lb-heading h2{margin:0!important;font:700 25px/1.25 var(--font-display);color:var(--ink)}
+#leaderboardInfoBtn{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:50%;background:transparent;color:var(--muted);font-size:21px;cursor:pointer}
+#leaderboardInfoBtn:focus-visible{outline:2px solid var(--ink)}
+.gm-lb-info{max-width:440px;margin:-7px 0 15px;padding:13px 15px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 20px #0000000a;font-size:12px;line-height:1.65;color:var(--ink)}
+.gm-lb-info.hidden{display:none!important}.gm-lb-info p{margin:5px 0 0}
+.gm-lb-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important}
+.gm-leaderboard-controls{align-items:center;flex-wrap:nowrap;gap:9px;margin:14px 0 19px}
+#leaderboardCityFilter{min-height:39px;max-width:250px;min-width:0;border-radius:10px;font-size:12px}
+#leaderboardRefreshBtn{width:39px;height:39px;min-height:39px;padding:0;font-size:23px;font-weight:400}
+.gm-leaderboard-updated{display:none}
+.gm-lb-city{padding:12px 0 0;background:transparent;border:0;border-radius:0;margin:0 0 24px}
+.gm-lb-city-header{padding:0 2px;margin-bottom:8px}
+.gm-lb-city-header h3{font-size:17px}
+.gm-lb-city-header span{font-size:11px}
+.gm-lb-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end;margin:20px 0 18px}
+.gm-lb-podium-card{display:flex;flex-direction:column;align-items:stretch;justify-content:end;gap:0;min-height:0;padding:0;background:transparent!important;border:0!important;border-radius:0;text-align:center}
+.gm-lb-contender{display:flex;flex-direction:column;align-items:center;justify-content:end;gap:8px;min-height:104px;padding:0 4px 12px}
+.gm-lb-contender .gm-lb-avatar{width:50px;height:50px;font-size:19px}
+.gm-lb-contender .gm-lb-name{font-size:12px;line-height:1.3;max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gm-lb-step{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:100px;border-radius:13px 13px 3px 3px;background:#d9e0dd;color:#273f34;padding:13px 4px}
+.gm-lb-place-1 .gm-lb-step{min-height:158px;background:#e9d49a;color:#55400f}
+.gm-lb-place-2 .gm-lb-step{min-height:120px;background:#d8e0df;color:#344b4a}
+.gm-lb-place-3 .gm-lb-step{min-height:98px;background:#e7cdb5;color:#62442d}
+.gm-lb-step-rank{font:800 clamp(25px,5vw,37px)/1 var(--font-display)}
+.gm-lb-step-points{font:700 12px/1.3 var(--font-body);white-space:nowrap}
+.gm-lb-podium-card.is-me{outline:0}
+.gm-lb-podium-card.is-me .gm-lb-step{outline:2px solid var(--teal);outline-offset:2px}
+.gm-lb-rows{gap:0}
+.gm-lb-row{background:transparent!important;border-bottom:1px solid var(--line);border-radius:0;padding:12px 4px}
+.gm-lb-row .gm-lb-verified{display:none}
+.gm-lb-personal{padding:13px 15px;margin:12px 0;background:var(--card);border:1px solid var(--line);border-radius:13px}
+.gm-lb-personal-compact,.gm-lb-personal-score{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gm-lb-personal-compact>div:first-child{display:flex;flex-direction:column;gap:4px}
+.gm-lb-personal-compact strong{font-size:13px;color:var(--ink)}
+.gm-lb-personal-compact small{font-size:11px;color:var(--muted)}
+.gm-lb-personal-score{justify-content:end}
+.gm-lb-personal-score>strong{white-space:nowrap}
+.gm-lb-points-link{margin:0;padding:0;min-width:28px;width:28px;height:32px;min-height:32px;border:0!important;background:transparent!important;font-size:26px!important}
+.gm-lb-progress-compact{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.gm-lb-progress-compact small{font-size:11px}
+@media(max-width:440px){.gm-lb-city{padding:10px 0 0}.gm-lb-podium{gap:5px}.gm-lb-contender{min-height:95px;padding:0 2px 9px}.gm-lb-contender .gm-lb-avatar{width:43px;height:43px}.gm-lb-step{padding:12px 3px}.gm-lb-place-1 .gm-lb-step{min-height:145px}.gm-lb-place-2 .gm-lb-step{min-height:111px}.gm-lb-place-3 .gm-lb-step{min-height:91px}.gm-lb-step-points{font-size:11px}.gm-lb-personal{padding:12px}}
