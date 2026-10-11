@@ -88,3 +88,17 @@
 .gm-lb-progress-compact{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px;margin-top:11px;padding-top:11px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
 .gm-lb-progress-compact small{font-size:11px}
 @media(max-width:440px){.gm-lb-city{padding:10px 0 0}.gm-lb-podium{gap:5px}.gm-lb-contender{min-height:95px;padding:0 2px 9px}.gm-lb-contender .gm-lb-avatar{width:43px;height:43px}.gm-lb-step{padding:12px 3px}.gm-lb-place-1 .gm-lb-step{min-height:145px}.gm-lb-place-2 .gm-lb-step{min-height:111px}.gm-lb-place-3 .gm-lb-step{min-height:91px}.gm-lb-step-points{font-size:11px}.gm-lb-personal{padding:12px}}
+
+/* P1 Tahap 9 — filter alignment, profile pictures and winner crown */
+#leaderboardPanel{box-sizing:border-box!important}
+#leaderboardPeriodTabs,.leaderboard-period-tabs{width:100%;box-sizing:border-box;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-left:0!important;margin-right:0!important;padding-left:0!important;padding-right:0!important}
+#leaderboardPeriodTabs .leaderboard-period-tab{width:100%;min-width:0;box-sizing:border-box;margin:0!important;padding:10px 4px!important;white-space:nowrap}
+.gm-leaderboard-controls{width:100%;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) 42px;align-items:stretch;gap:10px;margin:14px 0 19px;padding:0}
+#leaderboardCityFilter{width:100%;max-width:none;min-width:0;box-sizing:border-box;margin:0;height:42px;min-height:42px}
+#leaderboardRefreshBtn{width:42px;height:42px;min-height:42px;box-sizing:border-box;margin:0}
+.gm-lb-avatar{position:relative;overflow:hidden}
+.gm-lb-avatar img{position:absolute;inset:0;width:100%;height:100%;border-radius:inherit;object-fit:cover;z-index:1}
+.gm-lb-avatar-initial{position:relative;z-index:0}
+.gm-lb-crown{display:block;width:28px;height:28px;margin:0 auto -3px;color:#ba8527;flex-shrink:0}
+.gm-lb-place-1 .gm-lb-contender{min-height:116px}
+@media(max-width:440px){#leaderboardPeriodTabs,.leaderboard-period-tabs{gap:6px}#leaderboardPeriodTabs .leaderboard-period-tab{padding:9px 2px!important;font-size:12px!important}.gm-leaderboard-controls{gap:9px}.gm-lb-crown{width:24px;height:24px}}
