@@ -214,3 +214,10 @@
 @media(prefers-reduced-motion:reduce){
  .community-create-button,.community-gallery-image{transition:none!important;}
 }
+
+/* Collapsible Community comment threads. */
+.community-replies-toggle{display:inline-flex;align-items:center;gap:6px;margin:6px 0 0;padding:6px 2px;min-height:34px;border:0;background:transparent;color:var(--teal-dark);font:700 11px/1.4 var(--font-body);cursor:pointer;}
+.community-replies-toggle .community-icon{width:15px;height:15px;transform:rotate(90deg);transition:transform .18s ease;}
+.community-replies-toggle.is-open .community-icon{transform:rotate(-90deg);}
+.community-comment-children[hidden]{display:none!important;}
+@media(prefers-reduced-motion:reduce){.community-replies-toggle .community-icon{transition:none;}}
