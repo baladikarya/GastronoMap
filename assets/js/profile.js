@@ -305,7 +305,8 @@ function renderContributions(){
  '<div class="profile-section-meta">'+ownContributions.length+' kontribusi terbaru</div>'+
  (filtered.length?'<div class="profile-contribution-list">'+filtered.map(c=>
  '<article class="profile-contribution-row">'+
- (c.resto_id&&resto(c.resto_id)?openCardButton('resto',c.resto_id,'Lihat detail restoran '+nameOf(c.resto_id)):'')+
+ (c.resto_id?openCardButton('contribution',c.key,
+  'Lihat '+c.title.toLowerCase()+' di '+nameOf(c.resto_id)):'')+
  '<span class="profile-contribution-icon">'+(c.photo?cover(c.photo):({Resto:'⌖',Rating:'☆',Ulasan:'▤',Foto:'▧',Menu:'♨',Referensi:'🔗'}[c.kind]||'•'))+'</span>'+
  '<div><strong>'+esc(c.title)+'</strong><small>'+esc(nameOf(c.resto_id))+' · '+esc(date(c.created_at))+'</small>'+
  (c.detail?'<p>'+esc(c.detail)+'</p>':'')+'</div>'+
@@ -316,20 +317,29 @@ async function loadContributions(n){
  const uid=currentUser();
  const specs=[
   ['restos','id,name,created_at','created_by'],['ratings','resto_id,overall,created_at','user_id'],
-  ['testimonials','resto_id,text,created_at','user_id'],['visit_photos','resto_id,storage_path,created_at','user_id'],
-  ['menu_photos','resto_id,storage_path,created_at','user_id'],['favorite_menu','resto_id,menu_name,created_at','user_id'],
-  ['references_link','resto_id,platform,created_at','user_id']
+  ['testimonials','resto_id,text,created_at','user_id'],['visit_photos','id,resto_id,storage_path,created_at','user_id'],
+  ['menu_photos','id,resto_id,storage_path,created_at','user_id'],
+  ['favorite_menu','id,resto_id,menu_item_id,menu_name,created_at','user_id'],
+  ['references_link','id,resto_id,platform,url,created_at','user_id']
  ];
  try{
   const result=await Promise.all(specs.map(([table,select,col])=>sb.from(table).select(select).eq(col,uid).order('created_at',{ascending:false}).limit(100)));
   result.forEach(rows);
   ownContributions=result.flatMap((item,i)=>item.data.map(x=>{
    const type=specs[i][0],kind=kinds[type];
-   return {kind,resto_id:type==='restos'?x.id:x.resto_id,created_at:x.created_at,
-    title:type==='restos'?'Menambahkan restoran':type==='ratings'?'Memberi rating '+x.overall+'/5':type==='testimonials'?'Menulis ulasan':
+   return {
+    key:type+':'+(x.id||x.resto_id),
+    sourceType:type,
+    sourceId:x.id||null,
+    userId:uid,
+    menuItemId:x.menu_item_id||null,
+    menuName:x.menu_name||null,
+    kind,resto_id:type==='restos'?x.id:x.resto_id,created_at:x.created_at,
+    title:type==='restos'?'Menambahkan restoran':type==='ratings'?'Memberi rating '+Number(x.overall).toLocaleString('id-ID',{maximumFractionDigits:1})+'/5':type==='testimonials'?'Menulis ulasan':
       type==='visit_photos'?'Mengunggah foto kunjungan':type==='menu_photos'?'Mengunggah foto menu':type==='favorite_menu'?'Merekomendasikan menu':'Menambah referensi',
     detail:type==='testimonials'?x.text:type==='favorite_menu'?x.menu_name:type==='references_link'?x.platform:type==='restos'?x.name:'',
-    photo:type==='visit_photos'||type==='menu_photos'?storageImage(x.storage_path):null};
+    photo:type==='visit_photos'||type==='menu_photos'?storageImage(x.storage_path):null
+   };
   })).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   if(validStill(uid,n,'contributions'))renderContributions();
  }catch(err){if(validStill(uid,n,'contributions'))notice('Kontribusi gagal dimuat. '+err.message);}
@@ -396,7 +406,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan tanda sudah dibaca hanya disimpan pada perangkat ini.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v136</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v137</small></span></div></div>'+
  '<div class="profile-links">'+menuRow('Edit Profile','Perbarui informasi pribadi','edit','settings')+
  menuRow('Logout','Keluar dari akun','logout','logout')+'</div>';
 }
@@ -410,6 +420,34 @@ function openResto(id){
  document.getElementById('detailPanel').classList.add('hidden');
  if(typeof openDetail==='function')openDetail(id);
 }
+async function openContribution(c){
+ if(!c || !c.resto_id)return;
+ try{
+  // Detail data can be stale after a contribution was made in another session.
+  let r=resto(c.resto_id);
+  const missingSource=r && (
+    (c.sourceType==='ratings' && !(r.ratings||[]).some(p=>p.userId===c.userId)) ||
+    (c.sourceType==='testimonials' && !(r.testimonials||[]).some(p=>p.userId===c.userId)) ||
+    (c.sourceType==='visit_photos' && !(r.photos||[]).some(p=>p.id===c.sourceId)) ||
+    (c.sourceType==='menu_photos' && !(r.menuPhotos||[]).some(p=>p.id===c.sourceId)) ||
+    (c.sourceType==='references_link' && !(r.references||[]).some(p=>p.id===c.sourceId)) ||
+    (c.sourceType==='favorite_menu' && !(r.favoriteMenuEntries||[]).some(p=>p.id===c.sourceId))
+  );
+  if((!r||missingSource) && typeof loadAllRestos==='function'){
+   await loadAllRestos();r=resto(c.resto_id);
+  }
+  if(!r){showToast('Restoran kontribusi ini sudah tidak tersedia.');return;}
+  if(typeof openDetailContributionActivity!=='function'){
+   showToast('Detail aktivitas belum tersedia.');return;
+  }
+  // The detail handler navigates only after verifying the source still exists.
+  const ok=openDetailContributionActivity(c);
+  if(!ok)showToast('Aktivitas ini tidak lagi tersedia di detail restoran.');
+ }catch(error){
+  console.error('Gagal membuka kontribusi:',error);
+  showToast('Gagal membuka aktivitas kontribusi.');
+ }
+}
 function legacy(id){document.getElementById(id)?.click();}
 root.addEventListener('click',async (event)=>{
  const btn=event.target.closest('[data-action]');if(!btn||!root.contains(btn))return;
@@ -421,6 +459,11 @@ root.addEventListener('click',async (event)=>{
  if(action==='edit'){openProfileCompletionModal(true);return;}
  if(action==='logout'){signOut();return;}
  if(action==='resto'){openResto(id);return;}
+ if(action==='contribution'){
+  const item=ownContributions.find(c=>c.key===id);
+  if(item)await openContribution(item);
+  return;
+ }
  if(action==='post'){await openPost(id);return;}
  if(action==='sendReport'){legacy('openReportBtn');return;}
  if(action==='myReports'){legacy('openMyReportsBtn');return;}

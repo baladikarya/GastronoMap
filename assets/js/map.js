@@ -919,7 +919,7 @@ function cleanMenuEntityName(s){
   return String(s || '').trim().replace(/\s+/g, ' ');
 }
 
-function rankMenuRecommendations(r){
+function rankMenuRecommendations(r, limit=5){
   const itemsById = new Map((r && r.menuItems || []).map(item=> [item.id, item]));
   const counts = new Map();
   const photoCounts = new Map();
@@ -968,7 +968,7 @@ function rankMenuRecommendations(r){
   return ranked
     .filter(x=>x.canonical)
     .sort((a,b)=> b.count - a.count || b.photoCount - a.photoCount || a.canonical.localeCompare(b.canonical, 'id'))
-    .slice(0, 5);
+    .slice(0, limit);
 }
 
 async function ensureMenuItem(restoId, rawName){
@@ -1499,7 +1499,7 @@ function buildRefCardHtml(ref){
   const label = platform === 'other' && link ? new URL(link).hostname.replace(/^www\./,'') : meta.label;
   const thumbnail = referenceVideoThumbnailUrl(ref);
   const icon = platformIconHtml(meta.file, meta.icon, 29);
-  return `<div class="ref-card-wrap" data-ref-platform="${escapeAttr(platform)}">
+  return `<div class="ref-card-wrap" data-ref-id="${escapeAttr(ref.id)}" data-ref-platform="${escapeAttr(platform)}">
     <a class="ref-card" ${link ? `href="${escapeAttr(link)}" target="_blank" rel="noopener noreferrer"` : 'aria-disabled="true"'}
        aria-label="Buka referensi ${escapeAttr(label)}" title="${escapeAttr(label)}"
        data-ref-url="${escapeAttr(link)}" data-thumbnail-url="${escapeAttr(thumbnail)}">

@@ -456,7 +456,7 @@ function openFoodPhotoActionSheet(r, photo, showAllTesti){
   };
 }
 
-function openDetail(id, showAllTesti){
+function openDetail(id, showAllTesti, focusedActivity = null){
   const r = allRestos[id];
   if(!r) return;
   closePreviewCard(); // pastikan preview card (kalau ada) tertutup begitu detail penuh dibuka
@@ -721,12 +721,14 @@ function openDetail(id, showAllTesti){
           </div>
         </div>
         <div class="menu-recommend-list" id="favChipList">${(()=>{
-          const ranked = rankMenuRecommendations(r);
+          const ranked = rankMenuRecommendations(r,
+            focusedActivity?.sourceType === 'favorite_menu' ? Number.MAX_SAFE_INTEGER : 5);
           return ranked.length
             ? ranked.map((g,idx)=>{
                 const hasPhotos = !!(g.menuItemId && g.photoCount > 0);
                 return `<div class="menu-recommend-row${hasPhotos ? ' has-photos' : ''}"
                   ${g.menuItemId ? `data-menu-item-id="${escapeAttr(g.menuItemId)}"` : ''}
+                  data-menu-name="${escapeAttr(g.canonical)}"
                   ${hasPhotos ? `data-menu-photo-count="${g.photoCount}" role="button" tabindex="0" aria-label="${escapeAttr(g.canonical)}, ${g.count} rekomendasi, lihat ${g.photoCount} foto"` : ''}>
                   <span class="menu-recommend-rank">${idx + 1}</span>
                   <span class="menu-recommend-body">
@@ -1413,6 +1415,92 @@ function openDetail(id, showAllTesti){
 }
 function closeDetail(){
   document.getElementById('detailPanel').classList.add('hidden');
+}
+
+/* ================= DEEP LINK: MY CONTRIBUTIONS ================= */
+/* Each Profile contribution opens its own activity, not just the restaurant summary.
+   The detail view is rendered first, then the active tab/record is focused. */
+function openDetailContributionActivity(activity){
+  const r = activity && allRestos[activity.resto_id];
+  if(!r) return false;
+  const type = activity.sourceType;
+  const userId = activity.userId;
+  const sourceId = activity.sourceId;
+
+  // Verify the specific source exists before leaving Profile.
+  if(type === 'ratings' && !(r.ratings || []).some(x=>x.userId === userId)) return false;
+  if(type === 'testimonials' && !(r.testimonials || []).some(x=>x.userId === userId)) return false;
+  if(type === 'visit_photos' && !(r.photos || []).some(x=>x.id === sourceId && x.userId === userId)) return false;
+  if(type === 'menu_photos' && !(r.menuPhotos || []).some(x=>x.id === sourceId && x.userId === userId)) return false;
+  if(type === 'favorite_menu' && !(r.favoriteMenuEntries || []).some(x=>x.id === sourceId && x.userId === userId)) return false;
+  if(type === 'references_link' && !(r.references || []).some(x=>x.id === sourceId && x.userId === userId)) return false;
+  const validTypes = ['restos','ratings','testimonials','visit_photos','menu_photos','favorite_menu','references_link'];
+  if(!validTypes.includes(type)) return false;
+
+  navigatePrimaryView('home');
+  if(type === 'restos'){
+    openDetail(r.id);
+    return true;
+  }
+
+  const review = type === 'ratings' || type === 'testimonials';
+  openDetail(r.id, review, type === 'favorite_menu' ? activity : null);
+
+  const tab = review ? 'ulasan'
+    : (type === 'favorite_menu' || type === 'menu_photos') ? 'menu' : 'referensi';
+  activateDetailTab(tab);
+
+  // Open the exact photo: image id, not merely the first photo in the gallery.
+  if(type === 'visit_photos'){
+    const photos = (r.photos || []).filter(p=>visitPhotoCategory(p) ===
+      visitPhotoCategory(r.photos.find(x=>x.id === sourceId)))
+      .slice().sort((a,b)=>(b.at||0)-(a.at||0));
+    const idx = photos.findIndex(p=>p.id === sourceId);
+    if(idx >= 0)openPhotoLightbox(photos.map(p=>photoPublicUrl(p.storagePath)),
+      idx,i=>visitPhotoCaptionFromList(photos,i));
+    return true;
+  }
+  if(type === 'menu_photos'){
+    const idx = currentDetailMenuItems.findIndex(item=>item.kind === 'crowd' && item.id === sourceId);
+    if(idx >= 0)openPhotoLightbox(currentDetailMenuItems.map(item=>item.url),idx);
+    return true;
+  }
+
+  // For textual contributions, focus and highlight the exact row within its tab.
+  let row = null, inner = null;
+  if(review){
+    row = [...document.querySelectorAll('#reviewList .review-card')]
+      .find(el=>el.dataset.reviewUserId === userId) || null;
+    inner = row?.querySelector(type === 'ratings'
+      ? '.review-card-rating' : '.review-card-text:not(.review-card-text-muted)') || null;
+  }else if(type === 'favorite_menu'){
+    const matching = (r.favoriteMenuEntries || []).find(x=>x.id === sourceId);
+    const itemId = matching?.menuItemId || activity.menuItemId;
+    const wantedName = normalizeMenuName(matching?.menuName || activity.menuName || '');
+    row = [...document.querySelectorAll('#favChipList .menu-recommend-row')]
+      .find(el=> itemId
+        ? el.dataset.menuItemId === itemId
+        : (wantedName && normalizeMenuName(el.dataset.menuName || '') === wantedName)) || null;
+  }else if(type === 'references_link'){
+    row = [...document.querySelectorAll('#refGrid .ref-card-wrap')]
+      .find(el=>el.dataset.refId === sourceId) || null;
+  }
+
+  if(row){
+    row.classList.add('contribution-detail-focus');
+    if(inner)inner.classList.add('contribution-detail-focus-part');
+    requestAnimationFrame(()=>{
+      if(!row.isConnected)return;
+      const panel = document.querySelector('.detail-tab-panel.active');
+      if(!panel)return;
+      const delta = row.getBoundingClientRect().top - panel.getBoundingClientRect().top;
+      panel.scrollTop = Math.max(0,panel.scrollTop + delta - 18);
+    });
+  }else{
+    // Explicit feedback rather than silently sending users to the restaurant overview.
+    showToast('Aktivitas tidak ditemukan pada daftar yang ditampilkan.');
+  }
+  return true;
 }
 
 /* ================= FORM MODAL ================= */

@@ -2111,3 +2111,18 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   overflow-wrap:anywhere;
 }
 #formModal .wizard-help-popover[hidden]{display:none!important;}
+
+/* My Contributions: highlight the exact review, menu recommendation or reference. */
+#detailPanel .contribution-detail-focus{
+  border-radius:11px;
+  outline:2px solid var(--amber);
+  outline-offset:2px;
+  background:color-mix(in srgb,var(--amber) 9%,var(--card));
+  box-shadow:0 0 0 4px color-mix(in srgb,var(--amber) 10%,transparent);
+}
+#detailPanel .review-card.contribution-detail-focus{padding:12px;}
+#detailPanel .contribution-detail-focus-part{
+  border-radius:6px;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--amber) 32%,transparent);
+}
+#detailPanel .ref-card-wrap.contribution-detail-focus{outline-offset:3px;}
