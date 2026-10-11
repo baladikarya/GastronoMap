@@ -5,6 +5,7 @@ const root=document.getElementById('profileDashboard');
 if(!root)return;
 let page='main', savedTab='resto', contributionTab='Semua', notificationTab='Semua';
 let ownPosts=[], ownContributions=[], savedPosts=[], savedRestos=[], visitedRestos=[], notifications=[];
+let pointHistory=[];
 let ticket=0;
 let profileUser=null;
 const pageScroll=Object.create(null);
@@ -171,15 +172,15 @@ async function loadPoints(n){
   if(!validStill(uid,n,'points'))return;
   const data=Array.isArray(summary.data)?summary.data[0]:summary.data;
   const items=history.data||[];
+  pointHistory=items;
   const info='<div class="profile-reward-rules"><strong>Ketentuan poin</strong>'+
    '<span>Resto +5 · Foto kunjungan +4 · Foto menu +3 · Referensi +3 · Link online +2 · Ulasan +2 · Rating +1 · Rekomendasi menu +2 · Community Post +3</span>'+
    '<small>Setiap kontribusi valid mendapat reward satu kali. Jika konten dihapus, poin dibatalkan. Admin tidak mendapat poin.</small></div>';
   const list=items.map(entry=>{
-   const undone=!!entry.reversed_at,post=entry.source_kind==='posts'&&entry.source_id;
+   const undone=!!entry.reversed_at,post=entry.category==='community_post';
    const linked=entry.resto_id&&resto(entry.resto_id);
-   const target=post?'post':linked?'resto':null;
-   const targetId=post?entry.source_id:entry.resto_id;
-   const action=target?openCardButton(target,targetId,post?'Lihat detail postingan':'Lihat detail restoran'):'';
+   const canOpen=!undone&&(post?!!entry.source_id:!!entry.resto_id);
+   const action=canOpen?openCardButton('pointActivity',entry.id,'Lihat aktivitas '+(pointCategory[entry.category]||entry.category)):'';
    const detail=post?'Community':linked?nameOf(entry.resto_id):'GastronoMap';
    return '<article class="profile-points-entry'+(undone?' is-reversed':'')+'">'+action+'<div><strong>'+
     esc(pointCategory[entry.category]||entry.category)+'</strong><small>'+esc(detail)+' · '+
@@ -406,12 +407,11 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan tanda sudah dibaca hanya disimpan pada perangkat ini.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v138</small></span></div></div>'+
- '<div class="profile-links">'+menuRow('Edit Profile','Perbarui informasi pribadi','edit','settings')+
- menuRow('Logout','Keluar dari akun','logout','logout')+'</div>';
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v139</small></span></div></div>'+
+ '';
 }
-async function openPost(id){
- if(typeof window.openCommunityPost==='function')await window.openCommunityPost(id);
+async function openPost(id,returnToProfile=false){
+ if(typeof window.openCommunityPost==='function')await window.openCommunityPost(id,{returnToProfile});
  else {navigatePrimaryView('community');if(typeof window.loadCommunityFeed==='function')await window.loadCommunityFeed();}
 }
 function openResto(id){
@@ -448,6 +448,55 @@ async function openContribution(c){
   showToast('Gagal membuka aktivitas kontribusi.');
  }
 }
+const rewardSourceTables={
+ add_resto:'restos',rating:'ratings',testimoni:'testimonials',
+ foto_kunjungan:'visit_photos',foto_menu:'menu_photos',
+ link_referensi:'references_link',menu_rekomendasi:'favorite_menu',
+ link_online:'online_link_submissions'
+};
+async function openPointActivity(entry){
+ if(!entry || entry.reversed_at)return;
+ if(entry.category==='community_post'){
+  if(entry.source_kind!=='posts'||!entry.source_id){showToast('Sumber postingan tidak tersedia.');return;}
+  const result=await sb.from('posts').select('id').eq('id',entry.source_id).maybeSingle();
+  if(result.error){showToast('Gagal memeriksa postingan.');return;}
+  if(!result.data){showToast('Postingan ini sudah tidak tersedia.');return;}
+  await openPost(entry.source_id,true);return;
+ }
+ const kind=rewardSourceTables[entry.category];
+ if(!kind||!entry.resto_id){showToast('Detail kontribusi ini tidak tersedia.');return;}
+ const select=kind==='favorite_menu'?'id,menu_item_id,menu_name':
+  kind==='online_link_submissions'?'id,platforms,status,user_id':
+  kind==='restos'?'id,created_by':
+  kind==='ratings'||kind==='testimonials'?'resto_id,user_id':'id,user_id';
+ let query=sb.from(kind).select(select);
+ if(entry.source_kind===kind && entry.source_id && !['ratings','testimonials'].includes(kind)){
+  query=query.eq('id',entry.source_id);
+ }else if(kind==='restos'){
+  query=query.eq('id',entry.resto_id).eq('created_by',currentUser());
+ }else{
+  query=query.eq('resto_id',entry.resto_id).eq('user_id',currentUser());
+  if(kind==='online_link_submissions')query=query.eq('status','approved');
+ }
+ const {data,error}=await query.limit(kind==='ratings'||kind==='testimonials'?1:2);
+ if(error){showToast('Gagal memeriksa sumber poin.');return;}
+ // Old rows without source_id must resolve to precisely one candidate.
+ if(!data?.length||data.length>1){
+  showToast(data?.length>1?'Sumber poin lama tidak dapat dipastikan.':'Aktivitas ini sudah tidak tersedia.');
+  return;
+ }
+ const source=data[0];
+ if((source.user_id&&source.user_id!==currentUser())||
+    (source.created_by&&source.created_by!==currentUser())){
+  showToast('Sumber poin tidak sesuai dengan akun.');return;
+ }
+ await openContribution({
+  sourceType:kind,sourceId:source.id||null,resto_id:entry.resto_id,
+  userId:currentUser(),menuItemId:source.menu_item_id||null,
+  menuName:source.menu_name||null,
+  platform:Array.isArray(source.platforms)?(typeof source.platforms[0]==='string'?source.platforms[0]:source.platforms[0]?.platform):null
+ });
+}
 function legacy(id){document.getElementById(id)?.click();}
 root.addEventListener('click',async (event)=>{
  const btn=event.target.closest('[data-action]');if(!btn||!root.contains(btn))return;
@@ -462,6 +511,11 @@ root.addEventListener('click',async (event)=>{
  if(action==='contribution'){
   const item=ownContributions.find(c=>c.key===id);
   if(item)await openContribution(item);
+  return;
+ }
+ if(action==='pointActivity'){
+  const item=pointHistory.find(c=>String(c.id)===id);
+  if(item)await openPointActivity(item);
   return;
  }
  if(action==='post'){await openPost(id);return;}
@@ -544,7 +598,7 @@ root.addEventListener('change',(event)=>{
 window.renderProfileDashboard=function(){
  const uid=currentUser();
  if(profileUser!==uid){
-   profileUser=uid;backStack.length=0;
+   profileUser=uid;backStack.length=0;pointHistory=[];
    Object.keys(pageScroll).forEach(key=>delete pageScroll[key]);
    savedTab='resto';contributionTab='Semua';notificationTab='Semua';
    page='main';root.innerHTML='';scrollContainer().scrollTop=0;

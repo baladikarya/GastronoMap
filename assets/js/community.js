@@ -490,7 +490,9 @@ let replyTo=null,commentBusy=false;
 const expandedReplies=new Set();
 detail.surface.querySelector('.community-modal-shade').onclick=closeDetail;
 function closeDetail(){
+  const returnToRewards=!!history.state?.gmRewardDetail;
   closeModal(detail.surface);state.selectedPost=null;replyTo=null;expandedReplies.clear();
+  if(returnToRewards){history.back();return;}
   const address=new URL(location.href);
   if(address.searchParams.has('post')){address.searchParams.delete('post');history.replaceState(history.state,'',address.href);}
 }
@@ -681,10 +683,16 @@ window.addEventListener('popstate',e=>{
   else if(openedModal===detail.surface)closeDetail();
 });
 window.loadCommunityFeed=loadCommunityFeed;
-window.openCommunityPost=async function(id){
+window.openCommunityPost=async function(id,options={}){
   if(!/^[0-9a-f-]{36}$/i.test(id))return;
   state.deepLink=id;
-  navigatePrimaryView('community');
+  if(options.returnToProfile){
+    // The previous history entry remains the exact Profile subpage.
+    navigatePrimaryView('community',{history:false});
+    history.pushState({gmView:'community',gmRewardDetail:true},'',window.location.href);
+  }else{
+    navigatePrimaryView('community');
+  }
   await loadCommunityFeed();
 };
 if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)){

@@ -1441,7 +1441,9 @@ function openDetailContributionActivity(activity){
   if(type === 'menu_photos' && !(r.menuPhotos || []).some(x=>x.id === sourceId && x.userId === userId)) return false;
   if(type === 'favorite_menu' && !(r.favoriteMenuEntries || []).some(x=>x.id === sourceId && x.userId === userId)) return false;
   if(type === 'references_link' && !(r.references || []).some(x=>x.id === sourceId && x.userId === userId)) return false;
-  const validTypes = ['restos','ratings','testimonials','visit_photos','menu_photos','favorite_menu','references_link'];
+  if(type === 'online_link_submissions' && !(r.onlinePlatforms || []).some(p=>
+    typeof p==='object' && (!activity.platform || p.platform===activity.platform)))return false;
+  const validTypes = ['restos','ratings','testimonials','visit_photos','menu_photos','favorite_menu','references_link','online_link_submissions'];
   if(!validTypes.includes(type)) return false;
 
   // Preserve the Profile history entry instead of replacing it with a map entry.
@@ -1449,6 +1451,12 @@ function openDetailContributionActivity(activity){
   history.pushState({gmView:'home',gmContributionDetail:true},'',window.location.href);
   if(type === 'restos'){
     openDetail(r.id);
+    return true;
+  }
+  if(type === 'online_link_submissions'){
+    openDetail(r.id);
+    const target=document.querySelector('.summary-platform-value');
+    if(target)target.classList.add('contribution-detail-focus');
     return true;
   }
 
