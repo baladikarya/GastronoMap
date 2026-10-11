@@ -183,3 +183,9 @@
  #profileDashboard .profile-post-buttons{left:10px;right:8px;bottom:8px;}
  #profileDashboard .profile-post-body{padding-bottom:51px;}
 }
+
+/* P2 Tahap 10: unified notification center */
+#profileDashboard .profile-notification-more{display:block;width:100%;margin-top:12px;text-align:center;}
+#profileDashboard .profile-notification.unread:focus-visible{outline-offset:-3px;}
+#profileDashboard .profile-notice-toolbar button:disabled{opacity:.5;cursor:default;}
+@media (max-width:360px){.profile-notice-toolbar{flex-wrap:wrap;}.profile-notice-toolbar .profile-compact-btn{margin-left:auto;}}
