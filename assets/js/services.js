@@ -944,12 +944,14 @@ function renderLeaderboard(){
     const card=(entry,index,podium)=>{
       const me=entry.user_id===myUserId;
       const name=me?'Kamu':entry.username||'Pengguna';
-      const content=leaderboardAvatar(name)+'<span class="gm-lb-name">'+escapeHtml(name)+'</span>'+
-        '<span class="gm-lb-verified">✓ Verified</span><strong class="gm-lb-points">'+leaderboardNumber(entry.points)+' pts</strong>';
-      return podium?'<div class="gm-lb-podium-card gm-lb-place-'+(index+1)+(me?' is-me':'')+'">'+
-        '<span class="gm-lb-rank">#'+(index+1)+'</span>'+content+'</div>':
-        '<div class="gm-lb-row'+(me?' is-me':'')+'"><span class="gm-lb-rank">'+(index+1)+'</span>'+
-        content+'</div>';
+      const avatar=leaderboardAvatar(name);
+      if(podium)return '<div class="gm-lb-podium-card gm-lb-place-'+(index+1)+(me?' is-me':'')+'">'+
+        '<div class="gm-lb-contender">'+avatar+'<span class="gm-lb-name">'+escapeHtml(name)+'</span></div>'+
+        '<div class="gm-lb-step"><strong class="gm-lb-step-rank">#'+(index+1)+'</strong>'+
+        '<span class="gm-lb-step-points">'+leaderboardNumber(entry.points)+' pts</span></div></div>';
+      return '<div class="gm-lb-row'+(me?' is-me':'')+'"><span class="gm-lb-rank">'+(index+1)+'</span>'+
+        avatar+'<span class="gm-lb-name">'+escapeHtml(name)+'</span>'+
+        '<strong class="gm-lb-points">'+leaderboardNumber(entry.points)+' pts</strong></div>';
     };
     const podium=sorted.slice(0,3).map((x,i)=>({x,i}));
     const arranged=[podium[1],podium[0],podium[2]];
@@ -990,17 +992,13 @@ async function renderLeaderboardPersonal(request){
   const rank=verified&&domicile?group.findIndex(x=>x.user_id===myUserId)+1:0;
   const periodEntry=leaderboardRows.find(x=>x.user_id===myUserId);
   const approved=Math.min(3,Number(p.resto_approved_count)||0),reviews=Math.min(5,Number(p.full_review_count)||0);
-  const progress=verified?'<p class="gm-lb-caption">Status Verified Contributor aktif. Terima kasih atas kontribusimu.</p>':
-    '<p class="gm-lb-caption">Syarat verifikasi: 3 resto disetujui <strong>atau</strong> 5 review lengkap (rating, testimoni, dan foto kunjungan pada resto yang sama).</p>'+
-    '<div class="gm-lb-meter-label">Resto disetujui <strong>'+approved+'/3</strong></div><div class="gm-lb-meter"><span style="width:'+(approved/3*100)+'%"></span></div>'+
-    '<div class="gm-lb-meter-label">Review lengkap <strong>'+reviews+'/5</strong></div><div class="gm-lb-meter"><span style="width:'+(reviews/5*100)+'%"></span></div>';
-  wrap.innerHTML='<section class="gm-lb-personal"><div class="gm-lb-personal-head"><h3>Peringkat Saya</h3>'+
-    '<span class="gm-lb-status">'+(verified?'✓ Verified Contributor':'Belum terverifikasi')+'</span></div>'+
-    '<div class="gm-lb-stats"><div><small>Poin periode ini</small><strong>'+leaderboardNumber(periodEntry?.points)+'</strong></div>'+
-    '<div><small>Total poin</small><strong>'+leaderboardNumber(data?.points)+'</strong></div>'+
-    '<div><small>Rank domisili</small><strong>'+(rank?'#'+rank:'—')+'</strong></div></div>'+
-    '<p class="gm-lb-caption">Domisili: '+escapeHtml(domicile||'Belum diisi')+'. Poin periode dan peringkat mengikuti domisili profil, bukan kota resto.</p>'+
-    progress+'<button type="button" class="gm-lb-points-link" id="gmLbPointsLink">Lihat rincian & riwayat poin di Profile →</button></section>';
+  const progress=verified?'': '<div class="gm-lb-progress-compact"><span>Menuju Verified Contributor</span>'+
+    '<small>'+approved+'/3 resto disetujui · '+reviews+'/5 review lengkap</small></div>';
+  wrap.innerHTML='<section class="gm-lb-personal"><div class="gm-lb-personal-compact">'+
+    '<div><strong>Peringkat Saya</strong><small>'+(rank?'#'+rank:'Belum masuk ranking')+' · '+escapeHtml(domicile||'Domisili belum diisi')+'</small></div>'+
+    '<div class="gm-lb-personal-score"><strong>'+leaderboardNumber(periodEntry?.points)+' pts</strong>'+
+    '<button type="button" class="gm-lb-points-link" id="gmLbPointsLink" aria-label="Lihat riwayat poin di Profile">›</button></div></div>'+
+    progress+'</section>';
   document.getElementById('gmLbPointsLink').onclick=()=>{
     if(typeof navigatePrimaryView==='function')navigatePrimaryView('profile');
     if(typeof window.openProfilePoints==='function')window.openProfilePoints();
@@ -1032,7 +1030,7 @@ async function loadAndRenderLeaderboard(){
   if(currentLeaderboardCity!=='all'&&!cities.includes(currentLeaderboardCity))currentLeaderboardCity='all';
   citySelect.value=currentLeaderboardCity;
   renderLeaderboard();
-  updated.textContent='Diperbarui '+new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Jakarta'})+' WIB';
+  updated.textContent='';
   await renderLeaderboardPersonal(request);
 }
 async function loadAndRenderAdminReports(){
