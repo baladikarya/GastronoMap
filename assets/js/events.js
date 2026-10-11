@@ -335,11 +335,27 @@ document.querySelectorAll('.report-filter-tab').forEach(tab=>{
   };
 });
 
-document.getElementById('leaderboardInfoBtn').onclick=()=>{
-  const info=document.getElementById('leaderboardIntro');
-  const opened=info.classList.toggle('hidden')===false;
-  document.getElementById('leaderboardInfoBtn').setAttribute('aria-expanded',String(opened));
+const gmLbInfo=document.getElementById('leaderboardIntro');
+const gmLbInfoBtn=document.getElementById('leaderboardInfoBtn');
+const gmLbInfoClose=()=>{
+  gmLbInfo.classList.add('hidden');
+  gmLbInfoBtn.setAttribute('aria-expanded','false');
+  gmLbInfoBtn.focus();
 };
+gmLbInfoBtn.onclick=()=>{
+  gmLbInfo.classList.remove('hidden');
+  gmLbInfoBtn.setAttribute('aria-expanded','true');
+  document.getElementById('gmLbInfoClose').focus();
+};
+document.getElementById('gmLbInfoClose').onclick=gmLbInfoClose;
+document.getElementById('gmLbInfoBackdrop').onclick=gmLbInfoClose;
+gmLbInfo.addEventListener('keydown',event=>{
+  if(event.key==='Escape'){event.preventDefault();gmLbInfoClose();}
+  if(event.key==='Tab'){
+    const buttons=[document.getElementById('gmLbInfoClose')];
+    event.preventDefault();buttons[0].focus();
+  }
+});
 document.getElementById('leaderboardCityFilter').onchange=(event)=>{
   currentLeaderboardCity=event.target.value;
   renderLeaderboard();
