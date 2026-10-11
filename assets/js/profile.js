@@ -145,9 +145,10 @@ function restoRow(r,action,extraLabel=''){
  '<div class="profile-resto-thumb">'+(photo?cover(photo):'<span>🍽</span>')+'</div>'+
  '<div class="profile-resto-copy"><strong>'+esc(r?.name||'Restoran')+'</strong><small>'+esc(r?.address||type)+'</small>'+
  (extraLabel?'<span>'+esc(extraLabel)+'</span>':'')+'</div>'+
- '<button type="button" class="profile-link" data-action="resto" data-id="'+eattr(r.id)+'">Lihat</button>'+
- (action?'<button type="button" class="profile-remove" data-action="'+action+'" data-id="'+eattr(r.id)+'" aria-label="Hapus dari daftar">×</button>':'')+
- '</div>';
+ '<div class="profile-resto-actions">'+
+ '<button type="button" class="profile-compact-btn" data-action="resto" data-id="'+eattr(r.id)+'">Lihat</button>'+
+ (action?'<button type="button" class="profile-compact-btn danger" data-action="'+action+'" data-id="'+eattr(r.id)+'" aria-label="Hapus restoran dari daftar">Hapus</button>':'')+
+ '</div></div>';
 }
 function postRow(p,kind){
  const first=p.media?.[0]?.url, id=eattr(p.id);
@@ -157,9 +158,9 @@ function postRow(p,kind){
  (p.resto_id?' · '+esc(nameOf(p.resto_id)):'')+'</small>'+
  '<p>'+esc(p.caption||'Postingan tanpa caption')+'</p>'+
  (kind==='mine'?'<div class="profile-post-metrics">♡ '+esc(p.likes||0)+' · ◇ '+esc(p.comments||0)+'</div>':'')+
- '<div class="profile-post-buttons"><button type="button" data-action="post" data-id="'+id+'">Lihat</button>'+
- (kind==='mine'?'<button type="button" data-action="editPost" data-id="'+id+'">Edit</button><button type="button" class="danger" data-action="deletePost" data-id="'+id+'">Hapus</button>':
- '<button type="button" data-action="removeSavedPost" data-id="'+id+'" aria-label="Hapus Simpanan">Hapus</button>')+'</div></div></article>';
+ '<div class="profile-post-buttons"><button type="button" class="profile-compact-btn" data-action="post" data-id="'+id+'">Lihat</button>'+
+ (kind==='mine'?'<button type="button" class="profile-compact-btn" data-action="editPost" data-id="'+id+'">Edit</button><button type="button" class="profile-compact-btn danger" data-action="deletePost" data-id="'+id+'">Hapus</button>':
+ '<button type="button" class="profile-compact-btn danger" data-action="removeSavedPost" data-id="'+id+'" aria-label="Hapus Simpanan">Hapus</button>')+'</div></div></article>';
 }
 async function loadMyPosts(n){
  const uid=currentUser();
@@ -235,7 +236,7 @@ function renderContributions(){
  '<article class="profile-contribution-row"><span class="profile-contribution-icon">'+(c.photo?cover(c.photo):({Resto:'⌖',Rating:'☆',Ulasan:'▤',Foto:'▧',Menu:'♨',Referensi:'🔗'}[c.kind]||'•'))+'</span>'+
  '<div><strong>'+esc(c.title)+'</strong><small>'+esc(nameOf(c.resto_id))+' · '+esc(date(c.created_at))+'</small>'+
  (c.detail?'<p>'+esc(c.detail)+'</p>':'')+'</div>'+
- (c.resto_id&&resto(c.resto_id)?'<button type="button" data-action="resto" data-id="'+eattr(c.resto_id)+'">Lihat</button>':'')+
+ (c.resto_id&&resto(c.resto_id)?'<button type="button" class="profile-compact-btn" data-action="resto" data-id="'+eattr(c.resto_id)+'">Lihat</button>':'')+
  '</article>').join('')+'</div>':empty('Belum ada kontribusi pada kategori ini.'));
  restorePosition('contributions',ticket);
 }
@@ -274,7 +275,7 @@ function renderNotifications(){
  const unseen=all.filter(x=>!read.has(x.id)).length;
  root.querySelector('.profile-dynamic').innerHTML='<div class="profile-tabs">'+
  ['Semua','Interaksi','Sistem'].map(x=>'<button data-action="notificationTab" data-value="'+x+'" class="'+(notificationTab===x?'selected':'')+'">'+x+'</button>').join('')+
- '</div><div class="profile-notice-toolbar"><span>'+unseen+' belum dibaca</span><button type="button" data-action="markAllRead">Tandai semua dibaca</button></div>'+
+ '</div><div class="profile-notice-toolbar"><span>'+unseen+' belum dibaca</span><button type="button" class="profile-compact-btn" data-action="markAllRead">Tandai semua dibaca</button></div>'+
  (all.length?'<div class="profile-notification-list">'+all.map(x=>
  '<button type="button" class="profile-notification '+(!read.has(x.id)?'unread':'')+'" data-action="notificationOpen" data-id="'+eattr(x.id)+'">'+
  '<span class="profile-notification-glyph">'+(x.type==='Interaksi'?'♡':'✦')+'</span><span><strong>'+esc(x.title)+'</strong>'+
@@ -395,7 +396,7 @@ root.addEventListener('click',async (event)=>{
   if(!post||!card)return;
   const body=card.querySelector('.profile-post-body p');
   body.outerHTML='<textarea class="profile-post-editor" maxlength="5000" aria-label="Edit caption">'+esc(post.caption||'')+'</textarea>';
-  card.querySelector('.profile-post-buttons').innerHTML='<button type="button" data-action="savePost" data-id="'+eattr(id)+'">Simpan</button><button type="button" data-action="cancelEdit">Batal</button>';
+  card.querySelector('.profile-post-buttons').innerHTML='<button type="button" class="profile-compact-btn" data-action="savePost" data-id="'+eattr(id)+'">Simpan</button><button type="button" class="profile-compact-btn" data-action="cancelEdit">Batal</button>';
   card.querySelector('textarea').focus();return;
  }
  if(action==='cancelEdit'){setPage('posts',{restore:true});return;}
