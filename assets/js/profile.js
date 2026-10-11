@@ -406,7 +406,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan tanda sudah dibaca hanya disimpan pada perangkat ini.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v137</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v138</small></span></div></div>'+
  '<div class="profile-links">'+menuRow('Edit Profile','Perbarui informasi pribadi','edit','settings')+
  menuRow('Logout','Keluar dari akun','logout','logout')+'</div>';
 }

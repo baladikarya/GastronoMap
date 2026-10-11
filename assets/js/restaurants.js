@@ -1414,6 +1414,13 @@ function openDetail(id, showAllTesti, focusedActivity = null){
   detailPanelEl.classList.remove('hidden');
 }
 function closeDetail(){
+  // Contribution details are an entry on the browser history stack.
+  // Returning from one restores the Profile subpage and its selected filter.
+  if(history.state?.gmContributionDetail){
+    if(document.getElementById('photoLightboxOverlay')) closePhotoLightbox();
+    history.back();
+    return;
+  }
   document.getElementById('detailPanel').classList.add('hidden');
 }
 
@@ -1437,7 +1444,9 @@ function openDetailContributionActivity(activity){
   const validTypes = ['restos','ratings','testimonials','visit_photos','menu_photos','favorite_menu','references_link'];
   if(!validTypes.includes(type)) return false;
 
-  navigatePrimaryView('home');
+  // Preserve the Profile history entry instead of replacing it with a map entry.
+  navigatePrimaryView('home', {history:false});
+  history.pushState({gmView:'home',gmContributionDetail:true},'',window.location.href);
   if(type === 'restos'){
     openDetail(r.id);
     return true;

@@ -96,6 +96,9 @@ document.getElementById('communityBackBtn').onclick = navigateBackHome;
 
 history.replaceState({ ...(history.state || {}), gmView: 'home' }, '', window.location.href);
 window.addEventListener('popstate', (event)=>{
+  // The device/browser Back button must dismiss the contribution photo lightbox
+  // and restore the originating My Contributions view, not leave a stale overlay.
+  if(document.getElementById('photoLightboxOverlay')) closePhotoLightbox();
   navigatePrimaryView((event.state && event.state.gmView) || 'home', {history:false});
 });
 
