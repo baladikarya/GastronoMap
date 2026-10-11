@@ -10,6 +10,7 @@ let ticket=0;
 let profileUser=null;
 let notificationPrefs={interaction:true,system:true},notificationUnreadCount=0,notificationLimit=50,notificationHasMore=false;
 let notificationChannel=null,notificationChannelUser=null,notificationRequest=0,badgeRequest=0;
+let notificationSelectMode=false,notificationSelected=new Set(),notificationBusy=false;
 const pageScroll=Object.create(null);
 const backStack=[];
 let pendingScroll=null;
@@ -60,7 +61,7 @@ function setPage(next,{restore=false}={}){
  pendingScroll={view:next,token:n,top:restore?(pageScroll[next]||0):0};
  if(!currentUser()){renderGuest();restorePosition(next,n);return;}
  if(next==='main'){renderMain();restorePosition(next,n);return;}
- if(next==='notifications'){notificationLimit=50;root.innerHTML=heading('Notifications','Aktivitas Community, kontribusi, dan restoran baru')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadNotifications(n);return;}
+ if(next==='notifications'){notificationLimit=50;notificationSelectMode=false;notificationSelected.clear();root.innerHTML=heading('Notifications','Aktivitas Community, kontribusi, dan restoran baru')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadNotifications(n);return;}
  if(next==='saved'){root.innerHTML=heading('Saved','Restoran dan postingan yang disimpan')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadSaved(n);return;}
  if(next==='visited'){root.innerHTML=heading('Visited','Restoran yang sudah Anda kunjungi')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadVisited(n);return;}
  if(next==='posts'){root.innerHTML=heading('My Posts','Kelola cerita yang Anda bagikan di Community')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadMyPosts(n);return;}
@@ -356,19 +357,30 @@ function notificationGlyph(kind){
 }
 function renderNotifications(){
  if(page!=='notifications')return;
- const all=notificationsFiltered();
- const unseen=all.filter(x=>!x.read).length;
+ const all=notificationsFiltered(),unseen=all.filter(x=>!x.read).length;
+ const read=all.filter(x=>x.read),selected=read.filter(x=>notificationSelected.has(x.id));
+ const disabled=notificationBusy?' disabled':'';
  root.querySelector('.profile-dynamic').innerHTML='<div class="profile-tabs">'+
  ['Semua','Interaksi','Sistem'].map(x=>'<button type="button" data-action="notificationTab" data-value="'+x+'" class="'+(notificationTab===x?'selected':'')+'">'+x+'</button>').join('')+
  '</div><div class="profile-notice-toolbar"><span>'+unseen+' belum dibaca pada daftar ini</span>'+
- '<button type="button" class="profile-compact-btn" data-action="markAllRead" '+(!unseen?'disabled':'')+'>Tandai yang tampil dibaca</button></div>'+
+ '<button type="button" class="profile-compact-btn" data-action="markAllRead" '+(!unseen||notificationBusy?'disabled':'')+'>Tandai yang tampil dibaca</button></div>'+
+ '<div class="profile-notice-toolbar"><span>'+read.length+' sudah dibaca pada daftar ini</span>'+
+ '<button type="button" class="profile-compact-btn" data-action="notificationSelectMode"'+disabled+'>'+
+ (notificationSelectMode?'Selesai memilih':'Pilih untuk hapus')+'</button>'+
+ '<button type="button" class="profile-compact-btn" data-action="notificationDeleteAll"'+disabled+'>Hapus semua dibaca</button></div>'+
+ (notificationSelectMode?'<div class="profile-notice-toolbar"><button type="button" class="profile-compact-btn" data-action="notificationSelectAll"'+disabled+'>Pilih semua yang tampil</button>'+
+ '<button type="button" class="profile-compact-btn" data-action="notificationDeleteSelected"'+(!selected.length||notificationBusy?' disabled':'')+'>Hapus terpilih ('+selected.length+')</button></div>':'')+
  (all.length?'<div class="profile-notification-list">'+all.map(x=>
- '<button type="button" class="profile-notification '+(!x.read?'unread':'')+'" data-action="notificationOpen" data-id="'+eattr(x.id)+'">'+
+ '<div class="profile-notification-entry">'+
+ (notificationSelectMode?'<label class="profile-notification-select"><input type="checkbox" data-notification-check="'+eattr(x.id)+'" aria-label="Pilih notifikasi '+eattr(x.title)+'" '+(notificationSelected.has(x.id)?'checked ':'')+(!x.read||notificationBusy?'disabled':'')+'></label>':'')+
+ '<button type="button" class="profile-notification '+(!x.read?'unread':'')+'" data-action="notificationOpen" data-id="'+eattr(x.id)+'"'+disabled+'>'+
  '<span class="profile-notification-glyph" aria-hidden="true">'+notificationGlyph(x.kind)+'</span><span><strong>'+esc(x.title)+'</strong>'+
  '<small>'+esc(x.message)+'</small><em>'+esc(tinyDate(x.at))+'</em></span>'+
- (!x.read?'<i aria-label="Belum dibaca"></i>':'')+'</button>').join('')+'</div>':
+ (!x.read?'<i aria-label="Belum dibaca"></i>':'')+'</button>'+
+ (!notificationSelectMode&&x.read?'<button type="button" class="profile-notification-delete" data-action="notificationDeleteOne" data-id="'+eattr(x.id)+'" aria-label="Hapus notifikasi '+eattr(x.title)+'" title="Hapus notifikasi"'+disabled+'>×</button>':'')+
+ '</div>').join('')+'</div>':
  empty('Belum ada notifikasi untuk kategori ini.'))+
- (notificationHasMore?'<button type="button" class="profile-action profile-notification-more" data-action="notificationMore">Muat notifikasi sebelumnya</button>':'');
+ (notificationHasMore?'<button type="button" class="profile-action profile-notification-more" data-action="notificationMore"'+disabled+'>Muat notifikasi sebelumnya</button>':'');
  restorePosition('notifications',ticket);
 }
 async function loadNotifications(n){
@@ -377,14 +389,15 @@ async function loadNotifications(n){
  try{
   // Pagination applies to durable events. Restaurant discovery stays a bounded, seven-day feed.
   const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
-  const [events,restosResult,seenResult]=await Promise.all([
+  const [events,restosResult,seenResult,dismissedResult]=await Promise.all([
    sb.from('notifications').select('id,kind,title,message,post_id,resto_id,report_id,link_submission_id,created_at,read_at')
     .eq('user_id',uid).order('created_at',{ascending:false}).limit(notificationLimit+1),
    sb.from('restos').select('id,name,address,created_by,created_at').gte('created_at',since)
     .order('created_at',{ascending:false}).limit(100),
-   sb.from('seen_restos').select('resto_id').eq('user_id',uid)
+   sb.from('seen_restos').select('resto_id').eq('user_id',uid),
+   sb.from('dismissed_resto_notifications').select('resto_id').eq('user_id',uid)
   ]);
-  const stored=rows(events),recent=rows(restosResult),seen=new Set(rows(seenResult).map(r=>r.resto_id));
+  const stored=rows(events),recent=rows(restosResult),seen=new Set(rows(seenResult).map(r=>r.resto_id)),dismissed=new Set(rows(dismissedResult).map(r=>r.resto_id));
   if(!validStill(uid,n,'notifications')||request!==notificationRequest)return;
   notificationHasMore=stored.length>notificationLimit;
   const list=stored.slice(0,notificationLimit).map(x=>({
@@ -394,12 +407,13 @@ async function loadNotifications(n){
    at:x.created_at,read:!!x.read_at,persisted:true
   }));
   for(const r of recent){
-   if(r.created_by===uid)continue;
+   if(r.created_by===uid||dismissed.has(r.id))continue;
    list.push({id:'resto-'+r.id,kind:'new_resto',title:'Restoran baru: '+r.name,
     message:r.address||'Restoran baru tersedia di GastronoMap',at:r.created_at,
     type:'Sistem',resto:r.id,read:seen.has(r.id),persisted:false});
   }
   notifications=list.sort((a,b)=>new Date(b.at)-new Date(a.at));
+  notificationSelected=new Set([...notificationSelected].filter(id=>notifications.some(x=>x.id===id&&x.read)));
   renderNotifications();
   loadNotificationBadge();
  }catch(err){
@@ -435,6 +449,52 @@ async function markNotificationsRead(items){
   return false;
  }
 }
+async function deleteReadNotifications(mode,items=[]){
+ if(notificationBusy||!currentUser())return;
+ const uid=currentUser();
+ if(mode==='selected'&&!items.length)return;
+ const question=mode==='all'?'Hapus semua notifikasi yang sudah dibaca? Notifikasi belum dibaca akan tetap disimpan.':'Hapus '+items.length+' notifikasi yang dipilih?';
+ if(!confirm(question+' Tindakan ini tidak dapat dibatalkan.'))return;
+ notificationBusy=true;renderNotifications();
+ try{
+  if(mode==='all'){
+   // DB RLS and read_at condition both protect unread notifications.
+   const {error}=await sb.from('notifications').delete().eq('user_id',uid).not('read_at','is',null);
+   if(error)throw error;
+   // Synthetic restaurant notices can only be dismissed once they are marked seen.
+   const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
+   const [restosResult,seenResult,dismissedResult]=await Promise.all([
+    sb.from('restos').select('id,created_by').gte('created_at',since).limit(100),
+    sb.from('seen_restos').select('resto_id').eq('user_id',uid),
+    sb.from('dismissed_resto_notifications').select('resto_id').eq('user_id',uid)
+   ]);
+   const seen=new Set(rows(seenResult).map(x=>x.resto_id)),dismissed=new Set(rows(dismissedResult).map(x=>x.resto_id));
+   const ids=rows(restosResult).filter(x=>x.created_by!==uid&&seen.has(x.id)&&!dismissed.has(x.id)).map(x=>x.id);
+   if(ids.length){
+    const result=await sb.from('dismissed_resto_notifications').upsert(ids.map(resto_id=>({user_id:uid,resto_id})),{onConflict:'user_id,resto_id'});
+    if(result.error)throw result.error;
+   }
+  }else{
+   const persisted=items.filter(x=>x.persisted&&x.read).map(x=>x.id);
+   const synthetic=items.filter(x=>!x.persisted&&x.read&&x.resto).map(x=>x.resto);
+   if(persisted.length){
+    const {error}=await sb.from('notifications').delete().eq('user_id',uid).not('read_at','is',null).in('id',persisted);
+    if(error)throw error;
+   }
+   if(synthetic.length){
+    const {error}=await sb.from('dismissed_resto_notifications').upsert(synthetic.map(resto_id=>({user_id:uid,resto_id})),{onConflict:'user_id,resto_id'});
+    if(error)throw error;
+   }
+  }
+  if(uid!==currentUser())return;
+  notificationSelected.clear();notificationSelectMode=false;
+  showToast('Notifikasi yang sudah dibaca berhasil dihapus.');
+ }catch(error){showToast('Gagal menghapus notifikasi: '+error.message);}
+ finally{
+  notificationBusy=false;
+  if(uid===currentUser()){if(page==='notifications')loadNotifications(ticket);loadNotificationBadge();}
+ }
+}
 async function loadNotificationBadge(){
  const uid=currentUser(),request=++badgeRequest;
  if(!uid){notificationUnreadCount=0;return;}
@@ -445,16 +505,17 @@ async function loadNotificationBadge(){
    .eq('user_id',uid).is('read_at',null).in('kind',['like','comment','reply']));
   if(active.system)counts.push(sb.from('notifications').select('id',{count:'exact',head:true})
    .eq('user_id',uid).is('read_at',null).in('kind',['report','link','resto_submitted','resto_verified','contribution']));
-  const [countResults,restosResult,seenResult]=await Promise.all([
+  const [countResults,restosResult,seenResult,dismissedResult]=await Promise.all([
    Promise.all(counts),
    active.system?sb.from('restos').select('id,created_by').gte('created_at',since).limit(100):Promise.resolve({data:[]}),
-   active.system?sb.from('seen_restos').select('resto_id').eq('user_id',uid):Promise.resolve({data:[]})
+   active.system?sb.from('seen_restos').select('resto_id').eq('user_id',uid):Promise.resolve({data:[]}),
+   active.system?sb.from('dismissed_resto_notifications').select('resto_id').eq('user_id',uid):Promise.resolve({data:[]})
   ]);
   countResults.forEach(x=>{if(x.error)throw x.error;});
-  const restoRows=rows(restosResult),seen=new Set(rows(seenResult).map(x=>x.resto_id));
+  const restoRows=rows(restosResult),seen=new Set(rows(seenResult).map(x=>x.resto_id)),dismissed=new Set(rows(dismissedResult).map(x=>x.resto_id));
   if(uid!==currentUser()||request!==badgeRequest)return;
   notificationUnreadCount=countResults.reduce((total,x)=>total+(x.count||0),0)+
-   restoRows.filter(x=>x.created_by!==uid&&!seen.has(x.id)).length;
+   restoRows.filter(x=>x.created_by!==uid&&!seen.has(x.id)&&!dismissed.has(x.id)).length;
   const badge=root.querySelector('[data-action="notifications"] .profile-menu-count');
   if(badge)badge.textContent=notificationUnreadCount?String(notificationUnreadCount):'0';
  }catch(err){console.error('Gagal menghitung notifikasi:',err);}
@@ -489,7 +550,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan status dibaca tersimpan di akun dan tersinkronisasi antarperangkat.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v147</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v148</small></span></div></div>'+
  '';
 }
 async function openPost(id,returnToProfile=false){
@@ -611,6 +672,11 @@ root.addEventListener('click',async (event)=>{
  if(action==='savedResto'||action==='savedPosts'){savedTab=action==='savedResto'?'resto':'posts';renderSavedContent();return;}
  if(action==='contribTab'){contributionTab=btn.dataset.value;renderContributions();return;}
  if(action==='notificationTab'){notificationTab=btn.dataset.value;renderNotifications();return;}
+ if(action==='notificationSelectMode'){notificationSelectMode=!notificationSelectMode;notificationSelected.clear();renderNotifications();return;}
+ if(action==='notificationSelectAll'){notificationsFiltered().filter(x=>x.read).forEach(x=>notificationSelected.add(x.id));renderNotifications();return;}
+ if(action==='notificationDeleteOne'){const x=notifications.find(x=>x.id===id);if(x?.read)await deleteReadNotifications('selected',[x]);return;}
+ if(action==='notificationDeleteSelected'){await deleteReadNotifications('selected',notifications.filter(x=>notificationSelected.has(x.id)&&x.read));return;}
+ if(action==='notificationDeleteAll'){await deleteReadNotifications('all');return;}
  if(action==='notificationMore'){notificationLimit+=50;loadNotifications(ticket);return;}
  if(action==='markAllRead'){await markNotificationsRead(notificationsFiltered().filter(x=>!x.read));return;}
  if(action==='notificationOpen'){
@@ -677,6 +743,10 @@ root.addEventListener('click',async (event)=>{
  }
 });
 root.addEventListener('change',async (event)=>{
+ const check=event.target.closest('[data-notification-check]');
+ if(check){const x=notifications.find(n=>n.id===check.dataset.notificationCheck);if(!x?.read)return;
+  if(check.checked)notificationSelected.add(x.id);else notificationSelected.delete(x.id);
+  renderNotifications();return;}
  const el=event.target.closest('[data-setting]');if(!el)return;
  const uid=currentUser(),field=el.dataset.setting;
  if(!uid||!['interaction','system'].includes(field))return;
@@ -697,7 +767,7 @@ window.renderProfileDashboard=function(){
  if(profileUser!==uid){
    profileUser=uid;backStack.length=0;pointHistory=[];
    notificationPrefs={interaction:true,system:true};notificationUnreadCount=0;
-   notificationRequest++;subscribeNotifications(uid);
+   notificationRequest++;notificationSelectMode=false;notificationSelected.clear();subscribeNotifications(uid);
    if(uid)loadNotificationPreferences(uid);
    Object.keys(pageScroll).forEach(key=>delete pageScroll[key]);
    savedTab='resto';contributionTab='Semua';notificationTab='Semua';
