@@ -411,30 +411,13 @@ async function markAllNewRestosSeen(){
   showToast('Semua resto baru ditandai sudah dilihat');
 }
 
+// P2/10: restaurant announcements now live in Profile > Notifications.
 function showNewRestoPopupIfNeeded(){
-  if(!myUserId) return; // fitur personal, hanya untuk yang login
-  const newOnes = getNewRestosForMe();
-  if(newOnes.length === 0) return;
-  const popped = getPoppedNewIds();
-  const toAnnounce = newOnes.filter(r => !popped.has(r.id));
-  if(toAnnounce.length === 0) return; // semua sudah pernah diberitahukan sebelumnya, tidak perlu popup lagi
-  renderNewRestoListItems(toAnnounce);
-  document.getElementById('newRestoOverlay').classList.remove('hidden');
-  addPoppedNewIds(toAnnounce.map(r=>r.id)); // tandai sudah diberitahukan, popup otomatis tidak akan muncul lagi untuk ini
-  // Catatan: walau popup otomatis tidak muncul lagi, resto tsb tetap terlihat di menu
-  // "List Resto Baru" pada panel profil selama masih dalam masa NEW_RESTO_WINDOW_MS
-  // dan belum dibuka detailnya / ditandai lewat "Sudah Lihat Semua" (lihat getNewRestosForMe / isNewForMe).
+  // Legacy automatic popup intentionally retired.
 }
-
-/* Dipanggil dari menu "List Resto Baru" di panel profil -- menampilkan SEMUA resto yang
-   masih berstatus "baru" untuk user ini, terlepas dari apakah popup otomatisnya sudah
-   pernah tampil atau belum. Ini yang memastikan user yang mengabaikan popup tetap bisa
-   melihat kembali daftarnya kapan saja. */
 function openNewRestoListPanel(){
-  if(!requireLogin()) return;
-  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
-  renderNewRestoListItems(getNewRestosForMe());
-  document.getElementById('newRestoOverlay').classList.remove('hidden');
+  if(!requireLogin())return;
+  if(typeof window.openProfileNotifications==='function')window.openProfileNotifications();
 }
 
 /* Render isi panel Wishlist: judul, teks intro, dan daftar resto yang di-wishlist user ini,
