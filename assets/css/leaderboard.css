@@ -1,0 +1,44 @@
+/* P1 Tahap 9 — Leaderboard. Existing bottom navigation and Profile remain unchanged. */
+#leaderboardPanel{max-width:900px!important}
+#leaderboardIntro{font-size:13px;line-height:1.65;color:var(--muted);max-width:650px}
+.gm-leaderboard-controls{display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin:14px 0 12px}
+.gm-leaderboard-controls label{font-size:12px;font-weight:700;color:var(--muted);flex-basis:100%}
+#leaderboardCityFilter{flex:1;min-width:170px;max-width:440px;min-height:42px;border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:var(--card);color:var(--ink);font:600 13px var(--font-body)}
+#leaderboardRefreshBtn,.gm-lb-points-link,.gm-lb-error button,.gm-lb-personal button{min-height:42px;padding:10px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);font:700 12px var(--font-body);color:var(--ink);cursor:pointer}
+#leaderboardRefreshBtn:focus-visible,#leaderboardCityFilter:focus-visible,.gm-lb-points-link:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+.gm-leaderboard-updated{color:var(--muted);font-size:11px;margin:0 0 16px}
+.gm-lb-city,.gm-lb-personal{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:17px;margin:0 0 16px}
+.gm-lb-city-header,.gm-lb-personal-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.gm-lb-city-header h3,.gm-lb-personal-head h3{margin:0;font:700 20px/1.2 var(--font-display);color:var(--ink)}
+.gm-lb-city-header span,.gm-lb-status{font-size:11px;color:var(--muted);font-weight:700}
+.gm-lb-status{background:var(--paper);padding:7px 10px;border-radius:30px}
+.gm-lb-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end;margin:16px 0}
+.gm-lb-podium-card{min-width:0;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:5px;text-align:center;padding:16px 8px;border-radius:14px;background:var(--paper)}
+.gm-lb-place-1{min-height:177px;background:#fff2d9;border:1px solid #efd4a5}
+.gm-lb-place-2{min-height:159px}.gm-lb-place-3{min-height:143px}
+.gm-lb-avatar{width:46px;height:46px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:50%;background:var(--ink);color:white;font-weight:700;font-size:19px}
+.gm-lb-rank{font:700 12px monospace;color:var(--muted)}
+.gm-lb-name{font-size:13px;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+.gm-lb-verified{font-size:10px;font-weight:700;color:var(--teal)}
+.gm-lb-points{font:700 13px monospace;color:var(--ink);white-space:nowrap}
+.gm-lb-rows{display:grid;gap:4px}
+.gm-lb-row{display:flex;gap:10px;align-items:center;padding:10px;border-radius:11px}
+.gm-lb-row:nth-child(odd){background:var(--paper)}
+.gm-lb-row .gm-lb-rank{width:26px;text-align:center;flex-shrink:0}
+.gm-lb-row .gm-lb-avatar{width:34px;height:34px;font-size:14px}
+.gm-lb-row .gm-lb-name{flex:1;min-width:0}
+.gm-lb-row .gm-lb-verified{white-space:nowrap}
+.gm-lb-row.is-me,.gm-lb-podium-card.is-me{outline:2px solid var(--teal)}
+.gm-lb-personal{background:var(--card)}
+.gm-lb-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
+.gm-lb-stats>div{background:var(--paper);border-radius:12px;padding:12px 9px;min-width:0}
+.gm-lb-stats small{display:block;font-size:10px;line-height:1.4;color:var(--muted)}
+.gm-lb-stats strong{display:block;font:700 clamp(17px,3vw,26px)/1.5 monospace;overflow-wrap:anywhere}
+.gm-lb-caption{font-size:12px;line-height:1.6;color:var(--muted);margin:10px 0}
+.gm-lb-meter-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:10px}
+.gm-lb-meter{height:8px;background:var(--paper);border-radius:10px;overflow:hidden;margin:6px 0}
+.gm-lb-meter span{display:block;height:100%;border-radius:10px;background:var(--teal)}
+.gm-lb-points-link{margin-top:12px;width:100%;text-align:center}
+.gm-lb-empty,.gm-lb-error,.gm-lb-loading{padding:26px 15px;text-align:center;border:1px dashed var(--line);border-radius:14px;background:var(--card);font-size:13px;line-height:1.6;color:var(--muted)}
+.gm-lb-error{color:#a43830;border-color:#e8a9a3}
+@media(max-width:440px){.gm-lb-city,.gm-lb-personal{padding:13px}.gm-lb-podium{gap:5px}.gm-lb-podium-card{padding:13px 5px}.gm-lb-podium-card .gm-lb-avatar{width:39px;height:39px}.gm-lb-row{gap:6px;padding:9px 6px}.gm-lb-row .gm-lb-verified{font-size:9px}.gm-lb-row .gm-lb-points{font-size:11px}.gm-lb-stats{gap:5px}.gm-lb-stats>div{padding:9px 6px}}
