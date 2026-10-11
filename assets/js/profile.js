@@ -64,6 +64,7 @@ function setPage(next,{restore=false}={}){
  if(next==='saved'){root.innerHTML=heading('Saved','Restoran dan postingan yang disimpan')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadSaved(n);return;}
  if(next==='visited'){root.innerHTML=heading('Visited','Restoran yang sudah Anda kunjungi')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadVisited(n);return;}
  if(next==='posts'){root.innerHTML=heading('My Posts','Kelola cerita yang Anda bagikan di Community')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadMyPosts(n);return;}
+ if(next==='points'){root.innerHTML=heading('Riwayat Poin','Riwayat reward kontribusi Anda')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadPoints(n);return;}
  if(next==='contributions'){root.innerHTML=heading('My Contributions','Riwayat kontribusi Anda di GastronoMap')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadContributions(n);return;}
  if(next==='reports'){root.innerHTML=heading('Reports','Sampaikan masukan dan pantau laporan')+
    '<div class="profile-links">'+menuRow('Kirim Laporan','Sampaikan data restoran yang salah, bug, atau saran','sendReport','file-warning')+
@@ -95,8 +96,9 @@ function renderMain(){
  ((typeof myBio!=='undefined'&&myBio)?'<p class="profile-bio">'+esc(myBio)+'</p>':'')+socialHtml+
  '<div id="profileVerifiedBadge" class="profile-verified hidden">✓ Verified Contributor</div></div>'+
  '<div class="profile-stat-row">'+
- stat('profileStatsContribution','Kontribusi')+stat('profileStatsPoints','Poin')+
- stat('profileStatsVisited','Dikunjungi')+stat('profileStatsPosts','Postingan')+'</div>'+
+ stat('profileStatsContribution','Kontribusi','contributions')+stat('profileStatsPoints','Poin','points')+
+ stat('profileStatsVisited','Dikunjungi','visited')+stat('profileStatsPosts','Postingan','posts')+'</div>'+
+ (isAdmin?'<p class="profile-points-hint">Admin tetap berkontribusi, tetapi tidak mendapat poin dan tidak masuk Leaderboard.</p>':'<p id="profileContributorProgress" class="profile-points-hint hidden"></p>')+
  safeButton('✎  Edit Profile','edit','profile-edit-button')+
  '<div class="profile-links">'+
  menuRow('Notifications','Suka, komentar, balasan, dan pembaruan laporan','notifications','bell')+
@@ -113,32 +115,89 @@ function renderMain(){
  menuRow('Kelola Link Online','Moderasi pengajuan link restoran','adminLinks','settings')+'</div>':'');
  loadStats(ticket);
 }
-function stat(id,label){return '<div class="profile-stat"><strong id="'+id+'">–</strong><small>'+label+'</small></div>';}
+function stat(id,label,action){return '<button type="button" class="profile-stat" data-action="'+action+'" aria-label="Lihat '+label+'"><strong id="'+id+'">–</strong><small>'+label+'</small><span class="profile-stat-chevron" aria-hidden="true">›</span></button>';}
 async function loadStats(n){
  const uid=currentUser();
- const tables=[['restos','id','created_by'],['ratings','resto_id','user_id'],['testimonials','resto_id','user_id'],['visit_photos','id','user_id'],['menu_photos','id','user_id'],['favorite_menu','id','user_id'],['references_link','id','user_id']];
- const q=tables.map(([t,key,owner])=>sb.from(t).select(key,{count:'exact',head:true}).eq(owner,uid));
- q.push(sb.from('posts').select('id',{count:'exact',head:true}).eq('user_id',uid));
- q.push(sb.from('contribution_points').select('points').eq('user_id',uid).limit(2000));
- q.push(sb.from('profiles').select('is_verified_contributor').eq('id',uid).maybeSingle());
- const result=await Promise.allSettled(q);
- if(!validStill(uid,n,'main'))return;
- const countOf=(item)=>item.status==='fulfilled'&&!item.value.error?item.value.count:null;
- const contributor=result.slice(0,7).map(countOf);
- const count=contributor.every(x=>x!==null)?contributor.reduce((a,b)=>a+b,0):null;
- const pointsResult=result[8].status==='fulfilled'?result[8].value:{error:true};
- const points=!pointsResult.error?(pointsResult.data||[]).reduce((sum,item)=>sum+(Number(item.points)||0),0):null;
- const put=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v===null?'–':Number(v).toLocaleString('id-ID');};
- put('profileStatsContribution',count);
- put('profileStatsPoints',points);
- put('profileStatsVisited',visitedIds.size);
- const postTotal=countOf(result[7]);
- put('profileStatsPosts',postTotal);
- const postBadge=root.querySelector('[data-action="posts"] .profile-menu-count');
- if(postBadge)postBadge.textContent=postTotal===null?'–':postTotal.toLocaleString('id-ID');
- const verified=result[9].status==='fulfilled'&&!result[9].value.error&&result[9].value.data?.is_verified_contributor;
- document.getElementById('profileVerifiedBadge')?.classList.toggle('hidden',!verified);
+ try{
+  const {data,error}=await sb.rpc('gm_my_profile_stats');
+  if(error)throw error;
+  if(!validStill(uid,n,'main'))return;
+  const item=Array.isArray(data)?data[0]:data;
+  if(!item)throw new Error('Statistik tidak tersedia');
+  for(const [id,value] of [['profileStatsContribution',item.contributions],
+   ['profileStatsPoints',item.points],['profileStatsVisited',item.visited],
+   ['profileStatsPosts',item.posts]]){
+   const element=document.getElementById(id);
+   if(element)element.textContent=Number(value||0).toLocaleString('id-ID');
+  }
+  const badge=root.querySelector('[data-action="posts"] .profile-menu-count');
+  if(badge)badge.textContent=Number(item.posts||0).toLocaleString('id-ID');
+  document.getElementById('profileVerifiedBadge')?.classList.toggle('hidden',!item.verified);
+  if(!isAdmin){
+   const progress=root.querySelector('#profileContributorProgress');
+   if(progress){
+    progress.classList.toggle('hidden',!!item.verified);
+    progress.textContent='Progres Verified Contributor: '+
+      Math.min(Number(item.approved_count||0),3)+'/3 restoran terverifikasi atau '+
+      Math.min(Number(item.full_reviews||0),5)+'/5 review lengkap';
+   }
+  }
+ }catch(error){
+  if(validStill(uid,n,'main'))console.error('Gagal memuat statistik Profile:',error);
+ }
 }
+const pointCategory={
+ add_resto:'Restoran terverifikasi',foto_kunjungan:'Foto kunjungan',
+ foto_menu:'Foto menu',link_referensi:'Link referensi',
+ link_online:'Link penjualan online',testimoni:'Ulasan restoran',
+ rating:'Rating restoran',menu_rekomendasi:'Rekomendasi menu',
+ community_post:'Postingan Community'
+};
+async function loadPoints(n){
+ const uid=currentUser();
+ if(isAdmin){
+  root.querySelector('.profile-dynamic').innerHTML=empty(
+   'Admin tidak mendapatkan poin dan tidak mengikuti Leaderboard. Semua aktivitas tetap ada di My Contributions dan My Posts.');
+  restorePosition('points',n);return;
+ }
+ try{
+  const [history,summary]=await Promise.all([
+   sb.from('contribution_points').select('id,category,points,resto_id,created_at,reversed_at,source_kind,source_id')
+     .eq('user_id',uid).order('created_at',{ascending:false}).limit(500),
+   sb.rpc('gm_my_profile_stats')
+  ]);
+  if(history.error)throw history.error;
+  if(summary.error)throw summary.error;
+  if(!validStill(uid,n,'points'))return;
+  const data=Array.isArray(summary.data)?summary.data[0]:summary.data;
+  const items=history.data||[];
+  const info='<div class="profile-reward-rules"><strong>Ketentuan poin</strong>'+
+   '<span>Resto +5 · Foto kunjungan +4 · Foto menu +3 · Referensi +3 · Link online +2 · Ulasan +2 · Rating +1 · Rekomendasi menu +2 · Community Post +3</span>'+
+   '<small>Setiap kontribusi valid mendapat reward satu kali. Jika konten dihapus, poin dibatalkan. Admin tidak mendapat poin.</small></div>';
+  const list=items.map(entry=>{
+   const undone=!!entry.reversed_at,post=entry.source_kind==='posts'&&entry.source_id;
+   const linked=entry.resto_id&&resto(entry.resto_id);
+   const target=post?'post':linked?'resto':null;
+   const targetId=post?entry.source_id:entry.resto_id;
+   const action=target?'<button type="button" class="profile-compact-btn" data-action="'+target+'" data-id="'+eattr(targetId)+'">Lihat</button>':'';
+   const detail=post?'Community':linked?nameOf(entry.resto_id):'GastronoMap';
+   return '<div class="profile-points-entry'+(undone?' is-reversed':'')+'"><div><strong>'+
+    esc(pointCategory[entry.category]||entry.category)+'</strong><small>'+esc(detail)+' · '+
+    esc(date(entry.created_at))+'</small>'+(undone?'<em>Reward dibatalkan</em>':'')+
+    '</div><span class="profile-points-value">'+(undone?'0':'+'+Number(entry.points))+
+    '</span>'+action+'</div>';
+  }).join('');
+  root.querySelector('.profile-dynamic').innerHTML=
+   '<div class="profile-points-overview"><span>Total Poin</span><strong>'+
+   Number(data?.points||0).toLocaleString('id-ID')+'</strong></div>'+info+
+   '<div class="profile-section-meta">'+items.length+' transaksi terbaru'+(items.length>=500?' (500 teratas)':'')+'</div>'+
+   (items.length?'<div class="profile-points-list">'+list+'</div>':empty('Belum ada poin.'));
+  restorePosition('points',n);
+ }catch(error){
+  if(validStill(uid,n,'points'))notice('Riwayat poin gagal dimuat. '+error.message);
+ }
+}
+
 function restoRow(r,action,extraLabel=''){
  const photo=imageOf(r), type=(r?.type||'Restoran');
  return '<div class="profile-resto-row">'+
@@ -324,7 +383,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan tanda sudah dibaca hanya disimpan pada perangkat ini.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v133</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v135</small></span></div></div>'+
  '<div class="profile-links">'+menuRow('Edit Profile','Perbarui informasi pribadi','edit','settings')+
  menuRow('Logout','Keluar dari akun','logout','logout')+'</div>';
 }
@@ -342,7 +401,7 @@ function legacy(id){document.getElementById(id)?.click();}
 root.addEventListener('click',async (event)=>{
  const btn=event.target.closest('[data-action]');if(!btn||!root.contains(btn))return;
  const action=btn.dataset.action,id=btn.dataset.id;
- if(['notifications','saved','visited','posts','contributions','reports','settings','help'].includes(action)){openSubPage(action);return;}
+ if(['notifications','saved','visited','posts','points','contributions','reports','settings','help'].includes(action)){openSubPage(action);return;}
  if(action==='home'){backProfile();return;}
  if(action==='login'){document.getElementById('loginOverlay').classList.remove('hidden');return;}
  if(action==='avatar'){document.getElementById('avatarInput').click();return;}

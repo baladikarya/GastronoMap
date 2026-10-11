@@ -930,92 +930,68 @@ async function openLeaderboard(){
 }
 
 async function loadAndRenderLeaderboard(){
-  const wrap = document.getElementById('leaderboardContent');
-  const progressWrap = document.getElementById('leaderboardMyProgress');
-  progressWrap.innerHTML = '';
-  wrap.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Memuat papan peringkat...</div>';
+  const wrap=document.getElementById('leaderboardContent');
+  const progressWrap=document.getElementById('leaderboardMyProgress');
+  progressWrap.innerHTML='';
+  wrap.innerHTML='<div style="font-size:12.5px;color:var(--muted);">Memuat papan peringkat...</div>';
 
-  const startDate = leaderboardPeriodStart(currentLeaderboardPeriod);
-  let q = sb.from('leaderboard_points').select('user_id, points, city_id, created_at');
-  if(startDate) q = q.gte('created_at', startDate);
-  const { data, error } = await q;
-  if(error){ wrap.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat: ${escapeHtml(error.message)}</div>`; return; }
-
-  const byCity = {};
-  (data||[]).forEach(row=>{
-    if(!row.user_id) return; // jaga-jaga kalau ada baris poin "yatim" tanpa user (data korup)
-    const key = row.city_id || '__no_city__';
-    if(!byCity[key]) byCity[key] = {};
-    byCity[key][row.user_id] = (byCity[key][row.user_id]||0) + row.points;
-  });
-
-  const cityIds = Object.keys(byCity).filter(k=> k !== '__no_city__');
-  let cityNameById = {};
-  if(cityIds.length){
-    const { data: citiesData } = await sb.from('cities').select('id, name').in('id', cityIds);
-    (citiesData||[]).forEach(c=> cityNameById[c.id] = c.name);
-  }
-
-  const allUserIds = [...new Set((data||[]).map(row=> row.user_id))].filter(Boolean);
-  let profileById = {};
-  if(allUserIds.length){
-    const { data: profilesData, error: profilesError } = await sb.from('public_contributor_profiles')
-      .select('id, username, is_verified_contributor')
-      .in('id', allUserIds);
-    if(profilesError){
-      wrap.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat data kontributor: ${escapeHtml(profilesError.message)}</div>`;
-      return;
-    }
-    (profilesData||[]).forEach(p=> profileById[p.id] = p);
-  }
-
-  // Progres unlock milik user yang sedang login, ditampilkan terpisah di atas (bukan per kota)
-  if(myUserId && !isAdmin){
-    const { data: myProfile } = await sb.from('profiles')
-      .select('resto_approved_count, full_review_count, is_verified_contributor')
-      .eq('id', myUserId).maybeSingle();
-    if(myProfile && !myProfile.is_verified_contributor){
-      const restoProgress = Math.min(myProfile.resto_approved_count || 0, 3);
-      const reviewProgress = Math.min(myProfile.full_review_count || 0, 5);
-      progressWrap.innerHTML = `<div class="leaderboard-progress-card">🔒 Namamu tampil setelah ${restoProgress}/3 Verified Resto atau ${reviewProgress}/5 review lengkap.</div>`;
-    }
-  }
-
-  const cityKeys = Object.keys(byCity);
-  if(cityKeys.length === 0){
-    wrap.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Belum ada kontribusi pada periode ini.</div>';
+  // One authoritative ledger, aggregated server-side. City is the user's
+  // current domicile (profiles.city), never the restaurant's city_id.
+  const [{data,error},progress]=await Promise.all([
+    sb.rpc('gm_leaderboard',{p_period:currentLeaderboardPeriod}),
+    myUserId && !isAdmin
+      ? sb.from('profiles').select('city,resto_approved_count,full_review_count,is_verified_contributor')
+          .eq('id',myUserId).maybeSingle()
+      : Promise.resolve({data:null,error:null})
+  ]);
+  if(error){
+    wrap.innerHTML='<div style="font-size:12.5px;color:var(--red);">Gagal memuat: '+escapeHtml(error.message)+'</div>';
     return;
   }
 
-  wrap.innerHTML = cityKeys.map(cityKey=>{
-    const cityName = cityKey === '__no_city__' ? 'Kota belum diketahui' : (cityNameById[cityKey] || 'Kota lain');
-    const rows = Object.entries(byCity[cityKey])
-      .map(([uid, pts])=> ({ uid, pts, profile: profileById[uid] }))
-      .filter(row=> row.profile && row.profile.is_verified_contributor)
-      .sort((a,b)=> b.pts - a.pts);
-
-    if(rows.length === 0){
-      return `<div class="leaderboard-city-block">
-        <div class="leaderboard-city-title">📍 ${escapeHtml(cityName)}</div>
-        <div class="leaderboard-empty-card">Belum ada kontributor di kota ini. Jadilah kontributor pertama di sini! 🚀</div>
-      </div>`;
+  if(isAdmin){
+    progressWrap.innerHTML='<div class="leaderboard-progress-card">Akun Admin tidak memperoleh poin dan tidak mengikuti Leaderboard.</div>';
+  }else if(myUserId && progress.error){
+    progressWrap.innerHTML='<div class="leaderboard-progress-card">Progres contributor belum dapat dimuat.</div>';
+  }else if(progress.data){
+    const p=progress.data;
+    const city=String(p.city||'').trim();
+    if(!city){
+      progressWrap.innerHTML+='<div class="leaderboard-progress-card">Isi Domisili pada Profile untuk tampil di kelompok kota Anda.</div>';
     }
-    const listHtml = rows.slice(0, 20).map((row, idx)=>{
-      const isMe = row.uid === myUserId;
-      const name = isMe ? 'Kamu' : escapeHtml(row.profile.username || 'Pengguna');
-      return `<div class="leaderboard-row ${isMe ? 'is-me' : ''}">
-        <span class="leaderboard-rank">${idx+1}</span>
-        <span class="leaderboard-name">${name}</span>
-        <span class="leaderboard-pts">${row.pts} pts</span>
-      </div>`;
+    if(!p.is_verified_contributor){
+      const approved=Math.min(p.resto_approved_count||0,3);
+      const reviews=Math.min(p.full_review_count||0,5);
+      progressWrap.innerHTML+='<div class="leaderboard-progress-card">Nama Anda tampil setelah '+approved+'/3 restoran terverifikasi atau '+reviews+'/5 review lengkap.</div>';
+    }
+  }
+
+  const cities=new Map();
+  for(const item of data||[]){
+    if(!item.user_id)continue;
+    const city=String(item.city||'Domisili belum diisi');
+    if(!cities.has(city))cities.set(city,[]);
+    cities.get(city).push(item);
+  }
+  if(!cities.size){
+    wrap.innerHTML='<div style="font-size:12.5px;color:var(--muted);">Belum ada kontributor terverifikasi yang memiliki poin pada periode ini.</div>';
+    return;
+  }
+  wrap.innerHTML=[...cities.entries()].sort((a,b)=>a[0].localeCompare(b[0],'id')).map(([city,rows])=>{
+    const sorted=rows.sort((a,b)=>Number(b.points)-Number(a.points)||
+      String(a.username||'').localeCompare(String(b.username||''),'id'));
+    const list=sorted.slice(0,20).map((entry,i)=>{
+      const me=entry.user_id===myUserId;
+      return '<div class="leaderboard-row '+(me?'is-me':'')+'">'+
+        '<span class="leaderboard-rank">'+(i+1)+'</span>'+
+        '<span class="leaderboard-name">'+(me?'Kamu':escapeHtml(entry.username||'Pengguna'))+'</span>'+
+        '<span class="leaderboard-pts">'+Number(entry.points||0).toLocaleString('id-ID')+' pts</span></div>';
     }).join('');
-    return `<div class="leaderboard-city-block">
-      <div class="leaderboard-city-title">📍 ${escapeHtml(cityName)}</div>
-      ${listHtml}
-    </div>`;
+    return '<div class="leaderboard-city-block">'+
+      '<div class="leaderboard-city-title">Domisili: '+escapeHtml(city)+'</div>'+
+      list+'</div>';
   }).join('');
 }
-
 async function loadAndRenderAdminReports(){
   const list = document.getElementById('adminReportsList');
   list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Memuat laporan...</div>';
