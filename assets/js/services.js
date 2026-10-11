@@ -222,7 +222,6 @@ function openAccountPanel(){
   }else{
     img.classList.add('hidden'); initial.classList.remove('hidden');
   }
-  updateNewRestoMenuBadge();
   updateWishlistMenuBadge();
   document.getElementById('openWishlistBtn').classList.toggle('hidden', isAdmin);
   document.getElementById('reportMenuToggle').classList.toggle('hidden', isAdmin);
@@ -247,14 +246,6 @@ async function updatePendingReportsBadge(){
     const { count } = await sb.from('reports').select('id', {count:'exact', head:true}).eq('status', 'pending');
     btn.textContent = count > 0 ? `🚩 Kelola Laporan (${count})` : '🚩 Kelola Laporan';
   }catch(e){ btn.textContent = '🚩 Kelola Laporan'; }
-}
-
-/* Badge jumlah resto baru (belum dilihat) di tombol menu "List Resto Baru" pada panel akun */
-function updateNewRestoMenuBadge(){
-  const btn = document.getElementById('openNewRestoListBtn');
-  if(!btn) return;
-  const count = myUserId ? getNewRestosForMe().length : 0;
-  btn.textContent = count > 0 ? `🆕 List Resto Baru (${count})` : '🆕 List Resto Baru';
 }
 
 /* Badge jumlah resto di Wishlist pada tombol menu "Wishlist" di panel akun */
@@ -346,78 +337,6 @@ function openGuidePanel(section){
   document.getElementById('guideContent').innerHTML = useInstall ? INSTALL_GUIDE_HTML : GUIDE_HTML;
   if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('guideOverlay').classList.remove('hidden');
-}
-
-/* Popup notifikasi resto baru hanya perlu ditampilkan SEKALI per resto -- setelah
-   ditampilkan, dicatat di localStorage supaya tidak muncul lagi tiap buka app,
-   walau resto itu masih dalam status "baru" (badge di pin tetap ada sampai diklik). */
-function getPoppedNewIds(){
-  try{ return new Set(JSON.parse(localStorage.getItem('gm_popped_new_ids') || '[]')); }
-  catch(e){ return new Set(); }
-}
-function addPoppedNewIds(ids){
-  const cur = getPoppedNewIds();
-  ids.forEach(id => cur.add(id));
-  try{ localStorage.setItem('gm_popped_new_ids', JSON.stringify([...cur])); }catch(e){}
-}
-
-/* Render isi panel resto baru: judul, teks intro, daftar item, dan tombol "Sudah Lihat Semua"
-   -- semua menyesuaikan otomatis apakah ada resto baru atau tidak. Dipakai baik oleh popup
-   otomatis maupun oleh panel "List Resto Baru" yang dibuka manual dari menu profil. */
-function renderNewRestoListItems(items){
-  const titleEl = document.getElementById('newRestoTitle');
-  const introEl = document.getElementById('newRestoIntro');
-  const list = document.getElementById('newRestoList');
-  const markAllBtn = document.getElementById('markAllSeenBtn');
-  if(items.length === 0){
-    titleEl.textContent = '😌 Belum Ada Resto Baru';
-    introEl.classList.add('hidden');
-    introEl.textContent = '';
-    list.innerHTML = '';
-    markAllBtn.classList.add('hidden');
-    return;
-  }
-  titleEl.textContent = '✨ Ada Resto Baru!';
-  introEl.classList.remove('hidden');
-  introEl.textContent = `${items.length} resto baru ditambahkan. Tap untuk langsung lihat:`;
-  markAllBtn.classList.remove('hidden');
-  list.innerHTML = items.map(r=>{
-    const t = TYPES[r.type] || DEFAULT_TYPE_META;
-    return `<div class="new-resto-item" data-id="${escapeAttr(r.id)}">${t.emoji} <b>${escapeHtml(r.name)}</b><span class="new-resto-sub">${escapeHtml(r.address || r.type)}</span></div>`;
-  }).join('');
-  list.querySelectorAll('.new-resto-item').forEach(el=>{
-    el.onclick = ()=>{
-      const r = allRestos[el.dataset.id];
-      document.getElementById('newRestoOverlay').classList.add('hidden');
-      if(r){ map.setView([r.lat, r.lng], 17); openDetail(r.id); }
-    };
-  });
-}
-
-/* Tombol "Sudah Lihat Semua" -- menandai SEMUA resto baru saat ini sebagai sudah dilihat,
-   sama seperti membuka detailnya satu-satu, supaya notifikasi (popup & badge) tidak
-   muncul lagi untuk resto-resto tersebut. */
-async function markAllNewRestosSeen(){
-  const newOnes = getNewRestosForMe();
-  if(newOnes.length === 0) return;
-  const ids = newOnes.map(r=>r.id);
-  ids.forEach(id => seenRestoIds.add(id));
-  try{
-    await sb.from('seen_restos').upsert(ids.map(id => ({ resto_id: id, user_id: myUserId })));
-  }catch(e){}
-  renderMarkers();
-  updateNewRestoMenuBadge();
-  renderNewRestoListItems([]); // refresh panel ke tampilan "Belum Ada Resto Baru"
-  showToast('Semua resto baru ditandai sudah dilihat');
-}
-
-// P2/10: restaurant announcements now live in Profile > Notifications.
-function showNewRestoPopupIfNeeded(){
-  // Legacy automatic popup intentionally retired.
-}
-function openNewRestoListPanel(){
-  if(!requireLogin())return;
-  if(typeof window.openProfileNotifications==='function')window.openProfileNotifications();
 }
 
 /* Render isi panel Wishlist: judul, teks intro, dan daftar resto yang di-wishlist user ini,
