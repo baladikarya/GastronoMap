@@ -102,3 +102,22 @@
 .gm-lb-crown{display:block;width:28px;height:28px;margin:0 auto -3px;color:#ba8527;flex-shrink:0}
 .gm-lb-place-1 .gm-lb-contender{min-height:116px}
 @media(max-width:440px){#leaderboardPeriodTabs,.leaderboard-period-tabs{gap:6px}#leaderboardPeriodTabs .leaderboard-period-tab{padding:9px 2px!important;font-size:12px!important}.gm-leaderboard-controls{gap:9px}.gm-lb-crown{width:24px;height:24px}}
+
+/* Leaderboard reference-style information dialog */
+.gm-lb-info-modal{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box}
+.gm-lb-info-modal.hidden{display:none!important}
+.gm-lb-info-backdrop{position:absolute;inset:0;background:rgba(11,24,19,.61)}
+.gm-lb-info-dialog{position:relative;z-index:1;width:min(100%,450px);max-height:min(85dvh,800px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;background:#fffefa;border-radius:20px;padding:24px 23px 25px;box-shadow:0 20px 60px #0004;color:var(--ink);font:400 13px/1.65 var(--font-body)}
+.gm-lb-info-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.gm-lb-info-head h3{margin:0;font:700 23px/1.2 var(--font-display)}
+#gmLbInfoClose{width:35px;height:35px;display:grid;place-items:center;background:transparent;border:0;color:var(--muted);font-size:30px;line-height:1;cursor:pointer}
+.gm-lb-info-dialog>p{margin:0 0 20px}
+.gm-lb-info-verified{display:flex;gap:12px;padding:17px 14px;border-radius:13px;background:#f5f5eb;line-height:1.65}
+.gm-lb-info-icon{flex:0 0 28px;width:28px;height:28px;display:grid;place-items:center;background:#e6a72a;border-radius:50%;color:white;font-size:22px}
+.gm-lb-info-dialog ul{padding-left:19px;margin:9px 0 0}
+.gm-lb-info-dialog li{margin:3px 0}
+.gm-lb-info-section{display:flex;gap:14px;padding:20px 2px 0;margin-top:20px;border-top:1px solid var(--line)}
+.gm-lb-info-section-icon{flex:0 0 26px;font-size:27px;line-height:1;color:#184b39;text-align:center}
+.gm-lb-info-section strong{font-weight:700}
+.gm-lb-info-section p{margin:7px 0 0}
+@media(max-width:420px){.gm-lb-info-modal{padding:20px}.gm-lb-info-dialog{padding:21px 18px;max-height:84dvh}.gm-lb-info-head h3{font-size:21px}}
