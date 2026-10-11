@@ -617,9 +617,10 @@ root.addEventListener('click',async (event)=>{
   const x=notifications.find(x=>x.id===id);if(!x)return;
   if(!x.read)await markNotificationsRead([x]);
   if(x.post)await openPost(x.post,true);
+  else if(x.kind==='report')legacy('openMyReportsBtn');
+  else if(x.kind==='link')openSubPage('contributions');
+  else if(x.kind==='contribution')openSubPage('points');
   else if(x.resto)await openResto(x.resto);
-  else if(x.reports)legacy('openMyReportsBtn');
-  else if(x.contributions)openSubPage('contributions');
   return;
  }
  if(action==='removeWishlist'){
