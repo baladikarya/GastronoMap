@@ -1003,7 +1003,7 @@ async function renderLeaderboardPersonal(request){
     progress+'<button type="button" class="gm-lb-points-link" id="gmLbPointsLink">Lihat rincian & riwayat poin di Profile →</button></section>';
   document.getElementById('gmLbPointsLink').onclick=()=>{
     if(typeof navigatePrimaryView==='function')navigatePrimaryView('profile');
-    if(typeof ProfilePage!=='undefined'&&typeof ProfilePage.open==='function')ProfilePage.open('points');
+    if(typeof window.openProfilePoints==='function')window.openProfilePoints();
   };
 }
 
