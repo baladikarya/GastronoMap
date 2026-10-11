@@ -949,9 +949,10 @@ function renderLeaderboard(){
     wrap.innerHTML='<div class="gm-lb-empty">Belum ada Verified Contributor dengan poin pada periode dan domisili yang dipilih.</div>';
     return;
   }
-  const groups=new Map();
-  rows.forEach(r=>{const city=leaderboardCity(r);if(!groups.has(city))groups.set(city,[]);groups.get(city).push(r);});
-  wrap.innerHTML=[...groups.entries()].sort((a,b)=>a[0].localeCompare(b[0],'id-ID')).map(([city,items])=>{
+  const groups=currentLeaderboardCity==='all'
+    ?new Map([['',rows]])
+    :new Map([[currentLeaderboardCity,rows]]);
+  wrap.innerHTML=[...groups.entries()].map(([city,items])=>{
     const sorted=items.slice().sort((a,b)=>Number(b.points)-Number(a.points)||
       String(a.username||'').localeCompare(String(b.username||''),'id-ID')||
       String(a.user_id).localeCompare(String(b.user_id)));
@@ -971,8 +972,8 @@ function renderLeaderboard(){
     const arranged=[podium[1],podium[0],podium[2]];
     const top='<div class="gm-lb-podium">'+arranged.map(p=>p?card(p.x,p.i,true):'<div></div>').join('')+'</div>';
     const rest=sorted.slice(3,20).map((r,i)=>card(r,i+3,false)).join('');
-    return '<section class="gm-lb-city"><div class="gm-lb-city-header"><h3>'+escapeHtml(city)+'</h3>'+
-      '<span>'+leaderboardNumber(sorted.length)+' kontributor</span></div>'+top+
+    return '<section class="gm-lb-city">'+(city?'<div class="gm-lb-city-header"><h3>'+escapeHtml(city)+'</h3>'+
+      '<span>'+leaderboardNumber(sorted.length)+' kontributor</span></div>':'')+top+
       (rest?'<div class="gm-lb-rows">'+rest+'</div>':'')+'</section>';
   }).join('');
 }
