@@ -72,6 +72,11 @@ function displayName(profile){
     ? username
     : 'Pengguna GastronoMap';
 }
+function openAuthorProfile(id){
+  // Own profile belongs to the Profile tab; dismiss Community detail first.
+  if(id===user()&&openedModal?.classList.contains('community-detail'))closeDetail();
+  window.openSocialProfile?.(id);
+}
 function distanceKm(a,b,c,d){
   const toRad=Math.PI/180, x=(c-a)*toRad, y=(d-b)*toRad;
   const h=Math.sin(x/2)**2+Math.cos(a*toRad)*Math.cos(c*toRad)*Math.sin(y/2)**2;
@@ -184,7 +189,7 @@ function renderGallery(post,isDetail){
 function renderPost(post,isDetail=false){
   const card=$('article','community-post'+(isDetail?' community-post--full':''));
   const header=$('div','community-post-header');
-  const author=button(null,'community-author',()=>window.openSocialProfile?.(post.user_id));
+  const author=button(null,'community-author',()=>openAuthorProfile(post.user_id));
   author.setAttribute('aria-label','Lihat profil '+displayName(post.profile));
   author.append(avatar(post.profile));
   const person=$('span','community-post-person');
@@ -529,12 +534,12 @@ function setReply(comment){
 }
 function commentItem(c,depth=0){
   const wrap=$('div','community-comment'+(depth>0?' community-comment--reply':''));
-  const commentAvatar=button(null,'community-comment-author-avatar',()=>window.openSocialProfile?.(c.user_id));
+  const commentAvatar=button(null,'community-comment-author-avatar',()=>openAuthorProfile(c.user_id));
   commentAvatar.setAttribute('aria-label','Lihat profil '+displayName(c.profile));
   commentAvatar.append(avatar(c.profile));wrap.append(commentAvatar);
   const content=$('div','community-comment-content');
   const heading=$('div','community-comment-heading');
-  heading.append(button(displayName(c.profile),'community-comment-author-name',()=>window.openSocialProfile?.(c.user_id)),$('time','',prettyTime.format(new Date(c.created_at))));
+  heading.append(button(displayName(c.profile),'community-comment-author-name',()=>openAuthorProfile(c.user_id)),$('time','',prettyTime.format(new Date(c.created_at))));
   content.append(heading,$('p','',c.body));
   const bar=$('div','community-comment-tools');
   const like=button(String(c.likeCount),'community-comment-like'+(c.liked?' is-active':''),()=>toggleCommentLike(c),'heart');
