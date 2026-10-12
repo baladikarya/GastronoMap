@@ -247,6 +247,14 @@ function openDetailRestaurant(id){
   if(typeof window.openDetail==='function')window.openDetail(id);
 }
 function safeResult(result){if(result.error)throw result.error;return result.data||[];}
+async function fetchCommunityProfiles(ids){
+  const result=await sb.from('public_social_profiles').select('id,username,avatar_url').in('id',ids);
+  // During staged rollout, the legacy Community view remains usable until
+  // the additive database migration is applied.
+  if(result.error&&['PGRST205','42P01'].includes(result.error.code))
+    return sb.from('profiles').select('id,username,avatar_url').in('id',ids);
+  return result;
+}
 async function loadCommunityFeed(){
   const ticket=++state.request;
   state.loading=true;
@@ -274,7 +282,7 @@ async function loadCommunityFeed(){
       sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position',{ascending:true}),
       sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
       sb.from('comments').select('post_id').in('post_id',ids),
-      sb.from('public_social_profiles').select('id,username,avatar_url').in('id',users),
+      fetchCommunityProfiles(users),
       restos.length?sb.from('restos').select('id,name,address,lat,lng').in('id',restos):Promise.resolve({data:[]})
     ];
     if(user())queries.push(sb.from('post_saves').select('post_id').eq('user_id',user()).in('post_id',ids));
@@ -609,7 +617,7 @@ async function loadComments(postId){
     if(state.selectedPost?.id!==postId)return;
     const users=[...new Set(comments.map(c=>c.user_id))];
     const results=await Promise.all([
-      users.length?sb.from('public_social_profiles').select('id,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
+      users.length?fetchCommunityProfiles(users):Promise.resolve({data:[]}),
       comments.length?sb.from('comment_likes').select('comment_id,user_id').in('comment_id',comments.map(c=>c.id)):Promise.resolve({data:[]})
     ]);
     if(state.selectedPost?.id!==postId)return;
