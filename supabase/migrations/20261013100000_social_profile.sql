@@ -30,7 +30,7 @@ grant insert (follower_id, following_id), delete on public.user_follows to authe
 -- Keep the existing Leaderboard projection untouched; its columns differ across installs.
 -- Public social view exposes only explicit, non-sensitive profile fields.
 create or replace view public.public_social_profiles as
-select id, username, avatar_url, bio, city, website_url, instagram, tiktok,
+select id, username, avatar_url, bio, city,
        is_verified_contributor, resto_approved_count, full_review_count
 from public.profiles;
 revoke all on public.public_social_profiles from public, anon, authenticated;
