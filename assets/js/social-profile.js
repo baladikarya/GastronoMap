@@ -51,9 +51,9 @@ function close(){
  if(history.state?.gmSocialUser){history.back();return;}
  dismiss();
 }
-function open(id){
+function open(id,options={}){
  if(!validId(id))return;
- if(id===uid()){
+ if(id===uid()&&!options.public){
   if(!overlay.hidden){history.replaceState({...history.state,gmSocialUser:null},'',location.href);dismiss();}
   if(typeof navigatePrimaryView==='function')navigatePrimaryView('profile');
   return;
@@ -107,6 +107,8 @@ function socialLink(label,url){
 }
 function renderProfile(){
  if(overlay.hidden||!state.profile)return;
+ // Re-render after follow/list navigation starts a fresh first page.
+ state.token++;state.postOffset=0;state.postLoading=false;
  const id=state.id,p=state.profile;
  state.view='profile';
  const body=content('Profil Publik');
@@ -277,7 +279,7 @@ overlay.addEventListener('keydown',event=>{
 window.addEventListener('popstate',event=>{
  if(overlay.hidden)return;
  if(!event.state?.gmSocialUser)dismiss();
- else if(event.state.gmSocialUser!==state.id)loadProfile(event.state.gmSocialUser);
+ else if(event.state.gmSocialUser!==state.id){state.id=event.state.gmSocialUser;state.postOffset=0;loadProfile(state.id);}
 });
 window.openSocialProfile=open;
 window.closeSocialProfile=()=>{if(!overlay.hidden){history.replaceState({...history.state,gmSocialUser:null},'',location.href);dismiss();}};
