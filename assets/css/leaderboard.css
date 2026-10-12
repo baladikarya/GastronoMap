@@ -138,3 +138,8 @@
 .gm-lb-info-section p{margin:4px 0 0}
 @media(max-width:420px){.gm-lb-info-modal{padding:12px}.gm-lb-info-dialog{max-height:none;padding:clamp(12px,1.8vh,17px) 15px;font-size:clamp(11px,1.5vh,12px)}.gm-lb-info-head h3{font-size:clamp(18px,2.4vh,21px)}}
 @media(max-height:650px){.gm-lb-info-dialog{font-size:10.5px;line-height:1.28;padding:10px 13px}.gm-lb-info-head{margin-bottom:5px}.gm-lb-info-dialog>p{margin-bottom:6px}.gm-lb-info-verified{padding:7px 9px;line-height:1.3}.gm-lb-info-section{margin-top:7px;padding-top:7px}.gm-lb-info-dialog ul{margin-top:3px}.gm-lb-info-section-icon{font-size:19px}}
+
+/* P2 Tahap 11 — ranking entries open the contributor's public social profile. */
+#leaderboardContent [data-social-user]{cursor:pointer;}
+#leaderboardContent [data-social-user]:hover .gm-lb-name{text-decoration:underline;text-underline-offset:3px;}
+#leaderboardContent [data-social-user]:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:9px;}
