@@ -106,6 +106,7 @@ function renderMain(){
  menuRow('Saved','Wishlist restoran dan postingan tersimpan','saved','bookmark',wishlistIds.size)+
  menuRow('Visited','Restoran yang telah dikunjungi','visited','check',visitedIds.size)+
  menuRow('My Posts','Lihat dan kelola postingan Community','posts','posts','…')+
+ menuRow('Profil Publik','Lihat profil sosial, followers, dan following','publicProfile','posts')+
  menuRow('My Contributions','Restoran, rating, ulasan, foto, dan menu','contributions','star')+
  menuRow('Reports','Laporan dan status penanganannya','reports','report')+
  menuRow('Settings','Preferensi notifikasi dan informasi akun','settings','settings')+
@@ -352,7 +353,7 @@ function notificationsFiltered(){
   (notificationTab==='Semua'||notificationTab===x.type));
 }
 function notificationGlyph(kind){
- return ({like:'♡',comment:'◉',reply:'↩',report:'⚑',link:'↗',
+ return ({like:'♡',comment:'◉',reply:'↩',follow:'+',report:'⚑',link:'↗',
   resto_submitted:'+',resto_verified:'✓',contribution:'★',new_resto:'⌖'})[kind]||'✦';
 }
 function renderNotifications(){
@@ -390,7 +391,7 @@ async function loadNotifications(n){
   // Pagination applies to durable events. Restaurant discovery stays a bounded, seven-day feed.
   const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
   const [events,restosResult,seenResult,dismissedResult]=await Promise.all([
-   sb.from('notifications').select('id,kind,title,message,post_id,resto_id,report_id,link_submission_id,created_at,read_at')
+   sb.from('notifications').select('id,kind,title,message,actor_id,post_id,resto_id,report_id,link_submission_id,created_at,read_at')
     .eq('user_id',uid).order('created_at',{ascending:false}).limit(notificationLimit+1),
    sb.from('restos').select('id,name,address,created_by,created_at').gte('created_at',since)
     .order('created_at',{ascending:false}).limit(100),
@@ -401,9 +402,9 @@ async function loadNotifications(n){
   if(!validStill(uid,n,'notifications')||request!==notificationRequest)return;
   notificationHasMore=stored.length>notificationLimit;
   const list=stored.slice(0,notificationLimit).map(x=>({
-   id:x.id,kind:x.kind,title:x.title,message:x.message,post:x.post_id,resto:x.resto_id,
+   id:x.id,kind:x.kind,title:x.title,message:x.message,actor:x.actor_id,post:x.post_id,resto:x.resto_id,
    reports:!!x.report_id,contributions:!!x.link_submission_id||x.kind==='contribution',
-   type:['like','comment','reply'].includes(x.kind)?'Interaksi':'Sistem',
+   type:['like','comment','reply','follow'].includes(x.kind)?'Interaksi':'Sistem',
    at:x.created_at,read:!!x.read_at,persisted:true
   }));
   for(const r of recent){
@@ -502,7 +503,7 @@ async function loadNotificationBadge(){
   const since=new Date(Date.now()-7*24*60*60*1000).toISOString();
   const active=prefs(),counts=[];
   if(active.interaction)counts.push(sb.from('notifications').select('id',{count:'exact',head:true})
-   .eq('user_id',uid).is('read_at',null).in('kind',['like','comment','reply']));
+   .eq('user_id',uid).is('read_at',null).in('kind',['like','comment','reply','follow']));
   if(active.system)counts.push(sb.from('notifications').select('id',{count:'exact',head:true})
    .eq('user_id',uid).is('read_at',null).in('kind',['report','link','resto_submitted','resto_verified','contribution']));
   const [countResults,restosResult,seenResult,dismissedResult]=await Promise.all([
@@ -546,11 +547,11 @@ function renderSettings(){
  const p=prefs();
  root.innerHTML=heading('Settings','Preferensi yang tersimpan pada perangkat ini')+
  '<div class="profile-settings-card"><h3>Notifikasi</h3>'+
- '<label class="profile-setting"><span><strong>Interaksi Community</strong><small>Like, komentar, dan balasan</small></span><input type="checkbox" data-setting="interaction" '+(p.interaction?'checked':'')+'></label>'+
+ '<label class="profile-setting"><span><strong>Interaksi Community</strong><small>Like, komentar, balasan, dan pengikut baru</small></span><input type="checkbox" data-setting="interaction" '+(p.interaction?'checked':'')+'></label>'+
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan status dibaca tersimpan di akun dan tersinkronisasi antarperangkat.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v148</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v149</small></span></div></div>'+
  '';
 }
 async function openPost(id,returnToProfile=false){
@@ -649,6 +650,7 @@ root.addEventListener('click',async (event)=>{
  if(action==='home'){backProfile();return;}
  if(action==='login'){document.getElementById('loginOverlay').classList.remove('hidden');return;}
  if(action==='avatar'){document.getElementById('avatarInput').click();return;}
+ if(action==='publicProfile'){window.openSocialProfile?.(currentUser(),{public:true});return;}
  if(action==='edit'){openProfileCompletionModal(true);return;}
  if(action==='logout'){signOut();return;}
  if(action==='resto'){openResto(id);return;}
@@ -682,7 +684,8 @@ root.addEventListener('click',async (event)=>{
  if(action==='notificationOpen'){
   const x=notifications.find(x=>x.id===id);if(!x)return;
   if(!x.read)await markNotificationsRead([x]);
-  if(x.post)await openPost(x.post,true);
+  if(x.kind==='follow'&&x.actor)window.openSocialProfile?.(x.actor);
+  else if(x.post)await openPost(x.post,true);
   else if(x.kind==='report')legacy('openMyReportsBtn');
   else if(x.kind==='link')openSubPage('contributions');
   else if(x.kind==='contribution')openSubPage('points');
