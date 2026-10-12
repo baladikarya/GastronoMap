@@ -121,7 +121,7 @@ const createButton=button('Bagikan Cerita','community-create-button',openCompose
 intro.append(introText,createButton);
 const filters=$('div','community-filters');
 filters.setAttribute('role','group');filters.setAttribute('aria-label','Filter postingan');
-const filterNames=[['latest','Terbaru'],['popular','Populer'],['nearby','Di Sekitar']];
+const filterNames=[['latest','Terbaru'],['following','Following'],['popular','Populer'],['nearby','Di Sekitar']];
 const filterButtons=new Map();
 for(const [key,label] of filterNames){
   const b=button(label,'community-filter',()=>selectFilter(key));
@@ -133,6 +133,13 @@ feed.id='communityFeed';
 feed.setAttribute('aria-live','polite');
 body.append(intro,filters,feed);
 function selectFilter(key){
+  if(key==='following'&&!user()){
+    toast('Login untuk melihat postingan akun yang Anda ikuti.');
+    requireAuth();return;
+  }
+  if(key==='following'||state.filter==='following'){
+    state.filter=key;loadCommunityFeed();return;
+  }
   if(key==='nearby'&&!state.gps){
     if(!navigator.geolocation){toast('Lokasi perangkat tidak tersedia.');return;}
     toast('Meminta izin lokasi untuk menampilkan postingan terdekat.');
@@ -177,11 +184,13 @@ function renderGallery(post,isDetail){
 function renderPost(post,isDetail=false){
   const card=$('article','community-post'+(isDetail?' community-post--full':''));
   const header=$('div','community-post-header');
-  header.append(avatar(post.profile));
-  const person=$('div','community-post-person');
+  const author=button(null,'community-author',()=>window.openSocialProfile?.(post.user_id));
+  author.setAttribute('aria-label','Lihat profil '+displayName(post.profile));
+  author.append(avatar(post.profile));
+  const person=$('span','community-post-person');
   person.append($('strong','',displayName(post.profile)));
   person.append($('time','community-post-time',prettyTime.format(new Date(post.created_at))+(post.location_name?' · '+post.location_name:'')));
-  header.append(person);
+  author.append(person);header.append(author);
   if(post.user_id===user()&&isDetail)header.append(button('Hapus','community-delete',()=>deletePost(post),'trash'));
   card.append(header);
   if(post.caption)card.append($('p','community-post-caption',post.caption));
@@ -218,7 +227,9 @@ function renderFeed(){
   const posts=filteredPosts();
   if(!posts.length){
     const empty=$('div','community-feed-empty-note');
-    empty.append($('p','',state.filter==='nearby'
+    empty.append($('p','',state.filter==='following'
+      ? 'Belum ada cerita dari akun yang Anda ikuti. Kunjungi profil pengguna di Community lalu tekan Follow.'
+      : state.filter==='nearby'
       ? 'Belum ada cerita di dekatmu. Coba filter Terbaru untuk melihat cerita lainnya.'
       : state.posts.length
         ? 'Belum ada cerita pada filter ini.'
@@ -236,7 +247,17 @@ async function loadCommunityFeed(){
   state.loading=true;
   status('Menyiapkan cerita kuliner…');
   try{
-    let posts=safeResult(await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at').order('created_at',{ascending:false}).limit(50));
+    let followed=null;
+    if(state.filter==='following'){
+      if(!user()){state.posts=[];renderFeed();return;}
+      const links=safeResult(await sb.from('user_follows').select('following_id').eq('follower_id',user()).limit(1000));
+      if(ticket!==state.request)return;
+      followed=links.map(link=>link.following_id);
+      if(!followed.length){state.posts=[];renderFeed();return;}
+    }
+    let query=sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at');
+    if(followed)query=query.in('user_id',followed);
+    let posts=safeResult(await query.order('created_at',{ascending:false}).limit(50));
     if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)&&!posts.some(p=>p.id===state.deepLink)){
       const result=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at').eq('id',state.deepLink).maybeSingle();
       if(!result.error&&result.data)posts.push(result.data);
@@ -248,7 +269,7 @@ async function loadCommunityFeed(){
       sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position',{ascending:true}),
       sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
       sb.from('comments').select('post_id').in('post_id',ids),
-      sb.from('profiles').select('id,username,avatar_url').in('id',users),
+      sb.from('public_contributor_profiles').select('id,username,avatar_url').in('id',users),
       restos.length?sb.from('restos').select('id,name,address,lat,lng').in('id',restos):Promise.resolve({data:[]})
     ];
     if(user())queries.push(sb.from('post_saves').select('post_id').eq('user_id',user()).in('post_id',ids));
@@ -508,10 +529,12 @@ function setReply(comment){
 }
 function commentItem(c,depth=0){
   const wrap=$('div','community-comment'+(depth>0?' community-comment--reply':''));
-  wrap.append(avatar(c.profile));
+  const commentAvatar=button(null,'community-comment-author-avatar',()=>window.openSocialProfile?.(c.user_id));
+  commentAvatar.setAttribute('aria-label','Lihat profil '+displayName(c.profile));
+  commentAvatar.append(avatar(c.profile));wrap.append(commentAvatar);
   const content=$('div','community-comment-content');
   const heading=$('div','community-comment-heading');
-  heading.append($('strong','',displayName(c.profile)),$('time','',prettyTime.format(new Date(c.created_at))));
+  heading.append(button(displayName(c.profile),'community-comment-author-name',()=>window.openSocialProfile?.(c.user_id)),$('time','',prettyTime.format(new Date(c.created_at))));
   content.append(heading,$('p','',c.body));
   const bar=$('div','community-comment-tools');
   const like=button(String(c.likeCount),'community-comment-like'+(c.liked?' is-active':''),()=>toggleCommentLike(c),'heart');
@@ -581,7 +604,7 @@ async function loadComments(postId){
     if(state.selectedPost?.id!==postId)return;
     const users=[...new Set(comments.map(c=>c.user_id))];
     const results=await Promise.all([
-      users.length?sb.from('profiles').select('id,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
+      users.length?sb.from('public_contributor_profiles').select('id,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
       comments.length?sb.from('comment_likes').select('comment_id,user_id').in('comment_id',comments.map(c=>c.id)):Promise.resolve({data:[]})
     ]);
     if(state.selectedPost?.id!==postId)return;
@@ -682,6 +705,7 @@ window.addEventListener('popstate',e=>{
   if((e.state&&e.state.gmView)==='community')loadCommunityFeed();
   else if(openedModal===detail.surface)closeDetail();
 });
+window.addEventListener('gm-follow-changed',()=>{if(state.filter==='following')loadCommunityFeed();});
 window.loadCommunityFeed=loadCommunityFeed;
 window.openCommunityPost=async function(id,options={}){
   if(!/^[0-9a-f-]{36}$/i.test(id))return;
