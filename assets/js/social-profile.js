@@ -75,7 +75,7 @@ async function loadProfile(id){
  message(body,'Memuat profil pengguna…');
  try{
   const tasks=[
-   sb.from('public_contributor_profiles')
+   sb.from('public_social_profiles')
     .select('id,username,avatar_url,bio,city,website_url,instagram,tiktok,is_verified_contributor,resto_approved_count,full_review_count')
     .eq('id',id).maybeSingle(),
    sb.from('posts').select('id',{head:true,count:'exact'}).eq('user_id',id),
@@ -242,7 +242,7 @@ async function showList(kind){
    .order('created_at',{ascending:false}).limit(100);
   if(result.error)throw result.error;
   const ids=(result.data||[]).map(item=>item[column]);
-  const profiles=ids.length?await sb.from('public_contributor_profiles')
+  const profiles=ids.length?await sb.from('public_social_profiles')
    .select('id,username,avatar_url,city,is_verified_contributor').in('id',ids):{data:[]};
   if(profiles.error)throw profiles.error;
   if(token!==state.token||id!==state.id)return;
