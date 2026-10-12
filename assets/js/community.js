@@ -51,6 +51,8 @@ function button(text,cls,handler,iconName){
 }
 const prettyTime=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'});
 const state={posts:[],filter:'latest',gps:null,request:0,selectedPost:null,detailComments:[],commentLikes:new Set(),loading:false,deepLink:new URLSearchParams(location.search).get('post')};
+const FEED_PAGE_SIZE=10,FEED_CACHE_MS=45000;
+let renderedCount=0,lastLoadedAt=0,lastLoadedFilter='',lastLoadedUser=null;
 const user=()=>typeof myUserId==='string'&&myUserId?myUserId:null;
 const toast=message=>typeof showToast==='function'?showToast(message):console.info(message);
 const requireAuth=()=>typeof requireLogin==='function'&&requireLogin();
@@ -241,7 +243,19 @@ function renderFeed(){
         : 'Belum ada cerita. Jadilah yang pertama berbagi!'));
     feed.replaceChildren(empty);return;
   }
-  feed.replaceChildren(...posts.map(p=>renderPost(p)));
+  renderedCount=Math.min(FEED_PAGE_SIZE,posts.length);
+  feed.replaceChildren(...posts.slice(0,renderedCount).map(p=>renderPost(p)));
+  if(renderedCount<posts.length)feed.append(makeLoadMore());
+}
+function makeLoadMore(){
+ const more=button('Muat postingan lainnya','community-try',()=>{
+  more.remove();const posts=filteredPosts();
+  const batch=posts.slice(renderedCount,renderedCount+FEED_PAGE_SIZE);
+  renderedCount+=batch.length;
+  feed.append(...batch.map(p=>renderPost(p)));
+  if(renderedCount<posts.length)feed.append(makeLoadMore());
+ });
+ more.setAttribute('aria-label','Muat 10 postingan Community berikutnya');return more;
 }
 function openDetailRestaurant(id){
   if(typeof window.openDetail==='function')window.openDetail(id);
@@ -255,7 +269,10 @@ async function fetchCommunityProfiles(ids){
     return sb.from('profiles').select('id,username,avatar_url').in('id',ids);
   return result;
 }
-async function loadCommunityFeed(){
+async function loadCommunityFeed(force=false){
+  if(!force&&state.posts.length&&lastLoadedFilter===state.filter&&lastLoadedUser===user()&&Date.now()-lastLoadedAt<FEED_CACHE_MS&&!state.deepLink){
+    renderFeed();return;
+  }
   const ticket=++state.request;
   state.loading=true;
   status('Menyiapkan cerita kuliner…');
@@ -305,6 +322,7 @@ async function loadCommunityFeed(){
       commentCount:commentsBy.get(p.id)||0,
       saved:saved.has(p.id)
     }));
+    lastLoadedAt=Date.now();lastLoadedFilter=state.filter;lastLoadedUser=user();
     renderFeed();
     if(state.deepLink){
       const target=state.deepLink;state.deepLink=null;
@@ -490,7 +508,7 @@ async function publish(){
     }
     if(media.length){const written=await sb.from('post_media').insert(media);if(written.error)throw written.error;}
     uploadBusy=false;closeComposer();
-    state.filter='latest';toast('Cerita berhasil diposting.');await loadCommunityFeed();
+    state.filter='latest';toast('Cerita berhasil diposting.');await loadCommunityFeed(true);
     view.scrollTo({top:0,behavior:'smooth'});
   }catch(error){
     console.error('Gagal membuat postingan:',error);
@@ -710,7 +728,7 @@ async function deletePost(post){
     closeDetail();toast('Postingan dihapus.');await loadCommunityFeed();
   }catch(error){console.error(error);toast('Postingan gagal dihapus.');}
 }
-document.getElementById('navCommunityBtn')?.addEventListener('click',loadCommunityFeed);
+document.getElementById('navCommunityBtn')?.addEventListener('click',()=>loadCommunityFeed());
 document.querySelectorAll('#bottomNav .nav-item:not(#navCommunityBtn)').forEach(b=>b.addEventListener('click',()=>{
   if(openedModal===detail.surface)closeDetail();
 }));
@@ -718,8 +736,8 @@ window.addEventListener('popstate',e=>{
   if((e.state&&e.state.gmView)==='community')loadCommunityFeed();
   else if(openedModal===detail.surface)closeDetail();
 });
-window.addEventListener('gm-follow-changed',()=>{if(state.filter==='following')loadCommunityFeed();});
-window.loadCommunityFeed=loadCommunityFeed;
+window.addEventListener('gm-follow-changed',()=>{lastLoadedAt=0;if(state.filter==='following')loadCommunityFeed(true);});
+window.loadCommunityFeed=()=>loadCommunityFeed(true);
 window.openCommunityPost=async function(id,options={}){
   if(!/^[0-9a-f-]{36}$/i.test(id))return;
   state.deepLink=id;
