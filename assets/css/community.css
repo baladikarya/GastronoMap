@@ -221,3 +221,18 @@
 .community-replies-toggle.is-open .community-icon{transform:rotate(-90deg);}
 .community-comment-children[hidden]{display:none!important;}
 @media(prefers-reduced-motion:reduce){.community-replies-toggle .community-icon{transition:none;}}
+
+/* P2 Tahap 11 — linked public identities and Following feed */
+#communityView .community-author,.community-modal .community-author{
+ display:flex;align-items:center;gap:11px;min-width:0;flex:1;text-align:left;
+ padding:0;border:0;background:transparent;cursor:pointer;color:var(--ink);
+}
+#communityView .community-author .community-post-person,
+.community-modal .community-author .community-post-person{display:flex;flex:1;flex-direction:column;min-width:0;gap:3px;}
+#communityView .community-author:hover strong,.community-modal .community-author:hover strong,
+.community-comment-author-name:hover{text-decoration:underline;text-underline-offset:3px;}
+.community-comment-author-avatar{flex:none;border:0;background:transparent;padding:0;cursor:pointer;display:grid;place-items:center;}
+.community-comment-author-name{border:0;background:transparent;padding:0;color:var(--ink);font:inherit;font-weight:700;text-align:left;cursor:pointer;}
+.community-comment-author-avatar:focus-visible,.community-comment-author-name:focus-visible{
+ outline:2px solid var(--amber);outline-offset:2px;border-radius:6px;
+}
