@@ -958,7 +958,12 @@ async function loadAndRenderLeaderboard(){
   if(ids.length){
     try{
       const chunks=[];for(let i=0;i<ids.length;i+=100)chunks.push(ids.slice(i,i+100));
-      const results=await Promise.all(chunks.map(chunk=>sb.from('public_social_profiles').select('id,avatar_url').in('id',chunk)));
+      const results=await Promise.all(chunks.map(async chunk=>{
+        const result=await sb.from('public_social_profiles').select('id,avatar_url').in('id',chunk);
+        return result.error&&['PGRST205','42P01'].includes(result.error.code)
+          ?sb.from('profiles').select('id,avatar_url').in('id',chunk)
+          :result;
+      }));
       if(request!==leaderboardRequest)return;
       for(const result of results)if(!result.error)for(const profile of result.data||[])
         if(profile.avatar_url)leaderboardAvatarUrls.set(profile.id,profile.avatar_url);
