@@ -142,18 +142,18 @@ function selectFilter(key){
     toast('Login untuk melihat postingan akun yang Anda ikuti.');
     requireAuth();return;
   }
-  if(key==='following'||state.filter==='following'){
-    state.filter=key;loadCommunityFeed();return;
-  }
   if(key==='nearby'&&!state.gps){
     if(!navigator.geolocation){toast('Lokasi perangkat tidak tersedia.');return;}
     toast('Meminta izin lokasi untuk menampilkan postingan terdekat.');
     navigator.geolocation.getCurrentPosition(
-      pos=>{state.gps={lat:pos.coords.latitude,lng:pos.coords.longitude};state.filter=key;renderFeed();},
+      pos=>{const fromFollowing=state.filter==='following';state.gps={lat:pos.coords.latitude,lng:pos.coords.longitude};state.filter=key;if(fromFollowing)loadCommunityFeed();else renderFeed();},
       ()=>toast('Lokasi tidak diizinkan atau gagal ditemukan.'),
       {enableHighAccuracy:false,maximumAge:300000,timeout:10000}
     );
     return;
+  }
+  if(key==='following'||state.filter==='following'){
+    state.filter=key;loadCommunityFeed();return;
   }
   state.filter=key;renderFeed();
 }
