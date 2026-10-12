@@ -27,15 +27,14 @@ revoke all on public.user_follows from public, anon, authenticated;
 grant select on public.user_follows to anon, authenticated;
 grant insert (follower_id, following_id), delete on public.user_follows to authenticated;
 
--- Existing public projection intentionally excludes email, age, role and gender.
--- Preserve the first six column positions for existing Leaderboard queries.
-create or replace view public.public_contributor_profiles as
-select id, username, avatar_url, is_verified_contributor,
-       resto_approved_count, full_review_count,
-       bio, city, website_url, instagram, tiktok
+-- Keep the existing Leaderboard projection untouched; its columns differ across installs.
+-- Public social view exposes only explicit, non-sensitive profile fields.
+create or replace view public.public_social_profiles as
+select id, username, avatar_url, bio, city, website_url, instagram, tiktok,
+       is_verified_contributor, resto_approved_count, full_review_count
 from public.profiles;
-revoke all on public.public_contributor_profiles from public, anon, authenticated;
-grant select on public.public_contributor_profiles to anon, authenticated;
+revoke all on public.public_social_profiles from public, anon, authenticated;
+grant select on public.public_social_profiles to anon, authenticated;
 
 -- Follow is an interaction notification. Keep the previous allowed kinds.
 alter table public.notifications drop constraint if exists notifications_kind_check;
