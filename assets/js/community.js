@@ -269,7 +269,7 @@ async function loadCommunityFeed(){
       sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position',{ascending:true}),
       sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
       sb.from('comments').select('post_id').in('post_id',ids),
-      sb.from('public_contributor_profiles').select('id,username,avatar_url').in('id',users),
+      sb.from('public_social_profiles').select('id,username,avatar_url').in('id',users),
       restos.length?sb.from('restos').select('id,name,address,lat,lng').in('id',restos):Promise.resolve({data:[]})
     ];
     if(user())queries.push(sb.from('post_saves').select('post_id').eq('user_id',user()).in('post_id',ids));
@@ -604,7 +604,7 @@ async function loadComments(postId){
     if(state.selectedPost?.id!==postId)return;
     const users=[...new Set(comments.map(c=>c.user_id))];
     const results=await Promise.all([
-      users.length?sb.from('public_contributor_profiles').select('id,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
+      users.length?sb.from('public_social_profiles').select('id,username,avatar_url').in('id',users):Promise.resolve({data:[]}),
       comments.length?sb.from('comment_likes').select('comment_id,user_id').in('comment_id',comments.map(c=>c.id)):Promise.resolve({data:[]})
     ]);
     if(state.selectedPost?.id!==postId)return;
