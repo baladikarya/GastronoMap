@@ -964,7 +964,7 @@ grant execute on function public.admin_delete_review(uuid, uuid)
 -- ---------------------------------------------------------------------------
 -- P2 / Tahap 11 — Social Profile (non-destructive baseline)
 -- Follow notification trigger/constraint upgrade is in
--- supabase/migrations/20261013100000_social_profile.sql and is applied AFTER
+-- supabase/migrations/20261012222307_p2_11_social_profile.sql and is applied AFTER
 -- the Notifications migration.
 -- ---------------------------------------------------------------------------
 -- P2 / Tahap 11 — Social Profile. Additive, safe for existing accounts.
