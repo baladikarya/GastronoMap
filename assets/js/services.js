@@ -862,11 +862,12 @@ function renderLeaderboard(){
       const me=entry.user_id===myUserId;
       const name=me?'Kamu':entry.username||'Pengguna';
       const avatar=leaderboardAvatar(name,entry.user_id);
-      if(podium)return '<div class="gm-lb-podium-card gm-lb-place-'+(index+1)+(me?' is-me':'')+'">'+
+      const socialAttr=' role="button" tabindex="0" data-social-user="'+escapeHtml(entry.user_id)+'" aria-label="Buka profil '+escapeHtml(name)+'"';
+      if(podium)return '<div class="gm-lb-podium-card gm-lb-place-'+(index+1)+(me?' is-me':'')+'"'+socialAttr+'>'+
         '<div class="gm-lb-contender">'+(index===0?leaderboardCrown:'')+avatar+'<span class="gm-lb-name">'+escapeHtml(name)+'</span></div>'+
         '<div class="gm-lb-step"><strong class="gm-lb-step-rank">#'+(index+1)+'</strong>'+
         '<span class="gm-lb-step-points">'+leaderboardNumber(entry.points)+' pts</span></div></div>';
-      return '<div class="gm-lb-row'+(me?' is-me':'')+'"><span class="gm-lb-rank">'+(index+1)+'</span>'+
+      return '<div class="gm-lb-row'+(me?' is-me':'')+'"'+socialAttr+'><span class="gm-lb-rank">'+(index+1)+'</span>'+
         avatar+'<span class="gm-lb-name">'+escapeHtml(name)+'</span>'+
         '<strong class="gm-lb-points">'+leaderboardNumber(entry.points)+' pts</strong></div>';
     };
@@ -880,6 +881,15 @@ function renderLeaderboard(){
   }).join('');
 }
 
+document.getElementById('leaderboardContent')?.addEventListener('click',event=>{
+ const user=event.target.closest('[data-social-user]');
+ if(user)window.openSocialProfile?.(user.dataset.socialUser);
+});
+document.getElementById('leaderboardContent')?.addEventListener('keydown',event=>{
+ if(event.key!=='Enter'&&event.key!==' ')return;
+ const user=event.target.closest('[data-social-user]');
+ if(user){event.preventDefault();window.openSocialProfile?.(user.dataset.socialUser);}
+});
 async function renderLeaderboardPersonal(request){
   const wrap=document.getElementById('leaderboardMyProgress');
   if(isAdmin){
@@ -948,7 +958,7 @@ async function loadAndRenderLeaderboard(){
   if(ids.length){
     try{
       const chunks=[];for(let i=0;i<ids.length;i+=100)chunks.push(ids.slice(i,i+100));
-      const results=await Promise.all(chunks.map(chunk=>sb.from('profiles').select('id,avatar_url').in('id',chunk)));
+      const results=await Promise.all(chunks.map(chunk=>sb.from('public_social_profiles').select('id,avatar_url').in('id',chunk)));
       if(request!==leaderboardRequest)return;
       for(const result of results)if(!result.error)for(const profile of result.data||[])
         if(profile.avatar_url)leaderboardAvatarUrls.set(profile.id,profile.avatar_url);
