@@ -76,7 +76,7 @@ async function loadProfile(id){
  try{
   const tasks=[
    sb.from('public_social_profiles')
-    .select('id,username,avatar_url,bio,city,website_url,instagram,tiktok,is_verified_contributor,resto_approved_count,full_review_count')
+    .select('id,username,avatar_url,bio,city,is_verified_contributor,resto_approved_count,full_review_count')
     .eq('id',id).maybeSingle(),
    sb.from('posts').select('id',{head:true,count:'exact'}).eq('user_id',id),
    sb.from('user_follows').select('follower_id',{head:true,count:'exact'}).eq('following_id',id),
@@ -97,14 +97,6 @@ async function loadProfile(id){
   message(body,'Profil gagal dimuat. Pastikan migration Social Profile sudah diterapkan.',()=>loadProfile(id));
  }
 }
-function socialLink(label,url){
- try{
-  const parsed=new URL(url);
-  if(parsed.protocol!=='https:')return null;
-  const a=el('a','social-profile-social',label);
-  a.href=parsed.href;a.target='_blank';a.rel='noopener noreferrer';return a;
- }catch(_){return null;}
-}
 function renderProfile(){
  if(overlay.hidden||!state.profile)return;
  // Re-render after follow/list navigation starts a fresh first page.
@@ -123,13 +115,6 @@ function renderProfile(){
  if(p.city)intro.append(el('p','social-profile-city','⌖ '+p.city));
  if(p.is_verified_contributor)intro.append(el('span','social-profile-verified','✓ Verified Contributor'));
  if(p.bio)intro.append(el('p','social-profile-bio',p.bio));
- const socials=el('div','social-profile-socials');
- const handles=[
-  p.instagram?socialLink('Instagram','https://instagram.com/'+p.instagram.replace(/^@/,'')):null,
-  p.tiktok?socialLink('TikTok','https://www.tiktok.com/@'+p.tiktok.replace(/^@/,'')):null,
-  p.website_url?socialLink('Website',p.website_url):null
- ].filter(Boolean);
- socials.append(...handles);if(handles.length)intro.append(socials);
  body.append(intro);
  const stats=el('div','social-profile-stats');
  const entries=[
@@ -203,7 +188,7 @@ async function loadMorePosts(){
    more.textContent='Coba lagi memuat postingan';more.hidden=false;more.disabled=false;
    say('Postingan profil belum dapat dimuat.');
   }
- }finally{state.postLoading=false;}
+ }finally{if(token===state.token)state.postLoading=false;}
 }
 async function toggleFollow(button,id){
  const who=uid();
