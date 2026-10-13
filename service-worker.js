@@ -1,7 +1,7 @@
 // Service worker sederhana: cache "shell" aplikasi supaya cepat dibuka & tetap
 // bisa muncul walau koneksi lemot. Data resto sendiri TETAP butuh internet
 // (diambil live dari Supabase), jadi ini bukan mode "penuh offline".
-const CACHE_NAME = 'gastronomap-v150'; // naikkan angka ini tiap kali deploy versi baru
+const CACHE_NAME = 'gastronomap-v151'; // naikkan angka ini tiap kali deploy versi baru
 const SHELL_FILES = [
   './index.html',
   './manifest.json',
@@ -11,6 +11,7 @@ const SHELL_FILES = [
   './assets/css/navigation.css',
   './assets/css/leaderboard.css',
   './assets/css/community.css',
+  './assets/css/moderation.css',
   './assets/css/profile.css',
   './assets/css/social-profile.css',
   './assets/js/core.js',
@@ -18,6 +19,7 @@ const SHELL_FILES = [
   './assets/js/map.js',
   './assets/js/restaurants.js',
   './assets/js/events.js',
+  './assets/js/moderation.js',
   './assets/js/community.js',
   './assets/js/profile.js',
   './assets/js/social-profile.js',
