@@ -50,9 +50,14 @@ function button(text,cls,handler,iconName){
   return b;
 }
 const prettyTime=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'});
-const state={posts:[],filter:'latest',gps:null,request:0,selectedPost:null,detailComments:[],commentLikes:new Set(),loading:false,deepLink:new URLSearchParams(location.search).get('post')};
+const state={posts:[],filter:'latest',area:'',topic:'',gps:null,request:0,selectedPost:null,detailComments:[],commentLikes:new Set(),loading:false,deepLink:new URLSearchParams(location.search).get('post')};
 const FEED_PAGE_SIZE=12,COMMENT_PAGE_SIZE=40,FEED_CACHE_MS=45000;
-let lastLoadedAt=0,lastLoadedFilter='',lastLoadedUser=null;
+const COMMUNITY_TOPICS=[
+  ['review','Ulasan'],['recommendation','Rekomendasi'],['hidden-gem','Hidden Gem'],
+  ['street-food','Street Food'],['tips','Tips Kuliner'],['question','Tanya Jawab']
+];
+const topicName=id=>COMMUNITY_TOPICS.find(([key])=>key===id)?.[1]||null;
+let lastLoadedAt=0,lastLoadedCriteria='',lastLoadedUser=null;
 let feedOffset=0,feedHasMore=true,feedBusy=false,feedObserver=null,feedError=false,followingIds=null;
 let commentOffset=0,commentHasMore=true,commentBusyLoading=false,commentRequest=0;
 const pendingMutations=new Set();
@@ -164,36 +169,62 @@ for(const [key,label] of filterNames){
   b.setAttribute('aria-pressed',key==='latest'?'true':'false');
   filterButtons.set(key,b);filters.append(b);
 }
+/* Stage 15: filters are server-backed, not restricted to loaded feed pages. */
+const discovery=$('div','community-discovery');
+const areaInput=$('input','community-discovery-area');
+areaInput.type='search';areaInput.maxLength=80;areaInput.placeholder='Cari kota atau area…';
+areaInput.autocomplete='off';areaInput.setAttribute('aria-label','Cari kota atau area postingan');
+const areaApply=button('Cari Area','community-discovery-apply',applyArea,'pin');
+areaInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();applyArea();}});
+const topicSelect=$('select','community-discovery-topic');
+topicSelect.setAttribute('aria-label','Filter topik postingan');
+topicSelect.append($('option','','Semua topik'));topicSelect.firstChild.value='';
+for(const [key,label] of COMMUNITY_TOPICS){const option=$('option','',label);option.value=key;topicSelect.append(option);}
+topicSelect.addEventListener('change',()=>{state.topic=topicSelect.value;loadCommunityFeed(true);});
+const clearDiscovery=button('Reset','community-discovery-reset',()=>{
+  state.area='';state.topic='';areaInput.value='';topicSelect.value='';loadCommunityFeed(true);
+});
+const discoveryControls=$('div','community-discovery-controls');
+discoveryControls.append(areaInput,areaApply,topicSelect,clearDiscovery);
+const discoveryHint=$('p','community-discovery-hint');
+discovery.append(discoveryControls,discoveryHint);
 const feed=$('div','community-feed');
 feed.id='communityFeed';
 feed.setAttribute('aria-live','polite');
-body.append(intro,filters,feed);
+body.append(intro,filters,discovery,feed);
+let locationSelection=0;
+function criteriaKey(){
+  return [state.filter,state.area,state.topic,state.filter==='nearby'?String(state.gps?.lat)+','+String(state.gps?.lng):''].join('|');
+}
+function applyArea(){
+  const value=areaInput.value.trim().replace(/\s+/g,' ').slice(0,80);
+  if(value===state.area)return;
+  state.area=value;loadCommunityFeed(true);
+}
 function selectFilter(key){
   if(key==='following'&&!user()){
     toast('Login untuk melihat postingan akun yang Anda ikuti.');
     requireAuth();return;
   }
+  const selection=++locationSelection;
   if(key==='nearby'&&!state.gps){
     if(!navigator.geolocation){toast('Lokasi perangkat tidak tersedia.');return;}
     toast('Meminta izin lokasi untuk menampilkan postingan terdekat.');
     navigator.geolocation.getCurrentPosition(
-      pos=>{const fromFollowing=state.filter==='following';state.gps={lat:pos.coords.latitude,lng:pos.coords.longitude};state.filter=key;if(fromFollowing)loadCommunityFeed();else renderFeed();},
-      ()=>toast('Lokasi tidak diizinkan atau gagal ditemukan.'),
+      pos=>{
+        if(selection!==locationSelection)return;
+        state.gps={lat:pos.coords.latitude,lng:pos.coords.longitude};
+        state.filter=key;loadCommunityFeed(true);
+      },
+      ()=>{if(selection===locationSelection)toast('Lokasi tidak diizinkan atau gagal ditemukan.');},
       {enableHighAccuracy:false,maximumAge:300000,timeout:10000}
     );
     return;
   }
-  if(key==='following'||state.filter==='following'){
-    state.filter=key;loadCommunityFeed(true);return;
-  }
-  state.filter=key;renderFeed();
+  if(state.filter===key)return;
+  state.filter=key;loadCommunityFeed(true);
 }
-function filteredPosts(){
-  const posts=[...state.posts];
-  if(state.filter==='popular')posts.sort((a,b)=>(b.likeCount*2+b.commentCount)-(a.likeCount*2+a.commentCount)||new Date(b.created_at)-new Date(a.created_at));
-  if(state.filter==='nearby')return posts.filter(p=>p.resto&&Number.isFinite(Number(p.resto.lat))&&Number.isFinite(Number(p.resto.lng))&&distanceKm(state.gps.lat,state.gps.lng,Number(p.resto.lat),Number(p.resto.lng))<=25);
-  return posts;
-}
+function filteredPosts(){return state.posts;}
 function renderGallery(post,isDetail){
   if(!post.media.length)return null;
   const gallery=$('div','community-gallery '+(isDetail?'community-gallery--detail':'community-gallery--'+Math.min(4,post.media.length)));
@@ -249,6 +280,22 @@ function renderPost(post,isDetail=false){
   if(post.moderation_state==='hidden')header.append($('span','community-moderated-chip','Disembunyikan'));
   card.append(header);
   if(post.caption)card.append($('p','community-post-caption',post.caption));
+  if(topicName(post.topic)||state.filter==='nearby'&&Number.isFinite(post.distance_km)){
+    const metadata=$('div','community-post-metadata');
+    if(topicName(post.topic)){
+      const topic=button('#'+topicName(post.topic),'community-post-topic',()=>{
+        state.topic=state.topic===post.topic?'':post.topic;
+        topicSelect.value=state.topic;
+        if(openedModal===detail.surface)closeDetail();
+        loadCommunityFeed(true);
+      });
+      topic.setAttribute('aria-label','Filter topik '+topicName(post.topic));
+      metadata.append(topic);
+    }
+    if(state.filter==='nearby'&&Number.isFinite(post.distance_km))
+      metadata.append($('span','community-post-distance',post.distance_km.toLocaleString('id-ID',{maximumFractionDigits:1})+' km dari Anda'));
+    card.append(metadata);
+  }
   const gallery=renderGallery(post,isDetail);if(gallery)card.append(gallery);
   if(post.resto){
     const tag=button(null,'community-resto-tag',()=>{
@@ -301,14 +348,22 @@ function renderFeed(){
   for(const [key,btn] of filterButtons){
     const active=key===state.filter;btn.classList.toggle('is-active',active);btn.setAttribute('aria-pressed',String(active));
   }
+  clearDiscovery.hidden=!state.area&&!state.topic;
+  discoveryHint.textContent=state.filter==='nearby'
+    ?'Menampilkan cerita dengan restoran tertandai dalam radius 25 km. Lokasi perangkat tidak disimpan.'
+    :state.filter==='popular'
+      ?'Peringkat interaksi (like dan komentar) untuk cerita 30 hari terakhir. Saat konten masih sedikit, hasil belum mewakili tren.'
+      :'Filter kota/area mencocokkan lokasi postingan dan alamat restoran yang ditandai.';
   const posts=filteredPosts();
   feed.replaceChildren(...posts.map(p=>renderPost(p)));
   if(!posts.length){
     const empty=$('div','community-feed-empty-note');
     empty.append($('p','',state.filter==='following'
       ? 'Belum ada cerita dari akun yang Anda ikuti.'
-      : state.filter==='nearby'?'Belum ada cerita terdekat dalam hasil yang dimuat.'
-      : state.posts.length?'Belum ada cerita pada filter ini.':'Belum ada cerita. Jadilah yang pertama berbagi!'));
+      : state.filter==='nearby'?'Belum ada cerita dengan restoran tertandai dalam radius 25 km.'
+      : state.filter==='popular'?'Belum ada cerita dalam 30 hari terakhir.'
+      :state.area||state.topic?'Belum ada cerita yang cocok. Coba ubah kota/area atau topik.'
+      : 'Belum ada cerita. Jadilah yang pertama berbagi!'));
     feed.append(empty);
   }
   if(feedHasMore&&!feedBusy)feed.append(makeLoadMore());
@@ -367,18 +422,36 @@ async function loadNextFeed(){
   const ticket=state.request;
   feedBusy=true;feedError=false;stopFeedObserver();feed.setAttribute('aria-busy','true');
   try{
-    if(state.filter==='following'&&followingIds===null){
-      const links=safeResult(await sb.from('user_follows').select('following_id').eq('follower_id',user()).limit(1000));
-      if(ticket!==state.request)return;
-      followingIds=links.map(link=>link.following_id);
+    const serverDiscovery=state.filter==='popular'||state.filter==='nearby'||Boolean(state.area)||Boolean(state.topic);
+    let fetched=[];
+    if(serverDiscovery){
+      const response=await sb.rpc('gm_community_discover',{
+        p_mode:state.filter,p_area:state.area||null,p_topic:state.topic||null,
+        p_lat:state.filter==='nearby'?state.gps?.lat:null,
+        p_lng:state.filter==='nearby'?state.gps?.lng:null,
+        p_limit:FEED_PAGE_SIZE+1,p_offset:feedOffset
+      });
+      if(response.error)throw response.error;
+      fetched=safeResult(response);
+    }else{
+      if(state.filter==='following'&&followingIds===null){
+        const links=safeResult(await sb.from('user_follows').select('following_id').eq('follower_id',user()).limit(1000));
+        if(ticket!==state.request)return;
+        followingIds=links.map(link=>link.following_id);
+      }
+      if(state.filter==='following'&&!followingIds?.length){
+        feedHasMore=false;renderFeed();return;
+      }
+      const makeQuery=withTopic=>{
+        let query=sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state'+(withTopic?',topic':''));
+        if(state.filter==='following')query=query.in('user_id',followingIds);
+        return query.order('created_at',{ascending:false}).order('id',{ascending:false})
+          .range(feedOffset,feedOffset+FEED_PAGE_SIZE);
+      };
+      let response=await makeQuery(true);
+      if(response.error&&['42703','PGRST204'].includes(response.error.code))response=await makeQuery(false);
+      fetched=safeResult(response);
     }
-    if(state.filter==='following'&&!followingIds?.length){
-      feedHasMore=false;renderFeed();return;
-    }
-    let query=sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state');
-    if(state.filter==='following')query=query.in('user_id',followingIds);
-    const fetched=safeResult(await query.order('created_at',{ascending:false}).order('id',{ascending:false})
-      .range(feedOffset,feedOffset+FEED_PAGE_SIZE));
     if(ticket!==state.request)return;
     const batch=fetched.slice(0,FEED_PAGE_SIZE);
     const hydrated=await hydrateFeedBatch(batch,ticket);
@@ -389,8 +462,11 @@ async function loadNextFeed(){
     state.posts.push(...hydrated.filter(p=>!seen.has(p.id)));
     // Deep links work for posts beyond the first feed page without loading every page.
     if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)&&!state.posts.some(p=>p.id===state.deepLink)){
-      const response=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state')
+      let response=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state,topic')
         .eq('id',state.deepLink).maybeSingle();
+      if(response.error&&['42703','PGRST204'].includes(response.error.code))
+        response=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state')
+          .eq('id',state.deepLink).maybeSingle();
       if(ticket!==state.request)return;
       if(!response.error&&response.data){
         const extra=await hydrateFeedBatch([response.data],ticket);
@@ -398,7 +474,7 @@ async function loadNextFeed(){
         state.posts.push(...extra);
       }
     }
-    lastLoadedAt=Date.now();lastLoadedFilter=state.filter;lastLoadedUser=user();
+    lastLoadedAt=Date.now();lastLoadedCriteria=criteriaKey();lastLoadedUser=user();
     if(state.deepLink){
       const target=state.deepLink;state.deepLink=null;
       renderFeed();if(state.posts.some(p=>p.id===target))openDetail(target);
@@ -406,7 +482,10 @@ async function loadNextFeed(){
   }catch(err){
     if(ticket!==state.request)return;
     console.error('Community feed:',err);feedError=true;
-    if(!state.posts.length)status('Cerita belum bisa dimuat. Periksa koneksi lalu coba lagi.',true);
+    if(!state.posts.length)status(
+      ['PGRST202','42883'].includes(err?.code)
+        ?'Fitur discovery belum diaktifkan pada database. Terapkan migrasi P3 Tahap 15 terlebih dahulu.'
+        :'Cerita belum bisa dimuat. Periksa koneksi lalu coba lagi.',true);
     else{renderFeed();}
   }finally{
     if(ticket===state.request){feedBusy=false;feed.setAttribute('aria-busy','false');
@@ -415,7 +494,7 @@ async function loadNextFeed(){
   }
 }
 async function loadCommunityFeed(force=false){
-  if(!force&&state.posts.length&&lastLoadedFilter===state.filter&&lastLoadedUser===user()&&Date.now()-lastLoadedAt<FEED_CACHE_MS&&!state.deepLink){
+  if(!force&&state.posts.length&&lastLoadedCriteria===criteriaKey()&&lastLoadedUser===user()&&Date.now()-lastLoadedAt<FEED_CACHE_MS&&!state.deepLink){
     renderFeed();return;
   }
   ++state.request;
@@ -464,7 +543,7 @@ async function sharePost(post){
   url.hash='';
   const message='Cerita kuliner di GastronoMap';
   try{
-    if(navigator.share){await navigator.share({title:message,url:url.href});return;}
+    if(navigator.share){await navigator.share({title:message,text:(post.caption||'').slice(0,160)||undefined,url:url.href});return;}
     if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(url.href);toast('Tautan postingan disalin.');return;}
     window.prompt('Salin tautan postingan',url.href);
   }catch(err){if(err?.name!=='AbortError')toast('Tidak dapat membagikan postingan.');}
@@ -490,13 +569,18 @@ const photoInput=$('input','community-file-input');
 photoInput.type='file';photoInput.accept='image/jpeg,image/png,image/webp';photoInput.multiple=true;photoInput.hidden=true;
 const addPhotoButton=button('Tambah foto (maks. 5)','community-photo-add',()=>photoInput.click(),'image');
 const fields=$('div','community-compose-fields');
+const topicLabel=$('label','community-field-label','Topik cerita (opsional)');
+const topicInput=$('select','community-field-input');
+topicInput.setAttribute('aria-label','Topik cerita');
+topicInput.append($('option','','Pilih topik'));topicInput.firstChild.value='';
+for(const [key,label] of COMMUNITY_TOPICS){const option=$('option','',label);option.value=key;topicInput.append(option);}
 const locationLabel=$('label','community-field-label','Lokasi (opsional)');
 const locationInput=$('input','community-field-input');locationInput.placeholder='Contoh: Bandung, Jawa Barat';locationInput.maxLength=120;
 const restoLabel=$('label','community-field-label','Tandai restoran (opsional)');
 const restoInput=$('input','community-field-input');restoInput.placeholder='Cari restoran di GastronoMap…';restoInput.autocomplete='off';
 const restoResults=$('div','community-resto-results');
 const chosenResto=$('div','community-chosen-resto');chosenResto.hidden=true;
-fields.append(locationLabel,locationInput,restoLabel,restoInput,chosenResto,restoResults);
+fields.append(topicLabel,topicInput,locationLabel,locationInput,restoLabel,restoInput,chosenResto,restoResults);
 composeContent.append(composeIdentity,caption,charCount,thumbnails,addPhotoButton,photoInput,fields);
 composer.panel.append(composerHeader,composeContent);
 let photoFiles=[],taggedResto=null,uploadBusy=false,searchTimer=null,searchSequence=0;
@@ -507,7 +591,7 @@ function clearPhotos(){
 composer.surface.querySelector('.community-modal-shade').onclick=closeComposer;
 function closeComposer(){
   if(uploadBusy)return;
-  closeModal(composer.surface);clearPhotos();caption.value='';locationInput.value='';restoInput.value='';
+  closeModal(composer.surface);clearPhotos();caption.value='';topicInput.value='';locationInput.value='';restoInput.value='';
   taggedResto=null;chosenResto.hidden=true;restoResults.replaceChildren();updateComposerState();
 }
 function openComposer(){
@@ -594,10 +678,12 @@ async function publish(){
   uploadBusy=true;updateComposerState();
   let createdPost=null;const uploaded=[];
   try{
-    const inserted=await sb.from('posts').insert({
+    const newPost={
       user_id:user(),caption:text,location_name:locationInput.value.trim()||null,
       resto_id:taggedResto?.id||null
-    }).select('id').single();
+    };
+    if(topicInput.value)newPost.topic=topicInput.value;
+    const inserted=await sb.from('posts').insert(newPost).select('id').single();
     if(inserted.error)throw inserted.error;
     createdPost=inserted.data.id;
     const media=[];
@@ -626,7 +712,8 @@ async function publish(){
       if(written.error)throw written.error;
     }
     uploadBusy=false;closeComposer();
-    state.filter='latest';toast('Cerita berhasil diposting.');await loadCommunityFeed(true);
+    state.filter='latest';state.area='';state.topic='';areaInput.value='';topicSelect.value='';
+    toast('Cerita berhasil diposting.');await loadCommunityFeed(true);
     view.scrollTo({top:0,behavior:'smooth'});
   }catch(error){
     console.error('Gagal membuat postingan:',error);
