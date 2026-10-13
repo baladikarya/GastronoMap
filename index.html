@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="assets/css/app.css">
 <link rel="stylesheet" href="assets/css/navigation.css">
 <link rel="stylesheet" href="assets/css/community.css">
+<link rel="stylesheet" href="assets/css/moderation.css">
 <link rel="stylesheet" href="assets/css/profile.css">
 <link rel="stylesheet" href="assets/css/social-profile.css">
 <link rel="stylesheet" href="assets/css/leaderboard.css">
@@ -250,6 +251,19 @@
         <button class="report-filter-tab" data-status="resolved">Selesai</button>
         <button class="report-filter-tab" data-status="all">Semua</button>
       </div>
+      <label class="report-target-select-label" for="reportTargetFilter">Kategori laporan</label>
+      <select id="reportTargetFilter" class="report-target-select" aria-label="Filter target laporan">
+        <option value="all">Semua kategori</option>
+        <option value="general">Masukan / Bantuan</option>
+        <option value="resto">Restoran</option>
+        <option value="post">Postingan Community</option>
+        <option value="comment">Komentar</option>
+        <option value="user">Pengguna</option>
+        <option value="post_photo">Foto Community</option>
+        <option value="visit_photo">Foto Kunjungan</option>
+        <option value="menu_photo">Foto Menu</option>
+      </select>
+      <p class="report-admin-hint">Tindakan konten dicatat dalam riwayat audit. Hapus permanen hanya jika diperlukan.</p>
       <div id="adminReportsList"></div>
     </div>
   </div>
@@ -723,6 +737,7 @@
 <script src="assets/js/restaurants.js"></script>
 <script src="assets/js/events.js"></script>
 <script src="assets/js/bootstrap.js"></script>
+<script src="assets/js/moderation.js"></script>
 <script src="assets/js/community.js"></script>
 <script src="assets/js/profile.js"></script>
 <script src="assets/js/social-profile.js"></script>
