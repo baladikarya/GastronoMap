@@ -464,6 +464,9 @@ async function openAdminReportsPanel(){
   if(!isAdmin) return;
   if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('adminReportsOverlay').classList.remove('hidden');
+  document.getElementById('moderationAuditList')?.classList.add('hidden');
+  const auditBtn=document.getElementById('moderationAuditToggle');
+  if(auditBtn)auditBtn.setAttribute('aria-expanded','false');
   currentReportFilter = 'pending';
   document.querySelectorAll('#reportFilterTabs .report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
   currentReportTargetFilter='all';
@@ -1007,6 +1010,31 @@ async function loadAndRenderLeaderboard(){
   updated.textContent='';
   await renderLeaderboardPersonal(request);
 }
+async function loadAndRenderModerationAudit(){
+  const list=document.getElementById('moderationAuditList');
+  if(!list||!isAdmin)return;
+  list.innerHTML='<p class="gm-mod-audit-empty">Memuat riwayat tindakan…</p>';
+  const {data,error}=await sb.from('moderation_actions')
+    .select('id,actor_id,target_type,target_id,action,reason,created_at')
+    .order('created_at',{ascending:false}).limit(60);
+  if(error){list.innerHTML='<p class="gm-mod-audit-empty">Gagal memuat riwayat: '+escapeHtml(error.message)+'</p>';return;}
+  if(!data?.length){list.innerHTML='<p class="gm-mod-audit-empty">Belum ada tindakan moderasi.</p>';return;}
+  const actors=[...new Set(data.map(entry=>entry.actor_id))];
+  const actorResult=actors.length?await sb.from('public_contributor_profiles')
+    .select('id,username').in('id',actors):{data:[]};
+  const names=new Map((actorResult.data||[]).map(profile=>[profile.id,profile.username]));
+  list.innerHTML=data.map(entry=>{
+    const date=new Date(entry.created_at).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+    const actions={hide:'Disembunyikan',restore:'Dipulihkan',delete:'Dihapus',suspend:'Akun dibatasi',unsuspend:'Akun dipulihkan'};
+    return '<div class="gm-mod-audit-item">'+
+      '<div><strong>'+escapeHtml(actions[entry.action]||entry.action)+'</strong><span>'+escapeHtml(REPORT_TARGET_LABELS[entry.target_type]||entry.target_type)+'</span></div>'+
+      '<p>'+escapeHtml(entry.reason)+'</p>'+
+      '<small>Admin: '+escapeHtml(names.get(entry.actor_id)||'Admin')+' · '+escapeHtml(date)+'</small>'+
+      '<code>'+escapeHtml(entry.target_id)+'</code>'+
+      '</div>';
+  }).join('');
+}
+
 async function loadAndRenderAdminReports(){
   const list = document.getElementById('adminReportsList');
   list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Memuat laporan...</div>';
