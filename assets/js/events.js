@@ -321,14 +321,19 @@ document.getElementById('myReportsOverlay').onclick = (e)=>{ if(e.target.id === 
 document.getElementById('openAdminReportsBtn').onclick = openAdminReportsPanel;
 document.getElementById('closeAdminReportsBtn').onclick = ()=> document.getElementById('adminReportsOverlay').classList.add('hidden');
 document.getElementById('adminReportsOverlay').onclick = (e)=>{ if(e.target.id === 'adminReportsOverlay') document.getElementById('adminReportsOverlay').classList.add('hidden'); };
-document.querySelectorAll('.report-filter-tab').forEach(tab=>{
+document.querySelectorAll('#reportFilterTabs .report-filter-tab').forEach(tab=>{
   tab.onclick = ()=>{
-    document.querySelectorAll('.report-filter-tab').forEach(t=> t.classList.remove('active'));
+    document.querySelectorAll('#reportFilterTabs .report-filter-tab').forEach(t=> t.classList.remove('active'));
     tab.classList.add('active');
     currentReportFilter = tab.dataset.status;
     loadAndRenderAdminReports();
   };
 });
+
+document.getElementById('reportTargetFilter').onchange=(event)=>{
+  currentReportTargetFilter=event.target.value;
+  loadAndRenderAdminReports();
+};
 
 const gmLbInfo=document.getElementById('leaderboardIntro');
 const gmLbInfoBtn=document.getElementById('leaderboardInfoBtn');
