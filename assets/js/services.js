@@ -16,8 +16,12 @@ async function applySession(session){
   if(session && session.user){
     myUserId = session.user.id;
     myEmail = session.user.email;
-    const { data: profile } = await sb.from('profiles').select('role, username, gender, age, avatar_url, bio, city, website_url, instagram, tiktok').eq('id', myUserId).single();
+    const { data: profile } = await sb.from('profiles').select('role, username, gender, age, avatar_url, bio, city, website_url, instagram, tiktok, suspended_at, suspended_until, suspension_reason').eq('id', myUserId).single();
     isAdmin = !!(profile && profile.role === 'admin');
+    window.gmSuspensionState={
+      active:!!profile?.suspended_at&&(!profile?.suspended_until||new Date(profile.suspended_until)>new Date()),
+      until:profile?.suspended_until||null,reason:profile?.suspension_reason||''
+    };
     myUsername = profile ? (profile.username || null) : null;
     myGender = profile ? (profile.gender || null) : null;
     myAge = profile ? (profile.age || null) : null;
@@ -30,6 +34,7 @@ async function applySession(session){
     if(!myUsername) setTimeout(openProfileCompletionModal, 400); // beri jeda dikit supaya tidak "nabrak" transisi login
   }else{
     myUserId = null; myEmail = null; isAdmin = false;
+    window.gmSuspensionState={active:false,until:null,reason:''};
     myUsername = null; myGender = null; myAge = null; myAvatarUrl = null;
     myBio = null; myCity = null; myWebsite = null; myInstagram = null; myTiktok = null;
   }
