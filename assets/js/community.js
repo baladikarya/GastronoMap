@@ -179,6 +179,15 @@ function renderGallery(post,isDetail){
     }
     const image=safeImage(photo.url,'community-gallery-image','Foto pengalaman kuliner '+(index+1));
     if(image)item.append(image);
+    if(isDetail&&photo.id&&(post.user_id!==user()||isAdmin)){
+      const photoMenu=button('•••','community-photo-menu',()=>window.GMModeration?.openActions({
+        type:'post_photo',id:photo.id,ownerId:post.user_id,
+        name:'Foto '+(index+1)+' dari postingan',
+        onRefresh:()=>{if(openedModal===detail.surface)closeDetail();return loadCommunityFeed(true);}
+      }));
+      photoMenu.setAttribute('aria-label','Opsi foto '+(index+1));
+      item.append(photoMenu);
+    }
     if(!isDetail&&index===3&&post.media.length>4)item.append($('span','community-gallery-more','+'+(post.media.length-4)));
     gallery.append(item);
   }
@@ -198,7 +207,15 @@ function renderPost(post,isDetail=false){
   person.append($('strong','',displayName(post.profile)));
   person.append($('time','community-post-time',prettyTime.format(new Date(post.created_at))+(post.location_name?' · '+post.location_name:'')));
   author.append(person);header.append(author);
-  if(post.user_id===user()&&isDetail)header.append(button('Hapus','community-delete',()=>deletePost(post),'trash'));
+  const more=button('•••','community-more',()=>window.GMModeration?.openActions({
+    type:'post',id:post.id,ownerId:post.user_id,name:'Postingan Community',
+    status:post.moderation_state,
+    onOwnerDelete:()=>deletePost(post),
+    onRefresh:()=>{if(openedModal===detail.surface)closeDetail();return loadCommunityFeed(true);}
+  }));
+  more.setAttribute('aria-label','Opsi postingan');
+  header.append(more);
+  if(post.moderation_state==='hidden')header.append($('span','community-moderated-chip','Disembunyikan'));
   card.append(header);
   if(post.caption)card.append($('p','community-post-caption',post.caption));
   const gallery=renderGallery(post,isDetail);if(gallery)card.append(gallery);
@@ -285,18 +302,18 @@ async function loadCommunityFeed(force=false){
       followed=links.map(link=>link.following_id);
       if(!followed.length){state.posts=[];renderFeed();return;}
     }
-    let query=sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at');
+    let query=sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state');
     if(followed)query=query.in('user_id',followed);
     let posts=safeResult(await query.order('created_at',{ascending:false}).limit(50));
     if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)&&!posts.some(p=>p.id===state.deepLink)){
-      const result=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at').eq('id',state.deepLink).maybeSingle();
+      const result=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state').eq('id',state.deepLink).maybeSingle();
       if(!result.error&&result.data)posts.push(result.data);
     }
     if(ticket!==state.request)return;
     if(!posts.length){state.posts=[];renderFeed();return;}
     const ids=posts.map(p=>p.id), users=[...new Set(posts.map(p=>p.user_id))], restos=[...new Set(posts.map(p=>p.resto_id).filter(Boolean))];
     const queries=[
-      sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position',{ascending:true}),
+      sb.from('post_media').select('id,post_id,url,position,moderation_state').in('post_id',ids).order('position',{ascending:true}),
       sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
       sb.from('comments').select('post_id').in('post_id',ids),
       fetchCommunityProfiles(users),
@@ -572,11 +589,14 @@ function commentItem(c,depth=0){
   like.setAttribute('aria-label',c.liked?'Batal suka komentar':'Suka komentar');
   if(c.liked)like.firstChild.querySelector('path').setAttribute('fill','currentColor');
   bar.append(like,button('Balas','community-small-link',()=>setReply(c)));
-  if(c.user_id===user()){
-    const remove=button('Hapus','community-comment-delete',()=>deleteComment(c),'trash');
-    remove.setAttribute('aria-label','Hapus komentar Anda');
-    bar.append(remove);
-  }
+  const more=button('•••','community-comment-more',()=>window.GMModeration?.openActions({
+    type:'comment',id:c.id,ownerId:c.user_id,name:'Komentar Community',
+    onOwnerDelete:()=>deleteComment(c),
+    onRefresh:()=>loadComments(c.post_id)
+  }));
+  more.setAttribute('aria-label','Opsi komentar');
+  bar.append(more);
+  if(c.moderation_state==='hidden')content.append($('span','community-moderated-chip','Disembunyikan'));
   content.append(bar);wrap.append(content);
   const container=$('div','community-comment-thread');container.append(wrap);
   return container;
@@ -630,7 +650,7 @@ function renderComments(){
 async function loadComments(postId){
   commentsBody.replaceChildren($('div','community-comments-empty','Memuat komentar…'));
   try{
-    const response=await sb.from('comments').select('id,post_id,user_id,parent_id,body,created_at').eq('post_id',postId).order('created_at',{ascending:true}).limit(200);
+    const response=await sb.from('comments').select('id,post_id,user_id,parent_id,body,created_at,moderation_state').eq('post_id',postId).order('created_at',{ascending:true}).limit(200);
     const comments=safeResult(response);
     if(state.selectedPost?.id!==postId)return;
     const users=[...new Set(comments.map(c=>c.user_id))];
@@ -728,6 +748,10 @@ async function deletePost(post){
     closeDetail();toast('Postingan dihapus.');await loadCommunityFeed();
   }catch(error){console.error(error);toast('Postingan gagal dihapus.');}
 }
+window.addEventListener('gm-content-moderated',()=>{
+  if(openedModal===detail.surface)closeDetail();
+  loadCommunityFeed(true);
+});
 document.getElementById('navCommunityBtn')?.addEventListener('click',()=>loadCommunityFeed());
 document.querySelectorAll('#bottomNav .nav-item:not(#navCommunityBtn)').forEach(b=>b.addEventListener('click',()=>{
   if(openedModal===detail.surface)closeDetail();
