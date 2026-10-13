@@ -4,7 +4,7 @@ Status: implemented on `development`; Supabase migration applied.
 
 ## Scope
 
-- Public Profile from Community post/comment authors, Leaderboard, and Profile → Profil Publik.
+- Public Profile from Community post/comment authors and Leaderboard; the signed-in user's Profile tab now embeds the same social identity directly as its main page.
 - Public fields: username, avatar, bio, kota, Verified Contributor, approved-resto/full-review counts. No email, gender, age or role is exposed through the Social Profile API.
 - Paginated public Community Posts on Public Profile (24 per load).
 - Follow / Unfollow; public follower/following counts and browsable lists (up to 100 newest per list).
@@ -36,9 +36,21 @@ The public profile view uses a restricted list of columns rather than direct pub
 3. Test Followers and Following lists, including navigation into another Public Profile.
 4. Verify Community Following shows only followed authors' newest posts, and switching between Terbaru, Populer, and Di Sekitar still works.
 5. Tap a comment author and a Leaderboard contributor; verify that both open Public Profile.
-6. Open Profile → Profil Publik (self); verify Follow is hidden and own posts are listed.
-7. Test back/Escape, loading/empty/error states, focus, and narrow mobile screens.
+6. Open Profile (self); verify social identity, posts/followers/following, and owned post Edit/Hapus options are displayed directly without a separate Profil Publik overlay.
+7. Open Menu Saya; verify Saved, Visited, My Contributions, Riwayat Poin, Reports, Settings, Help & Support, Logout, and Admin tools (admin only).
+8. Verify Notifications via the top-right bell, Followers/Following lists, and Back navigation from nested Profile pages.
+9. Verify old My Posts is absent, but caption editing and deletion still work from the own-post grid.
+10. Test back/Escape, loading/empty/error states, focus, and narrow mobile screens.
 
 ## Boundaries
 
 Community feed pagination, unlimited follower lists, block/mute/report user, abuse protection, and recommendations remain future work under P2 Tahap 12/13 and P3. The Following feed currently resolves at most 1,000 followed account IDs. Real-browser interaction and visual checks require manual testing after deployment.
+
+## Profile landing consolidation (13 October 2026)
+
+- The fifth bottom-navigation tab opens the signed-in user's social profile inline, with an Edit Profile action and the public-facing Postingan / Followers / Following counters.
+- Private activity pages live under the top-right **Menu Saya** button: Saved (resto/post), Visited, My Contributions, Riwayat Poin, Reports, Settings, Help & Support, and Logout. Notifications are accessible from the top-right bell. Admin moderation tools are restricted to the Admin menu group.
+- The former My Posts page and redundant self Profil Publik entry were removed. Owned Community posts have an independent three-dot menu with Edit caption and Hapus actions; other users' public profiles retain Follow and Report Account, without edit/delete controls.
+- Profile subpages use browser history entries and preserve scroll/filter state. Restaurant/contribution/reward details and Community post deep links return to their originating Profile subpage.
+- No new Supabase tables or policies were required. Private account activity is not added to the public profile projection.
+- PWA shell cache updated to `p3-16-20261013-2`.

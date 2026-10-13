@@ -57,3 +57,26 @@
  .social-profile-post-photo,.social-profile-post-placeholder{height:135px}
 }
 @media(max-width:360px){.social-profile-posts{grid-template-columns:1fr}}
+
+
+/* Embedded owner profile: the modal renderer is reserved for other users. */
+#profileDashboard .profile-own-social .social-profile-identity{padding:0 12px;}
+#profileDashboard .profile-own-social .social-profile-stats{margin:20px 0 14px;}
+#profileDashboard .profile-own-social .social-profile-own-avatar{cursor:pointer;padding:0;box-shadow:0 4px 16px rgba(0,0,0,.08);}
+#profileDashboard .profile-own-social .social-profile-own-edit{display:block;width:100%;margin:0 0 12px;font-weight:700;}
+#profileDashboard .profile-own-social .social-profile-contributions{margin:8px 0 23px;}
+#profileDashboard .profile-own-social .social-profile-section-title{scroll-margin-top:85px;}
+#profileDashboard .social-profile-own-post{position:relative;min-width:0;border:1px solid var(--line);border-radius:14px;background:var(--card);overflow:visible;}
+#profileDashboard .social-profile-own-post .social-profile-post{height:100%;width:100%;border:0;border-radius:14px;overflow:hidden;}
+#profileDashboard .social-profile-own-post .social-profile-post-photo,#profileDashboard .social-profile-own-post .social-profile-post-placeholder{border-radius:13px 13px 0 0;}
+#profileDashboard .social-profile-post-options{position:absolute;z-index:3;right:8px;top:8px;width:34px;height:34px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:22px;font-weight:750;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+#profileDashboard .social-profile-own-post-actions{position:absolute;z-index:4;right:8px;top:46px;display:flex;flex-direction:column;gap:4px;min-width:122px;padding:7px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,.16);}
+#profileDashboard .social-profile-own-post-actions button{text-align:left;border:0;background:transparent;}
+#profileDashboard .social-profile-own-post-actions button:hover{background:var(--paper);}
+#profileDashboard .social-profile-delete{color:var(--red)!important;}
+#profileDashboard .social-profile-own-editor{display:flex;flex-wrap:wrap;gap:8px;padding:10px;border-top:1px solid var(--line);}
+#profileDashboard .social-profile-own-editor textarea{flex:1 0 100%;min-height:95px;resize:vertical;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);padding:10px;font-size:12px;line-height:1.5;}
+#profileDashboard .social-profile-own-editor button{flex:1;}
+#profileDashboard .social-profile-own-post.is-editing .social-profile-post-open{pointer-events:none;opacity:.7;}
+#profileDashboard .social-profile-own-post-actions[hidden],#profileDashboard .social-profile-own-editor[hidden]{display:none!important;}
+#socialProfileOverlay[hidden]{display:none!important;}

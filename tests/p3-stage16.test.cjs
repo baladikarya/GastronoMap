@@ -40,6 +40,6 @@ test('integration uses no persistent exploration log and precaches scripts',()=>
   assert.match(read('assets/js/services.js'),/GMRecommendations\?\.setIdentity/);
   assert.match(read('assets/js/restaurants.js'),/GMRecommendations\?\.remember/);
   assert.doesNotMatch(js,/localStorage|sessionStorage|sb\.from\(|fetch\(/);
-  assert.match(read('service-worker.js'),/p3-16-20261013-1/);
+  assert.match(read('service-worker.js'),/p3-16-20261013-2/);
   assert.match(read('service-worker.js'),/\.\/assets\/js\/personalization\.js/);
 });

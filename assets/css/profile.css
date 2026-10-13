@@ -200,3 +200,33 @@
 #profileDashboard .profile-notification-select input{width:17px;height:17px;accent-color:var(--amber);}
 #profileDashboard .profile-notification-entry button:focus-visible,#profileDashboard .profile-notice-toolbar button:focus-visible{outline:2px solid var(--amber);outline-offset:-2px;}
 #profileDashboard .profile-notice-toolbar{flex-wrap:wrap;}
+
+
+/* Own public-social identity is the Profile landing page. */
+#profileDashboard .profile-topbar{position:sticky;top:-20px;z-index:8;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 16px;padding:12px 0;background:var(--paper);}
+#profileDashboard .profile-topbar h1{margin:0;font:700 24px/1.2 var(--font-display);color:var(--ink);}
+#profileDashboard .profile-topbar-actions{display:flex;align-items:center;gap:9px;}
+#profileDashboard .profile-topbar-button{position:relative;display:grid;place-items:center;width:42px;height:42px;border:1px solid var(--line);border-radius:13px;background:var(--card);color:var(--ink);padding:9px;}
+#profileDashboard .profile-topbar-button svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+#profileDashboard .profile-toolbar-count{position:absolute;top:-6px;right:-6px;display:grid;place-items:center;min-width:19px;height:19px;border-radius:999px;background:var(--red);color:white;border:2px solid var(--paper);font-size:9px;font-weight:800;padding:0 3px;}
+#profileDashboard .profile-toolbar-count.hidden{display:none!important;}
+#profileDashboard .profile-own-social{min-height:300px;}
+#profileDashboard .profile-own-social .social-profile-cover{border-radius:18px;}
+#profileDashboard .profile-menu-group{margin:18px 0 22px;}
+#profileDashboard .profile-menu-group h3{margin:0 0 10px 7px;font-size:11px;font-weight:750;letter-spacing:.075em;text-transform:uppercase;color:var(--muted);}
+#profileDashboard .profile-menu-group .profile-links{margin-top:0;}
+#profileDashboard .profile-menu-stats{grid-template-columns:repeat(3,minmax(0,1fr));margin:0 0 12px;padding:12px 6px;}
+#profileDashboard .profile-follow-list{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--card);}
+#profileDashboard .profile-follow-person{display:flex;align-items:center;gap:12px;width:100%;min-height:74px;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:12px;}
+#profileDashboard .profile-follow-person:last-child{border-bottom:0;}
+#profileDashboard .profile-follow-person:hover{background:var(--paper);}
+#profileDashboard .profile-follow-avatar{display:grid;place-items:center;flex:none;width:46px;height:46px;overflow:hidden;border-radius:50%;background:var(--paper);font-weight:750;}
+#profileDashboard .profile-follow-avatar img{width:100%;height:100%;object-fit:cover;}
+#profileDashboard .profile-follow-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px;}
+#profileDashboard .profile-follow-copy strong{font-size:13px;overflow-wrap:anywhere;}
+#profileDashboard .profile-follow-copy small{font-size:11px;color:var(--muted);overflow-wrap:anywhere;}
+@media(max-width:420px){
+ #profileDashboard .profile-topbar{top:-16px;margin-bottom:12px;padding:8px 0;}
+ #profileDashboard .profile-topbar h1{font-size:22px;}
+ #profileDashboard .profile-topbar-button{width:40px;height:40px;}
+}

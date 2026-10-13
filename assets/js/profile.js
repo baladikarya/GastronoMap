@@ -4,7 +4,7 @@
 const root=document.getElementById('profileDashboard');
 if(!root)return;
 let page='main', savedTab='resto', contributionTab='Semua', notificationTab='Semua';
-let ownPosts=[], ownContributions=[], savedPosts=[], savedRestos=[], visitedRestos=[], notifications=[];
+let ownContributions=[], savedPosts=[], savedRestos=[], visitedRestos=[], notifications=[];
 let pointHistory=[];
 let ticket=0;
 let profileUser=null;
@@ -12,7 +12,6 @@ let notificationPrefs={interaction:true,system:true},notificationUnreadCount=0,n
 let notificationChannel=null,notificationChannelUser=null,notificationRequest=0,badgeRequest=0;
 let notificationSelectMode=false,notificationSelected=new Set(),notificationBusy=false;
 const pageScroll=Object.create(null);
-const backStack=[];
 let pendingScroll=null;
 const scrollContainer=()=>document.getElementById('accountOverlay');
 function restorePosition(view,n){
@@ -22,11 +21,17 @@ function restorePosition(view,n){
 }
 function openSubPage(next){
  if(next===page)return;
- backStack.push(page);
+ if(history.state?.gmView==='profile'){
+  history.pushState({...history.state,gmView:'profile',gmProfilePage:next},'',location.href);
+ }
  setPage(next);
 }
 function backProfile(){
- setPage(backStack.pop()||'main',{restore:true});
+ if(history.state?.gmView==='profile'&&history.state.gmProfilePage===page){
+  history.back();return;
+ }
+ const parent=page==='menu'||page==='notifications'||page==='followers'||page==='following'?'main':'menu';
+ setPage(parent,{restore:true});
 }
 const esc=(value)=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const eattr=esc;
@@ -46,7 +51,7 @@ const prefs=()=>notificationPrefs;
 const rows=(res)=>{if(res.error)throw res.error;return res.data||[];};
 function safeButton(text,action,extra=''){return '<button type="button" class="profile-action '+extra+'" data-action="'+action+'">'+text+'</button>';}
 function heading(title,subtitle=''){
- return '<div class="profile-subheader"><button type="button" class="profile-back" aria-label="Kembali ke Profile" data-action="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div><h2>'+esc(title)+'</h2>'+(subtitle?'<p>'+esc(subtitle)+'</p>':'')+'</div></div>';
+ return '<div class="profile-subheader"><button type="button" class="profile-back" aria-label="Kembali" data-action="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div><h2>'+esc(title)+'</h2>'+(subtitle?'<p>'+esc(subtitle)+'</p>':'')+'</div></div>';
 }
 function empty(message){return '<div class="profile-empty"><div class="profile-empty-symbol">✦</div><p>'+esc(message)+'</p></div>';}
 function loading(){return '<div class="profile-loading" role="status">Memuat data...</div>';}
@@ -60,11 +65,16 @@ function setPage(next,{restore=false}={}){
  const n=++ticket;
  pendingScroll={view:next,token:n,top:restore?(pageScroll[next]||0):0};
  if(!currentUser()){renderGuest();restorePosition(next,n);return;}
- if(next==='main'){renderMain();restorePosition(next,n);return;}
+ if(next==='main'){renderMain(n);return;}
+ if(next==='menu'){renderMenu();restorePosition(next,n);return;}
+ if(next==='followers'||next==='following'){
+  root.innerHTML=heading(next==='followers'?'Followers':'Following','Koneksi Community Anda')+
+   '<div class="profile-dynamic">'+loading()+'</div>';
+  host.scrollTop=0;loadFollowList(n,next);return;
+ }
  if(next==='notifications'){notificationLimit=50;notificationSelectMode=false;notificationSelected.clear();root.innerHTML=heading('Notifications','Aktivitas Community, kontribusi, dan restoran baru')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadNotifications(n);return;}
  if(next==='saved'){root.innerHTML=heading('Saved','Restoran dan postingan yang disimpan')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadSaved(n);return;}
  if(next==='visited'){root.innerHTML=heading('Visited','Restoran yang sudah Anda kunjungi')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadVisited(n);return;}
- if(next==='posts'){root.innerHTML=heading('My Posts','Kelola cerita yang Anda bagikan di Community')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadMyPosts(n);return;}
  if(next==='points'){root.innerHTML=heading('Riwayat Poin','Riwayat reward kontribusi Anda')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadPoints(n);return;}
  if(next==='contributions'){root.innerHTML=heading('My Contributions','Riwayat kontribusi Anda di GastronoMap')+'<div class="profile-dynamic">'+loading()+'</div>';host.scrollTop=0;loadContributions(n);return;}
  if(next==='reports'){root.innerHTML=heading('Reports','Sampaikan masukan dan pantau laporan')+
@@ -75,77 +85,117 @@ function setPage(next,{restore=false}={}){
   '<div class="profile-links">'+menuRow('Panduan Penggunaan','Cara menjelajah, berkontribusi, dan memakai fitur','usageGuide','book-open')+
   menuRow('Cara Install Aplikasi','Pasang GastronoMap di layar utama','installGuide','smartphone')+
   menuRow('Kirim Masukan','Laporkan kendala atau beri saran','sendReport','message-circle')+'</div>';restorePosition(next,n);return;}
- page='main';renderMain();restorePosition('main',n);
+ page='main';renderMain(n);
 }
 function menuRow(label,description,action,icon,count){
- const icons={bell:'bell',bookmark:'bookmark',check:'check-circle',posts:'posts',star:'star',report:'report',settings:'settings',help:'help',logout:'logout','file-warning':'report','clipboard-list':'posts','book-open':'guide',smartphone:'phone','message-circle':'message'};
+ const icons={bell:'bell',bookmark:'bookmark',check:'check-circle',posts:'posts',star:'star',report:'report',settings:'settings',help:'help',logout:'logout',award:'award','file-warning':'report','clipboard-list':'posts','book-open':'guide',smartphone:'phone','message-circle':'message'};
  return '<button type="button" class="profile-menu-row" data-action="'+action+'"><span class="profile-menu-icon" aria-hidden="true"><svg class="profile-menu-svg" viewBox="0 0 24 24"><use href="assets/icons/ui.svg#'+(icons[icon]||'help')+'"></use></svg></span><span class="profile-menu-copy"><strong>'+esc(label)+'</strong><small>'+esc(description)+'</small></span>'+(count===undefined?'':'<span class="profile-menu-count">'+esc(count)+'</span>')+'<span class="profile-chevron" aria-hidden="true">›</span></button>';
 }
 function renderGuest(){
  root.innerHTML='<div class="profile-welcome"><div class="profile-welcome-icon">◉</div><h2>Selamat datang di Profile</h2><p>Login untuk melihat wishlist, kunjungan, postingan, poin, dan aktivitas Anda.</p>'+safeButton('Login / Register','login','profile-main-button')+'</div>';
 }
-function renderMain(){
- const label=esc(myUsername||'Pengguna GastronoMap'), initial=esc((myUsername||'G').slice(0,1).toUpperCase());
- const photo=safeImage(myAvatarUrl);
- const socials=[myInstagram?['Instagram','https://instagram.com/'+myInstagram.replace(/^@/,'')]:null,myTiktok?['TikTok','https://www.tiktok.com/@'+myTiktok.replace(/^@/,'')]:null,myWebsite?['Website',safeImage(myWebsite)]:null].filter(Boolean);
- const socialHtml=socials.length?'<div class="profile-socials">'+socials.map(([name,href])=>'<a href="'+eattr(href)+'" target="_blank" rel="noopener noreferrer">'+esc(name)+'</a>').join('')+'</div>':'';
- root.innerHTML='<div class="profile-cover"><div class="profile-cover-pattern"></div></div>'+
- '<div class="profile-identity"><button type="button" class="profile-avatar-button" data-action="avatar" aria-label="Ganti foto profil">'+
- (photo?cover(photo,'profile-avatar'):'<span class="profile-avatar-fallback">'+initial+'</span>')+
- '<span class="profile-avatar-camera">✎</span></button><h2>'+label+'</h2><p class="profile-handle">'+esc(myEmail||'')+'</p>'+
- ((typeof myCity!=='undefined'&&myCity)?'<p class="profile-location">⌖ '+esc(myCity)+'</p>':'')+
- ((typeof myBio!=='undefined'&&myBio)?'<p class="profile-bio">'+esc(myBio)+'</p>':'')+socialHtml+
- '<div id="profileVerifiedBadge" class="profile-verified hidden">✓ Verified Contributor</div></div>'+
- '<div class="profile-stat-row">'+
- stat('profileStatsContribution','Kontribusi','contributions')+stat('profileStatsPoints','Poin','points')+
- stat('profileStatsVisited','Dikunjungi','visited')+stat('profileStatsPosts','Postingan','posts')+'</div>'+
- (isAdmin?'<p class="profile-points-hint">Admin tetap berkontribusi, tetapi tidak mendapat poin dan tidak masuk Leaderboard.</p>':'<p id="profileContributorProgress" class="profile-points-hint hidden"></p>')+
- safeButton('✎  Edit Profile','edit','profile-edit-button')+
+function renderMain(n){
+ root.innerHTML='<div class="profile-topbar"><h1>Profile</h1><div class="profile-topbar-actions">'+
+ '<button type="button" class="profile-topbar-button" data-action="notifications" aria-label="Notifications" title="Notifications">'+
+ '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons/ui.svg#bell"></use></svg>'+
+ '<span id="profileNotificationCount" class="profile-toolbar-count'+(notificationUnreadCount?'':' hidden')+'">'+
+ esc(notificationUnreadCount>99?'99+':notificationUnreadCount)+'</span></button>'+
+ '<button type="button" class="profile-topbar-button" data-action="menu" aria-label="Buka Menu Saya" title="Menu Saya">'+
+ '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons/ui.svg#menu"></use></svg></button></div></div>'+
+ '<div id="profileOwnSocial" class="profile-own-social" aria-label="Profil sosial Anda">'+loading()+'</div>';
+ const container=root.querySelector('#profileOwnSocial');
+ if(typeof window.renderOwnSocialProfile==='function'){
+  window.renderOwnSocialProfile(container,{onReady:()=>restorePosition('main',n)});
+ }else{
+  // The social-profile script loads immediately after profile.js.
+  restorePosition('main',n);
+ }
+}
+function renderMenu(){
+ root.innerHTML=heading('Menu Saya','Aktivitas, akun, dan bantuan')+
+ '<div class="profile-menu-group"><h3>Aktivitas Saya</h3>'+
+ '<div class="profile-stat-row profile-menu-stats">'+
+ stat('profileStatsContribution','Kontribusi','contributions')+
+ stat('profileStatsPoints','Poin','points')+
+ stat('profileStatsVisited','Dikunjungi','visited')+'</div>'+
+ (isAdmin?'<p class="profile-points-hint">Admin tetap dapat berkontribusi, tetapi tidak mendapat poin dan tidak masuk Leaderboard.</p>':
+  '<p id="profileContributorProgress" class="profile-points-hint hidden"></p>')+
  '<div class="profile-links">'+
- menuRow('Notifications','Interaksi, kontribusi, verifikasi, dan restoran baru','notifications','bell',notificationUnreadCount)+
  menuRow('Saved','Wishlist restoran dan postingan tersimpan','saved','bookmark',wishlistIds.size)+
- menuRow('Visited','Restoran yang telah dikunjungi','visited','check',visitedIds.size)+
- menuRow('My Posts','Lihat dan kelola postingan Community','posts','posts','…')+
- menuRow('Profil Publik','Lihat profil sosial, followers, dan following','publicProfile','posts')+
- menuRow('My Contributions','Restoran, rating, ulasan, foto, dan menu','contributions','star')+
+ menuRow('Visited','Restoran yang sudah dikunjungi','visited','check',visitedIds.size)+
+ menuRow('My Contributions','Rating, ulasan, foto, menu, dan restoran','contributions','star')+
+ menuRow('Riwayat Poin','Perolehan dan pembatalan reward','points','award')+
+ '</div></div>'+
+ '<div class="profile-menu-group"><h3>Akun & Bantuan</h3><div class="profile-links">'+
  menuRow('Reports','Laporan dan status penanganannya','reports','report')+
  menuRow('Settings','Preferensi notifikasi dan informasi akun','settings','settings')+
  menuRow('Help & Support','Panduan, instalasi, dan masukan','help','help')+
- menuRow('Logout','Keluar dari akun GastronoMap','logout','logout')+'</div>'+
- (isAdmin?'<div class="profile-admin"><h3>Admin</h3>'+
- menuRow('Pusat Moderasi','Laporan restoran, Community dan akun','adminReports','report')+
- menuRow('Kelola Link Online','Moderasi pengajuan link restoran','adminLinks','settings')+'</div>':'');
+ menuRow('Logout','Keluar dari akun GastronoMap','logout','logout')+
+ '</div></div>'+
+ (isAdmin?'<div class="profile-menu-group"><h3>Administrasi</h3><div class="profile-links">'+
+ menuRow('Pusat Moderasi','Laporan restoran, Community, dan akun','adminReports','report')+
+ menuRow('Kelola Link Online','Moderasi pengajuan link restoran','adminLinks','settings')+
+ '</div></div>':'');
  loadStats(ticket);
 }
-function stat(id,label,action){return '<button type="button" class="profile-stat" data-action="'+action+'" aria-label="Lihat '+label+'"><strong id="'+id+'">–</strong><small>'+label+'</small></button>';}
+function stat(id,label,action){
+ return '<button type="button" class="profile-stat" data-action="'+action+'" aria-label="Lihat '+label+'">'+
+ '<strong id="'+id+'">–</strong><small>'+label+'</small></button>';
+}
 async function loadStats(n){
  const uid=currentUser();
  try{
   const {data,error}=await sb.rpc('gm_my_profile_stats');
   if(error)throw error;
-  if(!validStill(uid,n,'main'))return;
+  if(!validStill(uid,n,'menu'))return;
   const item=Array.isArray(data)?data[0]:data;
   if(!item)throw new Error('Statistik tidak tersedia');
   for(const [id,value] of [['profileStatsContribution',item.contributions],
-   ['profileStatsPoints',item.points],['profileStatsVisited',item.visited],
-   ['profileStatsPosts',item.posts]]){
+   ['profileStatsPoints',item.points],['profileStatsVisited',item.visited]]){
    const element=document.getElementById(id);
    if(element)element.textContent=Number(value||0).toLocaleString('id-ID');
   }
-  const badge=root.querySelector('[data-action="posts"] .profile-menu-count');
-  if(badge)badge.textContent=Number(item.posts||0).toLocaleString('id-ID');
-  document.getElementById('profileVerifiedBadge')?.classList.toggle('hidden',!item.verified);
   if(!isAdmin){
    const progress=root.querySelector('#profileContributorProgress');
    if(progress){
     progress.classList.toggle('hidden',!!item.verified);
     progress.textContent='Progres Verified Contributor: '+
-      Math.min(Number(item.approved_count||0),3)+'/3 restoran terverifikasi atau '+
-      Math.min(Number(item.full_reviews||0),5)+'/5 review lengkap';
+     Math.min(Number(item.approved_count||0),3)+'/3 restoran terverifikasi atau '+
+     Math.min(Number(item.full_reviews||0),5)+'/5 review lengkap';
    }
   }
  }catch(error){
-  if(validStill(uid,n,'main'))console.error('Gagal memuat statistik Profile:',error);
+  if(validStill(uid,n,'menu'))console.error('Gagal memuat statistik Profile:',error);
+ }
+}
+async function loadFollowList(n,kind){
+ const uid=currentUser(),isFollowers=kind==='followers';
+ try{
+  const field=isFollowers?'follower_id':'following_id';
+  const filter=isFollowers?'following_id':'follower_id';
+  const links=rows(await sb.from('user_follows').select(field)
+   .eq(filter,uid).order('created_at',{ascending:false}).limit(100));
+  const ids=links.map(x=>x[field]);
+  const people=ids.length?rows(await sb.from('public_social_profiles')
+   .select('id,username,avatar_url,city,is_verified_contributor').in('id',ids)):[];
+  if(!validStill(uid,n,kind))return;
+  const byId=new Map(people.map(p=>[p.id,p]));
+  const cards=ids.map(id=>{
+   const p=byId.get(id);if(!p)return '';
+   const name=p.username||'Pengguna GastronoMap',photo=safeImage(p.avatar_url);
+   return '<button type="button" class="profile-follow-person" data-action="socialUser" data-id="'+eattr(id)+'">'+
+    '<span class="profile-follow-avatar">'+(photo?cover(photo):esc(name.charAt(0).toUpperCase()))+'</span>'+
+    '<span class="profile-follow-copy"><strong>'+esc(name)+'</strong><small>'+
+    esc([p.city,p.is_verified_contributor?'Verified Contributor':''].filter(Boolean).join(' · '))+
+    '</small></span><span aria-hidden="true">›</span></button>';
+  }).join('');
+  root.querySelector('.profile-dynamic').innerHTML=cards?
+   '<div class="profile-follow-list">'+cards+'</div>'+
+   (ids.length>=100?'<p class="profile-section-meta">Menampilkan 100 pengguna terbaru.</p>':''):
+   empty('Belum ada '+(isFollowers?'followers':'following')+'.');
+  restorePosition(kind,n);
+ }catch(error){
+  if(validStill(uid,n,kind))notice('Daftar '+kind+' gagal dimuat. '+error.message);
  }
 }
 const pointCategory={
@@ -159,7 +209,7 @@ async function loadPoints(n){
  const uid=currentUser();
  if(isAdmin){
   root.querySelector('.profile-dynamic').innerHTML=empty(
-   'Admin tidak mendapatkan poin dan tidak mengikuti Leaderboard. Semua aktivitas tetap ada di My Contributions dan My Posts.');
+   'Admin tidak mendapatkan poin dan tidak mengikuti Leaderboard. Semua aktivitas tetap ada di My Contributions dan Community.');
   restorePosition('points',n);return;
  }
  try{
@@ -220,40 +270,17 @@ function restoRow(r,action,extraLabel=''){
  (action?trashButton(action,r.id,'Hapus restoran dari daftar'):'')+
  '</article>';
 }
-function postRow(p,kind){
- const first=p.media?.[0]?.url, id=eattr(p.id);
+function postRow(p){
+ const first=p.media?.[0]?.url;
  return '<article class="profile-post-card">'+
  openCardButton('post',p.id,'Lihat detail postingan')+
  '<div class="profile-post-preview">'+(first?cover(first):'<div class="profile-post-noimage">CERITA KULINER</div>')+'</div>'+
  '<div class="profile-post-body"><small>'+esc(date(p.created_at))+
  (p.resto_id?' · '+esc(nameOf(p.resto_id)):'')+'</small>'+
  '<p>'+esc(p.caption||'Postingan tanpa caption')+'</p>'+
- (kind==='mine'?'<div class="profile-post-metrics">♡ '+esc(p.likes||0)+' · ◇ '+esc(p.comments||0)+'</div>':'')+
  '<div class="profile-post-buttons">'+
- (kind==='mine'?'<button type="button" class="profile-compact-btn" data-action="editPost" data-id="'+id+'">Edit</button>'+
-  trashButton('deletePost',p.id,'Hapus postingan'):
-  trashButton('removeSavedPost',p.id,'Hapus dari postingan tersimpan'))+
+ trashButton('removeSavedPost',p.id,'Hapus dari postingan tersimpan')+
  '</div></div></article>';
-}
-async function loadMyPosts(n){
- const uid=currentUser();
- try{
-  const posts=rows(await sb.from('posts').select('id,caption,location_name,resto_id,created_at,updated_at').eq('user_id',uid).order('created_at',{ascending:false}).limit(100));
-  const ids=posts.map(p=>p.id);
-  const [media,likes,comments]=ids.length?await Promise.all([
-   sb.from('post_media').select('post_id,url,position').in('post_id',ids).order('position'),
-   sb.from('post_likes').select('post_id').in('post_id',ids).limit(1000),
-   sb.from('comments').select('post_id').in('post_id',ids).limit(1000)
-  ]):[{data:[]},{data:[]},{data:[]}];
-  rows(media);rows(likes);rows(comments);
-  ownPosts=posts.map(p=>({...p,media:(media.data||[]).filter(m=>m.post_id===p.id),
-   likes:(likes.data||[]).filter(x=>x.post_id===p.id).length,
-   comments:(comments.data||[]).filter(x=>x.post_id===p.id).length}));
-  if(!validStill(uid,n,'posts'))return;
-  root.querySelector('.profile-dynamic').innerHTML='<div class="profile-section-meta">'+posts.length+' postingan terbaru</div>'+
-  (ownPosts.length?'<div class="profile-post-grid">'+ownPosts.map(p=>postRow(p,'mine')).join('')+'</div>':empty('Belum ada postingan. Buat cerita baru dari halaman Community.'));
-  restorePosition('posts',n);
- }catch(err){if(validStill(uid,n,'posts'))notice('Postingan gagal dimuat. '+err.message);}
 }
 function renderSavedContent(){
  if(page!=='saved')return;
@@ -262,7 +289,7 @@ function renderSavedContent(){
  '<button data-action="savedPosts" class="'+(savedTab==='posts'?'selected':'')+'">Post ('+savedPosts.length+')</button></div>'+
  (savedTab==='resto'?
   (savedRestos.length?'<div class="profile-resto-list">'+savedRestos.map(r=>restoRow(r,'removeWishlist')).join('')+'</div>':empty('Belum ada restoran tersimpan. Gunakan tombol Wishlist pada detail restoran.')):
-  (savedPosts.length?'<div class="profile-post-grid">'+savedPosts.map(p=>postRow(p,'saved')).join('')+'</div>':empty('Belum ada postingan Community yang disimpan.')));
+  (savedPosts.length?'<div class="profile-post-grid">'+savedPosts.map(p=>postRow(p)).join('')+'</div>':empty('Belum ada postingan Community yang disimpan.')));
  restorePosition('saved',ticket);
 }
 async function loadSaved(n){
@@ -517,8 +544,11 @@ async function loadNotificationBadge(){
   if(uid!==currentUser()||request!==badgeRequest)return;
   notificationUnreadCount=countResults.reduce((total,x)=>total+(x.count||0),0)+
    restoRows.filter(x=>x.created_by!==uid&&!seen.has(x.id)&&!dismissed.has(x.id)).length;
-  const badge=root.querySelector('[data-action="notifications"] .profile-menu-count');
-  if(badge)badge.textContent=notificationUnreadCount?String(notificationUnreadCount):'0';
+  const badge=root.querySelector('#profileNotificationCount');
+  if(badge){
+   badge.textContent=notificationUnreadCount>99?'99+':String(notificationUnreadCount);
+   badge.classList.toggle('hidden',!notificationUnreadCount);
+  }
  }catch(err){console.error('Gagal menghitung notifikasi:',err);}
 }
 async function loadNotificationPreferences(uid){
@@ -551,7 +581,7 @@ function renderSettings(){
  '<label class="profile-setting"><span><strong>Aktivitas Sistem</strong><small>Laporan, pengajuan link, dan restoran baru</small></span><input type="checkbox" data-setting="system" '+(p.system?'checked':'')+'></label>'+
  '<p class="profile-settings-hint">Preferensi dan status dibaca tersimpan di akun dan tersinkronisasi antarperangkat.</p></div>'+
  '<div class="profile-settings-card"><h3>Akun</h3><div class="profile-setting"><span><strong>Email</strong><small>'+esc(myEmail||'–')+'</small></span></div>'+
- '<div class="profile-setting"><span><strong>Versi cache</strong><small>gastronomap-v149</small></span></div></div>'+
+ '<div class="profile-setting"><span><strong>Versi cache</strong><small>p3-16-20261013-2</small></span></div></div>'+
  '';
 }
 async function openPost(id,returnToProfile=false){
@@ -561,7 +591,9 @@ async function openPost(id,returnToProfile=false){
 async function openResto(id){
  if(!resto(id)&&typeof loadAllRestos==='function')await loadAllRestos();
  if(!resto(id)){showToast('Restoran tidak tersedia.');return;}
- navigatePrimaryView('home');
+ // Keep Saved / Visited in the previous history entry.
+ navigatePrimaryView('home',{history:false});
+ history.pushState({gmView:'home',gmContributionDetail:true},'',location.href);
  document.getElementById('detailPanel').classList.add('hidden');
  if(typeof openDetail==='function')openDetail(id);
 }
@@ -646,11 +678,15 @@ function legacy(id){document.getElementById(id)?.click();}
 root.addEventListener('click',async (event)=>{
  const btn=event.target.closest('[data-action]');if(!btn||!root.contains(btn))return;
  const action=btn.dataset.action,id=btn.dataset.id;
- if(['notifications','saved','visited','posts','points','contributions','reports','settings','help'].includes(action)){openSubPage(action);return;}
+ if(['menu','notifications','saved','visited','points','contributions','reports','settings','help'].includes(action)){openSubPage(action);return;}
  if(action==='home'){backProfile();return;}
  if(action==='login'){document.getElementById('loginOverlay').classList.remove('hidden');return;}
  if(action==='avatar'){document.getElementById('avatarInput').click();return;}
- if(action==='publicProfile'){window.openSocialProfile?.(currentUser(),{public:true});return;}
+ if(action==='socialUser'){
+  if(id===currentUser())backProfile();
+  else window.openSocialProfile?.(id);
+  return;
+ }
  if(action==='edit'){openProfileCompletionModal(true);return;}
  if(action==='logout'){signOut();return;}
  if(action==='resto'){openResto(id);return;}
@@ -664,7 +700,7 @@ root.addEventListener('click',async (event)=>{
   if(item)await openPointActivity(item);
   return;
  }
- if(action==='post'){await openPost(id);return;}
+ if(action==='post'){await openPost(id,true);return;}
  if(action==='sendReport'){legacy('openReportBtn');return;}
  if(action==='myReports'){legacy('openMyReportsBtn');return;}
  if(action==='adminReports'){legacy('openAdminReportsBtn');return;}
@@ -714,36 +750,7 @@ root.addEventListener('click',async (event)=>{
   if(typeof renderMarkers==='function')renderMarkers();
   setPage('visited',{restore:true});return;
  }
- if(action==='editPost'){
-  const post=ownPosts.find(x=>x.id===id),card=btn.closest('.profile-post-card');
-  if(!post||!card)return;
-  card.classList.add('is-editing'); // Disable the full-card overlay while typing.
-  const body=card.querySelector('.profile-post-body p');
-  body.outerHTML='<textarea class="profile-post-editor" maxlength="5000" aria-label="Edit caption">'+esc(post.caption||'')+'</textarea>';
-  card.querySelector('.profile-post-buttons').innerHTML='<button type="button" class="profile-compact-btn" data-action="savePost" data-id="'+eattr(id)+'">Simpan</button><button type="button" class="profile-compact-btn" data-action="cancelEdit">Batal</button>';
-  card.querySelector('textarea').focus();return;
- }
- if(action==='cancelEdit'){setPage('posts',{restore:true});return;}
- if(action==='savePost'){
-  const card=btn.closest('.profile-post-card'),text=card.querySelector('textarea')?.value.trim();
-  if(text===undefined)return;
-  btn.disabled=true;
-  const result=await sb.from('posts').update({caption:text,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',currentUser());
-  if(result.error){showToast('Gagal memperbarui postingan: '+result.error.message);btn.disabled=false;return;}
-  showToast('Postingan diperbarui');setPage('posts',{restore:true});return;
- }
- if(action==='deletePost'){
-  if(!confirm('Hapus postingan beserta foto dan komentarnya? Tindakan ini tidak dapat dibatalkan.'))return;
-  const uid=currentUser(),post=ownPosts.find(x=>x.id===id);btn.disabled=true;
-  const result=await sb.from('posts').delete().eq('id',id).eq('user_id',uid);
-  if(result.error){showToast('Gagal menghapus postingan');btn.disabled=false;return;}
-  if(post?.media?.length){
-   const base=sb.storage.from('community-posts').getPublicUrl('').data.publicUrl;
-   const paths=post.media.map(m=>m.url.startsWith(base)?decodeURIComponent(m.url.slice(base.length)).replace(/^\/+/,''):null).filter(Boolean);
-   if(paths.length)await sb.storage.from('community-posts').remove(paths);
-  }
-  showToast('Postingan dihapus');setPage('posts',{restore:true});return;
- }
+
 });
 root.addEventListener('change',async (event)=>{
  const check=event.target.closest('[data-notification-check]');
@@ -764,24 +771,46 @@ root.addEventListener('change',async (event)=>{
  loadNotificationBadge();
  if(page==='notifications')renderNotifications();
 });
-window.openProfilePoints=function(){ setPage('points'); };
+window.openProfilePoints=function(){
+ if(typeof navigatePrimaryView==='function')navigatePrimaryView('profile');
+ openSubPage('points');
+};
+window.openProfileFollowList=function(kind){
+ if(['followers','following'].includes(kind))openSubPage(kind);
+};
+window.openProfileHome=function(){
+ if(history.state?.gmView==='profile'){
+  const state={...history.state,gmProfilePage:null};
+  if(history.state.gmProfilePage)history.pushState(state,'',location.href);
+  else history.replaceState(state,'',location.href);
+ }
+ setPage('main');
+ scrollContainer().scrollTop=0;
+};
+window.addEventListener('gm-social-profile-ready',()=>{
+ if(page==='main'&&currentUser()&&root.querySelector('#profileOwnSocial'))renderMain(ticket);
+});
 window.renderProfileDashboard=function(){
  const uid=currentUser();
  if(profileUser!==uid){
-   profileUser=uid;backStack.length=0;pointHistory=[];
+   profileUser=uid;pointHistory=[];
    notificationPrefs={interaction:true,system:true};notificationUnreadCount=0;
    notificationRequest++;notificationSelectMode=false;notificationSelected.clear();subscribeNotifications(uid);
    if(uid)loadNotificationPreferences(uid);
    Object.keys(pageScroll).forEach(key=>delete pageScroll[key]);
    savedTab='resto';contributionTab='Semua';notificationTab='Semua';
    page='main';root.innerHTML='';scrollContainer().scrollTop=0;
+   // Never carry a previous account's private subpage into a new session.
+   if(history.state?.gmView==='profile'&&history.state.gmProfilePage)
+    history.replaceState({...history.state,gmProfilePage:null},'',location.href);
  }
- // Refreshes from avatar/profile edits must retain the prior screen and scroll.
- setPage(page,{restore:true});
+ // Browser Back/Forward restores the exact Profile subpage.
+ const historyPage=history.state?.gmView==='profile'?(history.state.gmProfilePage||'main'):page;
+ setPage(historyPage,{restore:true});
  if(uid)loadNotificationBadge();
 };
 window.openProfileNotifications=function(){
  if(typeof navigatePrimaryView==='function')navigatePrimaryView('profile');
- if(currentUser())setPage('notifications');
+ if(currentUser())openSubPage('notifications');
 };
 })();

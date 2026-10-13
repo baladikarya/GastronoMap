@@ -68,7 +68,13 @@ function navigatePrimaryView(view, options = {}){
   if(options.history !== false){
     const currentStateView = history.state && history.state.gmView;
     if(currentStateView !== target){
-      history.pushState({ ...(history.state || {}), gmView: target }, '', window.location.href);
+      const nextState={...(history.state||{}),gmView:target};
+      // Switching bottom tabs starts a fresh primary page. Profile subpage
+      // entries remain intact in the previous history stack for Back.
+      delete nextState.gmProfilePage;
+      delete nextState.gmContributionDetail;
+      delete nextState.gmRewardDetail;
+      history.pushState(nextState,'',window.location.href);
     }
   }
 }
@@ -91,7 +97,10 @@ document.getElementById('navAddBtn').onclick = ()=>{
   openForm(null);
 };
 document.getElementById('navLeaderboardBtn').onclick = ()=> navigatePrimaryView('leaderboard');
-document.getElementById('navProfileBtn').onclick = ()=> navigatePrimaryView('profile');
+document.getElementById('navProfileBtn').onclick = ()=>{
+  navigatePrimaryView('profile');
+  window.openProfileHome?.();
+};
 document.getElementById('communityBackBtn').onclick = navigateBackHome;
 
 history.replaceState({ ...(history.state || {}), gmView: 'home' }, '', window.location.href);
