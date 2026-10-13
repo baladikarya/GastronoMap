@@ -430,6 +430,12 @@ function closeComposer(){
 }
 function openComposer(){
   if(!requireAuth())return;
+  if(window.gmSuspensionState?.active){
+    const until=window.gmSuspensionState.until
+      ?' sampai '+new Date(window.gmSuspensionState.until).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})
+      :'';
+    toast('Akun dibatasi dari kontribusi'+until+'. Hubungi admin melalui Reports.');return;
+  }
   const username=displayName({username:myUsername});
   composeBy.firstChild.textContent=username;
   composeAvatar.textContent=username.slice(0,1).toUpperCase();
@@ -531,7 +537,8 @@ async function publish(){
     console.error('Gagal membuat postingan:',error);
     if(createdPost){await sb.from('posts').delete().eq('id',createdPost);}
     if(uploaded.length){await sb.storage.from('community-posts').remove(uploaded);}
-    toast('Postingan gagal dikirim. Coba lagi.');
+    const explanation=String(error?.message||'');
+    toast(/Terlalu sering|dibatasi|rate limit/i.test(explanation)?explanation:'Postingan gagal dikirim. Coba lagi.');
   }finally{uploadBusy=false;updateComposerState();}
 }
 updateComposerState();
@@ -734,7 +741,10 @@ commentForm.addEventListener('submit',async e=>{
     post.commentCount++;replyTo=null;replyLabel.hidden=true;commentInput.value='';
     renderFeed();renderDetailPost(post);await loadComments(post.id);
     detailScroll.scrollTo({top:detailScroll.scrollHeight,behavior:'smooth'});
-  }catch(error){console.error('Gagal mengirim komentar:',error);toast(replyTo?'Balasan gagal dikirim. Silakan coba lagi.':'Komentar gagal dikirim. Silakan coba lagi.');}
+  }catch(error){console.error('Gagal mengirim komentar:',error);
+    const explanation=String(error?.message||'');
+    toast(/Terlalu sering|dibatasi|rate limit/i.test(explanation)?explanation:(replyTo?'Balasan gagal dikirim. Silakan coba lagi.':'Komentar gagal dikirim. Silakan coba lagi.'));
+  }
   finally{commentBusy=false;sendButton.disabled=false;}
 });
 async function deletePost(post){
