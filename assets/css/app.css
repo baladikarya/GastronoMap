@@ -2141,3 +2141,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 [role="button"]:focus-visible{outline:3px solid var(--teal-dark);outline-offset:2px;}
 .home-list-more:disabled{opacity:.5;cursor:wait;}
 @media(prefers-reduced-motion:reduce){html:focus-within{scroll-behavior:auto!important}}
+
+/* P3-16: compact segmented options inside the existing list panel. */
+.home-list-modes{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;margin-bottom:10px;border:1px solid var(--line);background:var(--card);border-radius:12px}
+.home-list-modes button{min-height:44px;border:0;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer;font:700 12px 'Work Sans',sans-serif}
+.home-list-modes button.selected{background:var(--ink);color:#fff}
+.home-list-modes button:focus-visible{outline:2px solid var(--teal-dark);outline-offset:2px}
+.home-personal-note{color:var(--muted);font-size:11px;line-height:1.55;margin:0 3px 12px}
+.home-resto-reason{display:block;margin-top:7px;color:var(--teal-dark);font-size:10.5px;font-weight:700;line-height:1.4}

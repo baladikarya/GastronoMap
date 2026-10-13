@@ -69,5 +69,5 @@ test('Discovery styles remain accessible on mobile and PWA cache is refreshed',(
   assert.match(css,/community-post-topic/);
   assert.match(css,/@media\(max-width:600px\)/);
   assert.match(css,/min-height:44px/);
-  assert.match(sw,/p3-15-20261013-2/);
+  assert.match(sw,/const VERSION = 'p3-(?:15|16)-20261013-/);
 });

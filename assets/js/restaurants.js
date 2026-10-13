@@ -459,6 +459,7 @@ function openFoodPhotoActionSheet(r, photo, showAllTesti){
 function openDetail(id, showAllTesti, focusedActivity = null){
   const r = allRestos[id];
   if(!r) return;
+  window.GMRecommendations?.remember(r);
   closePreviewCard(); // pastikan preview card (kalau ada) tertutup begitu detail penuh dibuka
   if(isNewForMe(r)) markRestoSeen(id); // hilangkan badge "baru" begitu resto ini dilihat
   const t = TYPES[r.type] || DEFAULT_TYPE_META;

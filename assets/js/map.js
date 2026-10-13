@@ -498,6 +498,7 @@ const PRICE_RANGES = ['< Rp 25rb', 'Rp 25rb - 50rb', 'Rp 50rb - 100rb', 'Rp 100r
 let activePlatformFilters = new Set();
 let activePriceFilters = new Set();
 let homeView = 'map'; // 'map' | 'list'
+let homeListMode = 'nearby'; // 'nearby' | 'personal'
 let openNowFilter = false;
 let currentPreviewRestoId = null;
 const DEFAULT_NEARBY_RADIUS_KM = 5;
@@ -554,7 +555,7 @@ function toggleNearbyList(){
     return;
   }
   setHomeView('list');
-  refreshNearbyListLocation();
+  if(homeListMode === 'nearby') refreshNearbyListLocation();
 }
 
 function refreshNearbyListLocation(){
@@ -578,30 +579,43 @@ function refreshNearbyListLocation(){
 }
 
 function buildNearbyPanelHeader(){
-  return `<div class="home-list-head"><div><div class="home-list-title">Resto terdekat</div><div class="home-list-sub">Diurutkan dari posisi Anda</div></div><button type="button" class="home-list-close" aria-label="Tutup list">✕</button></div>
-    <div class="home-radius-control">
+  const personal=homeListMode==='personal';
+  return `<div class="home-list-head"><div><div class="home-list-title">${personal?'Pilihan untuk Anda':'Resto terdekat'}</div><div class="home-list-sub">${personal?'Rating komunitas, minat, dan lokasi bila tersedia':'Diurutkan dari posisi Anda'}</div></div><button type="button" class="home-list-close" aria-label="Tutup list">✕</button></div>
+    <div class="home-list-modes" role="group" aria-label="Mode daftar restoran">
+      <button type="button" data-home-mode="nearby" aria-pressed="${!personal}" class="${!personal?'selected':''}">Terdekat</button>
+      <button type="button" data-home-mode="personal" aria-pressed="${personal}" class="${personal?'selected':''}">Untuk Anda</button>
+    </div>
+    ${personal
+      ? '<p class="home-personal-note">Memprioritaskan resto yang belum disimpan atau dikunjungi. Aktivitas jelajah hanya digunakan pada sesi ini.</p>'
+      : `<div class="home-radius-control">
       <div class="home-radius-row"><span>Radius pencarian</span><strong id="nearbyRadiusValue">${nearbyRadiusKm} km</strong></div>
       <input id="nearbyRadiusRange" class="home-radius-range" type="range" min="1" max="10" step="1" value="${nearbyRadiusKm}" aria-label="Radius resto terdekat dalam kilometer">
       <div class="home-radius-scale"><span>1 km</span><span>10 km</span></div>
-    </div>`;
+    </div>`}`;
 }
-
 function bindNearbyPanelControls(){
-  const list = document.getElementById('listView');
-  const closeBtn = list.querySelector('.home-list-close');
-  if(closeBtn) closeBtn.onclick = ()=> setHomeView('map');
-
-  const range = list.querySelector('#nearbyRadiusRange');
+  const list=document.getElementById('listView');
+  const closeBtn=list.querySelector('.home-list-close');
+  if(closeBtn)closeBtn.onclick=()=>setHomeView('map');
+  list.querySelectorAll('[data-home-mode]').forEach(button=>{
+    button.onclick=()=>{
+      const next=button.dataset.homeMode;
+      if(next===homeListMode)return;
+      homeListMode=next;nearbyListKey='';
+      renderNearbyList(getFilteredRestos());
+      if(next==='nearby')refreshNearbyListLocation();
+    };
+  });
+  const range=list.querySelector('#nearbyRadiusRange');
   if(range){
-    range.oninput = ()=>{
-      nearbyRadiusKm = Math.max(1, Math.min(10, Number(range.value) || DEFAULT_NEARBY_RADIUS_KM));
-      const valueEl = document.getElementById('nearbyRadiusValue');
-      if(valueEl) valueEl.textContent = `${nearbyRadiusKm} km`;
+    range.oninput=()=>{
+      nearbyRadiusKm=Math.max(1,Math.min(10,Number(range.value)||DEFAULT_NEARBY_RADIUS_KM));
+      const valueEl=document.getElementById('nearbyRadiusValue');
+      if(valueEl)valueEl.textContent=`${nearbyRadiusKm} km`;
       renderNearbyListResults(getFilteredRestos());
     };
   }
 }
-
 function renderNearbyLocationState(message, loading=false){
   const list = document.getElementById('listView');
   list.innerHTML = buildNearbyPanelHeader() + `<div id="nearbyListResults"><div class="home-empty"><b>${escapeHtml(message)}</b>${loading ? '' : '<br><button type="button" class="home-location-btn">Gunakan Lokasi Saya</button>'}</div></div>`;
@@ -1376,7 +1390,7 @@ function formatNearbyDistance(distanceM){
   return distanceM < 1000 ? `${Math.round(distanceM)} m` : `${(distanceM/1000).toFixed(1)} km`;
 }
 
-function buildHomeRestoCardHtml(r, distanceM){
+function buildHomeRestoCardHtml(r, distanceM, reason=''){
   const summary = computeRatingSummary(r.ratings||[]);
   const rating = summary.overallCount > 0 ? `${summary.overall.toFixed(1)} ★` : 'Belum ada rating';
   const status = getHomeOpenStatus(r);
@@ -1391,6 +1405,7 @@ function buildHomeRestoCardHtml(r, distanceM){
       <span class="home-resto-address">${escapeHtml(r.address || 'Alamat belum tersedia')}</span>
       <span class="home-resto-meta"><span class="home-resto-rating">${rating}</span><span class="home-resto-dot">•</span>${distanceHtml}<span class="home-resto-status ${status.cls}">${escapeHtml(status.label)}</span></span>
       <span class="home-resto-tags">${tags.map(tag=>`<span class="home-resto-tag">${escapeHtml(tag)}</span>`).join('')}</span>
+      ${reason ? `<span class="home-resto-reason">${escapeHtml(reason)}</span>` : ''}
     </span>
   </button>`;
 }
@@ -1398,38 +1413,44 @@ function buildHomeRestoCardHtml(r, distanceM){
 const NEARBY_PAGE_SIZE=24;
 let nearbyVisibleCount=NEARBY_PAGE_SIZE,nearbyListKey='',nearbyObserver=null;
 function renderNearbyListResults(restos){
-  if(homeView!=='list'||!myGpsLatLng)return;
+  if(homeView!=='list'||(homeListMode==='nearby'&&!myGpsLatLng))return;
   if(restaurantDataLoading&&!restos.length){
     const results=document.getElementById('nearbyListResults');
-    if(results)results.innerHTML='<div class="home-empty home-list-loading" role="status">Memuat restoran di sekitar Anda…</div>';
+    if(results)results.innerHTML='<div class="home-empty home-list-loading" role="status">Memuat restoran…</div>';
     return;
   }
   if(nearbyObserver){nearbyObserver.disconnect();nearbyObserver=null;}
-  const radiusMeters=nearbyRadiusKm*1000;
-  const nearby=restos.filter(r=>Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)))
-    .map(r=>({resto:r,distanceM:distanceMetersBetween(myGpsLatLng.lat,myGpsLatLng.lng,Number(r.lat),Number(r.lng))}))
-    .filter(item=>item.distanceM<=radiusMeters)
-    .sort((a,b)=>a.distanceM-b.distanceM);
-  const key=nearbyRadiusKm+'|'+myGpsLatLng.lat.toFixed(5)+'|'+myGpsLatLng.lng.toFixed(5)+'|'+nearby.map(item=>item.resto.id).join(',');
+  const personal=homeListMode==='personal';
+  const entries=personal
+    ? window.GMRecommendations.rank(restos,{
+        catalog:Object.values(allRestos),userId:myUserId,wishlistIds,visitedIds,location:myGpsLatLng
+      })
+    : restos.filter(r=>r.lat!=null&&r.lng!=null&&Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)))
+      .map(r=>({resto:r,distanceM:distanceMetersBetween(myGpsLatLng.lat,myGpsLatLng.lng,Number(r.lat),Number(r.lng)),reason:''}))
+      .filter(item=>item.distanceM<=nearbyRadiusKm*1000)
+      .sort((a,b)=>a.distanceM-b.distanceM);
+  const key=homeListMode+'|'+nearbyRadiusKm+'|'+
+    (myGpsLatLng?myGpsLatLng.lat.toFixed(5)+'|'+myGpsLatLng.lng.toFixed(5):'')+'|'+
+    entries.map(item=>item.resto.id).join(',');
   if(nearbyListKey!==key){nearbyListKey=key;nearbyVisibleCount=NEARBY_PAGE_SIZE;}
   const results=document.getElementById('nearbyListResults');
   if(!results)return;
-  if(!nearby.length){
-    results.innerHTML='<div class="home-empty"><b>Tidak ada resto yang cocok dalam radius '+nearbyRadiusKm+' km.</b><br>Coba tambah radius, kurangi filter, atau ubah pencarian.</div>';
+  if(!entries.length){
+    results.innerHTML=personal
+      ? '<div class="home-empty"><b>Belum ada rekomendasi yang cocok.</b><br>Coba kurangi filter atau ubah pencarian.</div>'
+      : '<div class="home-empty"><b>Tidak ada resto yang cocok dalam radius '+nearbyRadiusKm+' km.</b><br>Coba tambah radius, kurangi filter, atau ubah pencarian.</div>';
     return;
   }
-  const visible=nearby.slice(0,nearbyVisibleCount);
-  results.innerHTML='<p class="home-list-count" role="status">Menampilkan '+visible.length+' dari '+nearby.length+' resto terdekat</p>'+
-    '<div class="home-resto-list">'+visible.map(item=>buildHomeRestoCardHtml(item.resto,item.distanceM)).join('')+'</div>';
+  const visible=entries.slice(0,nearbyVisibleCount);
+  results.innerHTML='<p class="home-list-count" role="status">Menampilkan '+visible.length+' dari '+entries.length+' '+(personal?'pilihan untuk Anda':'resto terdekat')+'</p>'+
+    '<div class="home-resto-list">'+visible.map(item=>buildHomeRestoCardHtml(item.resto,item.distanceM,item.reason)).join('')+'</div>';
   results.querySelectorAll('.home-resto-card').forEach(card=>{card.onclick=()=>openDetail(card.dataset.restoId);});
-  if(visible.length<nearby.length){
-    const more=document.createElement('button');
-    more.type='button';more.className='home-list-more';
-    more.textContent='Muat '+Math.min(NEARBY_PAGE_SIZE,nearby.length-visible.length)+' resto berikutnya';
+  if(visible.length<entries.length){
+    const more=document.createElement('button');more.type='button';more.className='home-list-more';
+    more.textContent='Muat '+Math.min(NEARBY_PAGE_SIZE,entries.length-visible.length)+' resto berikutnya';
     more.addEventListener('click',()=>{
       if(nearbyObserver){nearbyObserver.disconnect();nearbyObserver=null;}
-      nearbyVisibleCount+=NEARBY_PAGE_SIZE;
-      renderNearbyListResults(getFilteredRestos());
+      nearbyVisibleCount+=NEARBY_PAGE_SIZE;renderNearbyListResults(getFilteredRestos());
     });
     results.append(more);
     if('IntersectionObserver' in window){
@@ -1442,7 +1463,7 @@ function renderNearbyListResults(restos){
 }
 function renderNearbyList(restos){
   if(homeView !== 'list') return;
-  if(!myGpsLatLng){
+  if(homeListMode === 'nearby' && !myGpsLatLng){
     renderNearbyLocationState(`Aktifkan lokasi untuk melihat resto terdekat dalam radius ${nearbyRadiusKm} km.`);
     return;
   }

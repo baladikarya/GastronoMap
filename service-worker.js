@@ -1,6 +1,6 @@
 /* P2-14: versioned, same-origin app shell. User data and Supabase API responses are NEVER cached. */
 const CACHE_PREFIX = 'gastronomap-';
-const VERSION = 'p3-15-20261013-2';
+const VERSION = 'p3-16-20261013-1';
 const SHELL_CACHE = CACHE_PREFIX + 'shell-' + VERSION;
 const SHELL_FILES = [
   './', './index.html', './manifest.json', './config.js',
@@ -10,7 +10,7 @@ const SHELL_FILES = [
   './assets/css/profile.css', './assets/css/social-profile.css',
   './assets/css/pwa.css',
   './assets/js/core.js', './assets/js/services.js',
-  './assets/js/map.js', './assets/js/restaurants.js',
+  './assets/js/personalization.js', './assets/js/map.js', './assets/js/restaurants.js',
   './assets/js/events.js', './assets/js/moderation.js',
   './assets/js/community.js', './assets/js/profile.js',
   './assets/js/social-profile.js', './assets/js/bootstrap.js',

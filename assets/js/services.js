@@ -38,6 +38,7 @@ async function applySession(session){
     myUsername = null; myGender = null; myAge = null; myAvatarUrl = null;
     myBio = null; myCity = null; myWebsite = null; myInstagram = null; myTiktok = null;
   }
+  window.GMRecommendations?.setIdentity(myUserId);
   updateUserBadge();
   await loadVisited();
 }
