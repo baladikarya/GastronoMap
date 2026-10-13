@@ -319,6 +319,17 @@ document.getElementById('closeMyReportsBtn').onclick = ()=> document.getElementB
 document.getElementById('myReportsOverlay').onclick = (e)=>{ if(e.target.id === 'myReportsOverlay') document.getElementById('myReportsOverlay').classList.add('hidden'); };
 
 document.getElementById('openAdminReportsBtn').onclick = openAdminReportsPanel;
+document.getElementById('moderationOpenLinks').onclick=()=>{
+  document.getElementById('adminReportsOverlay').classList.add('hidden');
+  openAdminLinkSubmissionsPanel();
+};
+document.getElementById('moderationAuditToggle').onclick=()=>{
+  const panel=document.getElementById('moderationAuditList');
+  const btn=document.getElementById('moderationAuditToggle');
+  const expanded=panel.classList.toggle('hidden')===false;
+  btn.setAttribute('aria-expanded',String(expanded));
+  if(expanded)loadAndRenderModerationAudit();
+};
 document.getElementById('closeAdminReportsBtn').onclick = ()=> document.getElementById('adminReportsOverlay').classList.add('hidden');
 document.getElementById('adminReportsOverlay').onclick = (e)=>{ if(e.target.id === 'adminReportsOverlay') document.getElementById('adminReportsOverlay').classList.add('hidden'); };
 document.querySelectorAll('#reportFilterTabs .report-filter-tab').forEach(tab=>{
