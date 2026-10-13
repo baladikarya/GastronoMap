@@ -113,7 +113,7 @@ function renderMain(){
  menuRow('Help & Support','Panduan, instalasi, dan masukan','help','help')+
  menuRow('Logout','Keluar dari akun GastronoMap','logout','logout')+'</div>'+
  (isAdmin?'<div class="profile-admin"><h3>Admin</h3>'+
- menuRow('Kelola Laporan','Lihat laporan pengguna','adminReports','report')+
+ menuRow('Pusat Moderasi','Laporan restoran, Community dan akun','adminReports','report')+
  menuRow('Kelola Link Online','Moderasi pengajuan link restoran','adminLinks','settings')+'</div>':'');
  loadStats(ticket);
 }
