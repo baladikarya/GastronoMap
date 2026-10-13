@@ -244,7 +244,12 @@
     <div id="adminReportsPanel">
       <button class="plain-close-btn" id="closeAdminReportsBtn">✕</button>
       <h2>🚩 Kelola Laporan</h2>
-      <p id="adminReportsIntro">Laporan data resto & masukan dari pengguna.</p>
+      <p id="adminReportsIntro">Tinjau laporan restoran, Community, foto, dan akun pengguna.</p>
+      <div class="gm-mod-admin-tools">
+        <button type="button" id="moderationOpenLinks">Pengajuan Link</button>
+        <button type="button" id="moderationAuditToggle" aria-expanded="false" aria-controls="moderationAuditList">Riwayat Tindakan</button>
+      </div>
+      <div id="moderationAuditList" class="hidden" aria-live="polite"></div>
       <div class="report-filter-tabs" id="reportFilterTabs">
         <button class="report-filter-tab active" data-status="pending">Pending</button>
         <button class="report-filter-tab" data-status="reviewed">Ditinjau</button>
