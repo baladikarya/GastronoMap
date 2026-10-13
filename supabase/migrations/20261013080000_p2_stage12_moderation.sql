@@ -48,7 +48,7 @@ create index if not exists moderation_actions_target_idx on public.moderation_ac
 alter table public.moderation_actions enable row level security;
 drop policy if exists moderation_actions_admin_read on public.moderation_actions;
 create policy moderation_actions_admin_read on public.moderation_actions for select to authenticated
-  using ((select public.gm_moderator()));
+  using ((select public.is_admin(auth.uid())));
 revoke all on public.moderation_actions from anon,authenticated;
 grant select on public.moderation_actions to authenticated;
 
