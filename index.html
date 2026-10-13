@@ -7,10 +7,11 @@
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
+<meta name="color-scheme" content="light">
 <meta name="theme-color" content="#16382A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="GastronoMap">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon-192.png">
@@ -29,6 +30,7 @@
 <link rel="stylesheet" href="assets/css/profile.css">
 <link rel="stylesheet" href="assets/css/social-profile.css">
 <link rel="stylesheet" href="assets/css/leaderboard.css">
+<link rel="stylesheet" href="assets/css/pwa.css">
 </head>
 <body>
 <div id="app">
@@ -730,6 +732,29 @@
     </div>
   </div>
 
+  <div class="pwa-notice-stack">
+    <section id="pwaOfflineBanner" class="pwa-notice hidden" role="status" aria-live="polite">
+      <strong>Koneksi internet terputus</strong>
+      <p id="pwaOfflineDescription">Peta dan informasi restoran memerlukan internet. Data yang belum tersimpan jangan ditutup.</p>
+      <div class="pwa-notice__buttons"><button id="pwaRetryBtn" type="button" class="ui-button ui-button--secondary">Coba lagi</button></div>
+    </section>
+    <section id="pwaUpdateBanner" class="pwa-notice hidden" role="status" aria-live="polite">
+      <strong>Versi baru GastronoMap tersedia</strong>
+      <p>Perbarui setelah menyimpan postingan atau formulir yang sedang dikerjakan.</p>
+      <div class="pwa-notice__buttons">
+        <button id="pwaUpdateLaterBtn" type="button" class="ui-button ui-button--secondary">Nanti saja</button>
+        <button id="pwaUpdateNowBtn" type="button" class="ui-button ui-button--primary">Perbarui</button>
+      </div>
+    </section>
+    <section id="pwaInstallBanner" class="pwa-notice hidden" role="status">
+      <strong>Pasang GastronoMap di perangkat</strong>
+      <p>Buka lebih praktis dari layar utama tanpa mengubah akun Anda.</p>
+      <div class="pwa-notice__buttons">
+        <button id="pwaInstallLaterBtn" type="button" class="ui-button ui-button--secondary">Nanti saja</button>
+        <button id="pwaInstallNowBannerBtn" type="button" class="ui-button ui-button--primary">Instal</button>
+      </div>
+    </section>
+  </div>
   <div id="toast" role="status" aria-live="polite"></div>
 </div>
 
@@ -746,5 +771,6 @@
 <script src="assets/js/community.js"></script>
 <script src="assets/js/profile.js"></script>
 <script src="assets/js/social-profile.js"></script>
+<script src="assets/js/pwa.js"></script>
 </body>
 </html>

@@ -324,6 +324,7 @@ const INSTALL_GUIDE_HTML = `
     <li>Pilih "Tambahkan ke Layar Utama" atau "Install aplikasi".</li>
     <li>Tap "Install" / "Tambahkan" untuk konfirmasi.</li>
     <li>Ikon GastronoMap akan muncul di layar utama HP, bisa dibuka seperti aplikasi biasa.</li>
+    <li>Jika tombol Instal muncul di atas panduan, gunakan tombol tersebut untuk instalasi langsung.</li>
   </ul>
   <h3>🍎 iOS (Safari)</h3>
   <ul>

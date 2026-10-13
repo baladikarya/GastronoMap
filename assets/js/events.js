@@ -457,29 +457,4 @@ document.getElementById('profileCancelBtn').onclick = ()=>{
   if(currentPrimaryView === 'profile') openAccountPanel();
 };
 
-if('serviceWorker' in navigator){
-  window.addEventListener('load', async ()=>{
-    try{
-      const reg = await navigator.serviceWorker.register('service-worker.js');
-      reg.update(); // paksa cek versi baru begitu app dibuka, tidak nunggu jadwal 24 jam browser
-
-      // Cek ulang tiap kali app dibuka lagi dari background (umum terjadi di PWA HP
-      // yang "dilanjutkan" bukan benar-benar ditutup)
-      document.addEventListener('visibilitychange', ()=>{
-        if(document.visibilityState === 'visible') reg.update();
-      });
-
-      // Sambil app terbuka lama, cek ulang tiap 1 jam
-      setInterval(()=> reg.update(), 60 * 60 * 1000);
-    }catch(e){ /* abaikan kalau gagal daftar SW */ }
-  });
-
-  // Begitu versi baru selesai dipasang & ambil alih -> reload otomatis,
-  // supaya user langsung dapat versi terbaru TANPA perlu uninstall/install ulang.
-  let swRefreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
-    if(swRefreshing) return;
-    swRefreshing = true;
-    window.location.reload();
-  });
-}
+/* P2-14: SW registration/update lifecycle moved to assets/js/pwa.js. */
