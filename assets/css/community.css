@@ -266,3 +266,40 @@
   .community-skeleton-line,.community-skeleton-image{animation:none;opacity:.8;}
   #communityView *, .community-modal *{scroll-behavior:auto!important;}
 }
+
+
+/* P3 Tahap 15 — server-backed Community discovery. */
+.community-discovery{margin:-3px 0 17px;display:grid;gap:8px;}
+.community-discovery-controls{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.community-discovery-area,.community-discovery-topic{
+  flex:1 1 170px;min-width:0;min-height:44px;border:1px solid var(--line);
+  border-radius:12px;background:var(--card);padding:9px 13px;font:12px var(--font-body);
+  color:var(--ink);outline:none;
+}
+.community-discovery-area:focus,.community-discovery-topic:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(226,126,27,.12);}
+.community-discovery-area::placeholder{color:var(--muted);}
+.community-discovery-topic{flex:0 1 170px;}
+.community-discovery-apply,.community-discovery-reset{
+  min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  border-radius:12px;font:700 12px var(--font-body);padding:9px 13px;cursor:pointer;
+}
+.community-discovery-apply{border:1px solid var(--teal-dark);background:var(--teal-dark);color:#fff;}
+.community-discovery-reset{border:1px solid var(--line);background:var(--card);color:var(--muted);}
+.community-discovery-reset[hidden]{display:none;}
+.community-discovery-apply .community-icon{height:17px;width:17px;}
+.community-discovery-hint{font-size:11px;line-height:1.55;margin:0 0 2px;color:var(--muted);}
+.community-post-metadata{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 13px;}
+.community-post-topic{
+  display:inline-flex;align-items:center;min-height:34px;
+  padding:6px 11px;border:1px solid #dceadf;background:#f3f8f3;
+  border-radius:999px;color:var(--teal-dark);font:700 11px var(--font-body);cursor:pointer;
+}
+.community-post-topic:hover{border-color:var(--teal-dark);}
+.community-post-distance{font-size:11px;color:var(--muted);}
+@media(max-width:600px){
+  .community-discovery-controls{gap:7px;}
+  .community-discovery-area{flex-basis:calc(100% - 110px);}
+  .community-discovery-apply{min-width:100px;}
+  .community-discovery-topic{flex:1 1 58%;}
+  .community-discovery-reset{flex:0 0 auto;}
+}
