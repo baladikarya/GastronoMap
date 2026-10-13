@@ -380,68 +380,90 @@ function openWishlistPanel(){
 }
 
 /* ================= LAPORAN / FEEDBACK ================= */
-let reportContextRestoId = null;
-
-/* Buka form kirim laporan. Jika dipanggil dari halaman detail resto, restoId & restoName
-   diisi supaya laporan otomatis terhubung ke resto tsb (jenis default: data_error).
-   Jika dipanggil dari panel akun (masukan umum), restoId kosong (jenis default: suggestion). */
-function openReportModal(restoId, restoName){
-  if(!requireLogin()) return;
-  reportContextRestoId = restoId || null;
-  if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
-  const ctxLabel = document.getElementById('reportContextLabel');
-  const typeSelect = document.getElementById('reportTypeSelect');
-  if(restoId){
-    // Laporan dari halaman detail resto: khusus data resto salah/tidak sesuai
-    typeSelect.innerHTML = `<option value="data_error">Data Resto Salah/Tidak Sesuai</option>`;
-    typeSelect.value = 'data_error';
-    typeSelect.disabled = true;
-    ctxLabel.textContent = `Terkait resto: ${restoName || ''}`;
-    ctxLabel.classList.remove('hidden');
-  }else{
-    // Bantuan umum lewat panel akun: tidak termasuk jenis "Data Resto Salah"
-    typeSelect.innerHTML = `
-      <option value="bug">Bug / Error Aplikasi</option>
-      <option value="suggestion">Saran / Masukan Fitur</option>
-      <option value="other">Lainnya</option>`;
-    typeSelect.value = 'bug';
-    typeSelect.disabled = false;
-    ctxLabel.classList.add('hidden');
-  }
-  document.getElementById('reportMessageInput').value = '';
-  document.getElementById('reportStatus').textContent = '';
+let reportContext = {targetType:'general',targetId:null,restoId:null,targetName:''};
+const REPORT_TARGET_LABELS = {
+  general:'Bantuan Umum',resto:'Restoran',post:'Postingan Community',
+  comment:'Komentar',user:'Pengguna',post_photo:'Foto Community',
+  visit_photo:'Foto Kunjungan',menu_photo:'Foto Menu'
+};
+/* Reuse the existing Reports form for restaurant, Community and public profiles. */
+function openReportModal(restoOrContext, restoName){
+  if(!requireLogin())return;
+  const options=restoOrContext&&typeof restoOrContext==='object'
+    ?restoOrContext:{restoId:restoOrContext||null,targetType:restoOrContext?'resto':'general',targetId:restoOrContext||null,targetName:restoName||''};
+  const type=options.targetType||'general';
+  if(!Object.hasOwn(REPORT_TARGET_LABELS,type))return;
+  reportContext={
+    targetType:type,targetId:options.targetId||options.restoId||null,
+    restoId:options.restoId||(type==='resto'?options.targetId:null)||null,
+    targetName:options.targetName||REPORT_TARGET_LABELS[type]
+  };
+  if(typeof currentPrimaryView==='undefined'||currentPrimaryView!=='profile')
+    document.getElementById('accountOverlay').classList.add('hidden');
+  const select=document.getElementById('reportTypeSelect');
+  const context=document.getElementById('reportContextLabel');
+  const isContent=!['resto','general'].includes(type);
+  if(type==='resto')select.innerHTML='<option value="data_error">Data Resto Salah / Tidak Sesuai</option>';
+  else if(isContent)select.innerHTML=
+    '<option value="spam">Spam / Promosi Tidak Wajar</option>'+
+    '<option value="harassment">Pelecehan / Ujaran Kebencian</option>'+
+    '<option value="privacy">Privasi / Informasi Pribadi</option>'+
+    '<option value="inappropriate">Konten Tidak Pantas</option>'+
+    '<option value="misleading">Informasi Menyesatkan</option>'+
+    '<option value="other">Alasan Lainnya</option>';
+  else select.innerHTML='<option value="bug">Bug / Error Aplikasi</option>'+
+    '<option value="suggestion">Saran / Masukan Fitur</option>'+
+    '<option value="other">Lainnya</option>';
+  select.disabled=type==='resto';
+  context.textContent=type==='general'?'':'Terkait '+REPORT_TARGET_LABELS[type]+': '+reportContext.targetName;
+  context.classList.toggle('hidden',type==='general');
+  const detail=document.getElementById('reportMessageInput');
+  detail.value='';detail.maxLength=2000;detail.minLength=10;
+  detail.placeholder=isContent?'Jelaskan bagian konten yang melanggar aturan (10–2000 karakter)…':'Jelaskan laporan Anda (10–2000 karakter)…';
+  document.getElementById('reportStatus').textContent='';
   document.getElementById('reportOverlay').classList.remove('hidden');
+  detail.focus();
 }
-
 async function submitReport(){
-  const type = document.getElementById('reportTypeSelect').value;
-  const message = document.getElementById('reportMessageInput').value.trim();
-  const statusEl = document.getElementById('reportStatus');
-  if(!message){ statusEl.textContent = 'Tulis detail laporan dulu'; return; }
-  statusEl.textContent = 'Mengirim...';
-  const { error } = await sb.from('reports').insert({
-    user_id: myUserId,
-    resto_id: reportContextRestoId,
-    type,
-    message
-  });
-  if(error){ statusEl.textContent = 'Gagal: ' + error.message; return; }
-  document.getElementById('reportOverlay').classList.add('hidden');
-  showToast('Laporan terkirim, terima kasih! 🙏');
+  const button=document.getElementById('reportSubmitBtn');
+  if(button.disabled||!myUserId)return;
+  const type=document.getElementById('reportTypeSelect').value;
+  const message=document.getElementById('reportMessageInput').value.trim();
+  const status=document.getElementById('reportStatus');
+  if(message.length<10||message.length>2000){
+    status.textContent='Detail laporan harus 10–2000 karakter.';return;
+  }
+  status.textContent='Mengirim laporan…';button.disabled=true;
+  try{
+    const {error}=await sb.from('reports').insert({
+      user_id:myUserId,resto_id:reportContext.restoId,
+      target_type:reportContext.targetType,target_id:reportContext.targetId,
+      type,message
+    });
+    if(error)throw error;
+    document.getElementById('reportOverlay').classList.add('hidden');
+    showToast('Laporan berhasil dikirim.');
+  }catch(error){
+    status.textContent='Gagal mengirim: '+(error.message||'Silakan coba lagi.');
+  }finally{button.disabled=false;}
 }
 
 const REPORT_TYPE_LABELS = {
-  data_error: '📍 Data Salah', bug: '🐞 Bug', suggestion: '💡 Saran', other: '📌 Lainnya'
+  data_error:'Data Salah', bug:'Bug', suggestion:'Saran', other:'Lainnya', spam:'Spam', harassment:'Pelecehan', privacy:'Privasi', inappropriate:'Konten Tidak Pantas', misleading:'Menyesatkan'
 };
 const REPORT_STATUS_LABELS = { pending: 'Pending', reviewed: 'Ditinjau', resolved: 'Selesai' };
 let currentReportFilter = 'pending';
+let currentReportTargetFilter = 'all';
 
 async function openAdminReportsPanel(){
   if(!isAdmin) return;
   if(typeof currentPrimaryView === 'undefined' || currentPrimaryView !== 'profile') document.getElementById('accountOverlay').classList.add('hidden');
   document.getElementById('adminReportsOverlay').classList.remove('hidden');
   currentReportFilter = 'pending';
-  document.querySelectorAll('.report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
+  document.querySelectorAll('#reportFilterTabs .report-filter-tab').forEach(t=> t.classList.toggle('active', t.dataset.status === 'pending'));
+  currentReportTargetFilter='all';
+  const category=document.getElementById('reportTargetFilter');
+  if(category)category.value='all';
   await loadAndRenderAdminReports();
 }
 
@@ -985,7 +1007,8 @@ async function loadAndRenderAdminReports(){
   list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Memuat laporan...</div>';
   let q = sb.from('reports').select('*, restos(id, name)').order('created_at', {ascending:false});
   if(currentReportFilter !== 'all') q = q.eq('status', currentReportFilter);
-  const { data, error } = await q;
+  if(currentReportTargetFilter!=='all')q=q.eq('target_type',currentReportTargetFilter);
+  const { data, error } = await q.limit(150);
   if(error){ list.innerHTML = `<div style="font-size:12.5px;color:var(--red);">Gagal memuat: ${escapeHtml(error.message)}</div>`; return; }
   if(!data || data.length === 0){
     list.innerHTML = '<div style="font-size:12.5px;color:var(--muted);">Tidak ada laporan di kategori ini.</div>';
@@ -1001,17 +1024,21 @@ async function loadAndRenderAdminReports(){
   }
   list.innerHTML = data.map(rep=>{
     const typeLabel = REPORT_TYPE_LABELS[rep.type] || rep.type;
+    const targetType=rep.target_type|| (rep.resto_id?'resto':'general');
+    const targetName=REPORT_TARGET_LABELS[targetType]||'Konten';
     const dateStr = new Date(rep.created_at).toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'});
     const reporterName = (rep.user_id && usernameById[rep.user_id]) || 'Pengguna (tanpa username)';
     const restoLinkHtml = rep.restos ? `<div class="report-item-resto-link" data-resto-id="${escapeAttr(rep.restos.id)}">📍 ${escapeHtml(rep.restos.name)}</div>` : '';
     return `<div class="report-item" data-report-id="${escapeAttr(rep.id)}">
       <div class="report-item-top">
-        <span class="report-type-chip">${typeLabel}</span>
+        <span class="report-type-chip">${escapeHtml(targetName)} · ${escapeHtml(typeLabel)}</span>
         <span class="report-status-chip ${rep.status}">${REPORT_STATUS_LABELS[rep.status] || rep.status}</span>
       </div>
       <div class="report-item-meta">👤 ${escapeHtml(reporterName)} &middot; ${dateStr}</div>
       ${restoLinkHtml}
+      ${targetType!=='general'&&rep.target_id?'<div class="report-item-target">Target: '+escapeHtml(rep.target_id)+'</div>':''}
       <div class="report-item-msg">${escapeHtml(rep.message)}</div>
+      ${rep.target_id&&targetType!=='resto'&&targetType!=='general'?'<div class="report-moderate-actions" data-target-type="'+escapeAttr(targetType)+'" data-target-id="'+escapeAttr(rep.target_id)+'"><button type="button" data-moderate-action="hide">Sembunyikan</button><button type="button" data-moderate-action="restore">Pulihkan</button><button type="button" data-moderate-action="delete">Hapus</button></div>':''}
       <div class="report-item-actions">
         <button data-action="reviewed" class="${rep.status === 'reviewed' ? 'active-status' : ''}">Tandai Ditinjau</button>
         <button data-action="resolved" class="${rep.status === 'resolved' ? 'active-status' : ''}">Tandai Selesai</button>
@@ -1036,6 +1063,21 @@ async function loadAndRenderAdminReports(){
     itemEl.querySelectorAll('.report-item-actions button').forEach(btn=>{
       btn.onclick = ()=> updateReportStatus(reportId, btn.dataset.action);
     });
+    const moderate=itemEl.querySelector('.report-moderate-actions');
+    if(moderate){
+      const targetType=moderate.dataset.targetType;
+      moderate.querySelectorAll('button').forEach(btn=>{
+        if(targetType==='user'){
+          if(btn.dataset.moderateAction==='hide'){btn.textContent='Suspend';btn.dataset.moderateAction='suspend';}
+          else if(btn.dataset.moderateAction==='restore'){btn.textContent='Aktifkan';btn.dataset.moderateAction='unsuspend';}
+          else{btn.remove();return;}
+        }
+        btn.onclick=()=>window.GMModeration?.confirmAdminAction({
+          type:targetType,id:moderate.dataset.targetId,action:btn.dataset.moderateAction,
+          reportId,onRefresh:loadAndRenderAdminReports
+        });
+      });
+    }
     const saveBtn = itemEl.querySelector('.report-note-save-btn');
     if(saveBtn){
       saveBtn.onclick = ()=>{
@@ -1083,12 +1125,13 @@ async function loadAndRenderMyReports(){
   }
   list.innerHTML = data.map(rep=>{
     const typeLabel = REPORT_TYPE_LABELS[rep.type] || rep.type;
+    const targetName=REPORT_TARGET_LABELS[rep.target_type]||'Bantuan Umum';
     const dateStr = new Date(rep.created_at).toLocaleString('id-ID', {dateStyle:'medium', timeStyle:'short'});
     const restoLinkHtml = rep.restos ? `<div class="report-item-resto-link" data-resto-id="${escapeAttr(rep.restos.id)}">📍 ${escapeHtml(rep.restos.name)}</div>` : '';
     const noteHtml = rep.admin_note ? `<div class="report-item-note"><div class="report-item-note-title">💬 Balasan Admin:</div><div class="report-item-note-body">${escapeHtml(rep.admin_note)}</div></div>` : '';
     return `<div class="report-item">
       <div class="report-item-top">
-        <span class="report-type-chip">${typeLabel}</span>
+        <span class="report-type-chip">${escapeHtml(targetName)} · ${escapeHtml(typeLabel)}</span>
         <span class="report-status-chip ${rep.status}">${REPORT_STATUS_LABELS[rep.status] || rep.status}</span>
       </div>
       ${restoLinkHtml}
