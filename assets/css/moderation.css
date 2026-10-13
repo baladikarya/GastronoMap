@@ -38,3 +38,7 @@
 #reportContextLabel{line-height:1.5;overflow-wrap:anywhere;}
 @media(min-width:640px){.gm-mod-layer{align-items:center;padding:16px;box-sizing:border-box;}.gm-mod-dialog{border-radius:18px;padding:24px;}}
 @media(prefers-reduced-motion:reduce){.gm-mod-layer *{scroll-behavior:auto!important;}}
+
+/* Context actions for user-submitted photos on restaurant detail tabs. */
+.gm-resto-photo-report{position:absolute;bottom:6px;right:6px;z-index:4;width:36px;height:34px;border:1px solid rgba(228,223,209,.9);border-radius:10px;background:rgba(255,255,255,.96);color:var(--ink);font:700 13px var(--font-body);letter-spacing:1px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 7px rgba(13,39,25,.15);}
+.gm-resto-photo-report:focus-visible{outline:2px solid var(--amber);outline-offset:2px;}
