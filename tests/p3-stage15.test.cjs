@@ -42,6 +42,26 @@ test('Stage 15 migration is additive and uses caller permissions',()=>{
   assert.doesNotMatch(sql,/drop table|truncate table|delete from public\./i);
 });
 
+test('Community refinement uses inset search icon, no hint and five-kilometer radius',()=>{
+  const js=read('assets/js/community.js');
+  const css=read('assets/css/community.css');
+  const sql=read('supabase/migrations/20261013114500_p3_stage15_nearby_5km.sql');
+  assert.match(js,/search:'M21 21l/);
+  assert.match(js,/areaSearch\.append\(areaInput,areaApply\)/);
+  assert.match(js,/areaApply\.setAttribute\('aria-label','Cari kota atau area'\)/);
+  assert.match(js,/areaInput\.addEventListener\('keydown'/);
+  assert.match(js,/discovery\.append\(discoveryControls\)/);
+  assert.doesNotMatch(js,/community-discovery-hint|discoveryHint|radius 25 km/);
+  assert.match(js,/radius 5 km/);
+  assert.match(css,/\.community-discovery-search\{position:relative/);
+  assert.match(css,/\.community-discovery-apply\{[\s\S]*?position:absolute/);
+  assert.doesNotMatch(css,/community-discovery-hint/);
+  assert.match(sql,/create or replace function public\.gm_community_discover/);
+  assert.match(sql,/where \(p_mode<>'nearby' or s\.distance_km <= 5\)/);
+  assert.doesNotMatch(sql,/s\.distance_km <= 25/);
+  assert.match(sql,/security invoker/);
+});
+
 test('Discovery styles remain accessible on mobile and PWA cache is refreshed',()=>{
   const css=read('assets/css/community.css');
   const sw=read('service-worker.js');
@@ -49,5 +69,5 @@ test('Discovery styles remain accessible on mobile and PWA cache is refreshed',(
   assert.match(css,/community-post-topic/);
   assert.match(css,/@media\(max-width:600px\)/);
   assert.match(css,/min-height:44px/);
-  assert.match(sw,/p3-15-20261013-1/);
+  assert.match(sw,/p3-15-20261013-2/);
 });
