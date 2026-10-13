@@ -13,6 +13,7 @@ const ICONS={
   close:'M5 5l14 14M19 5 5 19',
   image:'M4 3h16a1 1 0 0 1 1 1v16H3V4a1 1 0 0 1 1-1ZM3 16l5-5 4 4 3-3 6 6M8 8h.01',
   pin:'M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0ZM12 10h.01',
+  search:'M21 21l-4.35-4.35M19 10.5a8.5 8.5 0 1 1-17 0 8.5 8.5 0 0 1 17 0Z',
   chevron:'M9 18l6-6-6-6',
   send:'M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z',
   back:'M15 18l-6-6 6-6',
@@ -174,7 +175,11 @@ const discovery=$('div','community-discovery');
 const areaInput=$('input','community-discovery-area');
 areaInput.type='search';areaInput.maxLength=80;areaInput.placeholder='Cari kota atau area…';
 areaInput.autocomplete='off';areaInput.setAttribute('aria-label','Cari kota atau area postingan');
-const areaApply=button('Cari Area','community-discovery-apply',applyArea,'pin');
+const areaApply=button(null,'community-discovery-apply',applyArea,'search');
+areaApply.setAttribute('aria-label','Cari kota atau area');
+areaApply.title='Cari kota atau area';
+const areaSearch=$('div','community-discovery-search');
+areaSearch.append(areaInput,areaApply);
 areaInput.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();applyArea();}});
 const topicSelect=$('select','community-discovery-topic');
 topicSelect.setAttribute('aria-label','Filter topik postingan');
@@ -185,9 +190,8 @@ const clearDiscovery=button('Reset','community-discovery-reset',()=>{
   state.area='';state.topic='';areaInput.value='';topicSelect.value='';loadCommunityFeed(true);
 });
 const discoveryControls=$('div','community-discovery-controls');
-discoveryControls.append(areaInput,areaApply,topicSelect,clearDiscovery);
-const discoveryHint=$('p','community-discovery-hint');
-discovery.append(discoveryControls,discoveryHint);
+discoveryControls.append(areaSearch,topicSelect,clearDiscovery);
+discovery.append(discoveryControls);
 const feed=$('div','community-feed');
 feed.id='communityFeed';
 feed.setAttribute('aria-live','polite');
@@ -198,7 +202,6 @@ function criteriaKey(){
 }
 function applyArea(){
   const value=areaInput.value.trim().replace(/\s+/g,' ').slice(0,80);
-  if(value===state.area)return;
   state.area=value;loadCommunityFeed(true);
 }
 function selectFilter(key){
@@ -349,18 +352,13 @@ function renderFeed(){
     const active=key===state.filter;btn.classList.toggle('is-active',active);btn.setAttribute('aria-pressed',String(active));
   }
   clearDiscovery.hidden=!state.area&&!state.topic;
-  discoveryHint.textContent=state.filter==='nearby'
-    ?'Menampilkan cerita dengan restoran tertandai dalam radius 25 km. Lokasi perangkat tidak disimpan.'
-    :state.filter==='popular'
-      ?'Peringkat interaksi (like dan komentar) untuk cerita 30 hari terakhir. Saat konten masih sedikit, hasil belum mewakili tren.'
-      :'Filter kota/area mencocokkan lokasi postingan dan alamat restoran yang ditandai.';
   const posts=filteredPosts();
   feed.replaceChildren(...posts.map(p=>renderPost(p)));
   if(!posts.length){
     const empty=$('div','community-feed-empty-note');
     empty.append($('p','',state.filter==='following'
       ? 'Belum ada cerita dari akun yang Anda ikuti.'
-      : state.filter==='nearby'?'Belum ada cerita dengan restoran tertandai dalam radius 25 km.'
+      : state.filter==='nearby'?'Belum ada cerita dengan restoran tertandai dalam radius 5 km.'
       : state.filter==='popular'?'Belum ada cerita dalam 30 hari terakhir.'
       :state.area||state.topic?'Belum ada cerita yang cocok. Coba ubah kota/area atau topik.'
       : 'Belum ada cerita. Jadilah yang pertama berbagi!'));
