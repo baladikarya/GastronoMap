@@ -1131,6 +1131,21 @@ function openDetail(id, showAllTesti, focusedActivity = null){
         Number(card.dataset.idx),
         (idx)=> visitPhotoCaptionFromList(photos, idx)
       );
+      const photo=photos[Number(card.dataset.idx)];
+      if(photo?.id&&(photo.userId!==myUserId||isAdmin)){
+        const reportBtn=document.createElement('button');
+        reportBtn.type='button';reportBtn.className='gm-resto-photo-report';
+        reportBtn.textContent='•••';reportBtn.setAttribute('aria-label','Opsi foto restoran');
+        reportBtn.onclick=(e)=>{
+          e.stopPropagation();
+          window.GMModeration?.openActions({
+            type:'visit_photo',id:photo.id,ownerId:photo.userId,restoId:r.id,
+            name:'Foto restoran '+r.name,
+            onRefresh:async()=>{await loadAllRestos();openDetail(r.id,showAllTesti);activateDetailTab('referensi');}
+          });
+        };
+        card.append(reportBtn);
+      }
     });
   };
   wireReferencePhotoGrid('foodPhotoGrid', foodPhotos);
@@ -1166,6 +1181,21 @@ function openDetail(id, showAllTesti, focusedActivity = null){
   });
   document.querySelectorAll('#menuPhotoDisplayGrid .photo-card').forEach(card=>{
     card.onclick = ()=> openPhotoLightbox(currentDetailMenuItems.map(item=>item.url), Number(card.dataset.idx));
+    const photo=currentDetailMenuItems[Number(card.dataset.idx)];
+    if(photo?.kind==='crowd'&&photo.id){
+      const reportBtn=document.createElement('button');
+      reportBtn.type='button';reportBtn.className='gm-resto-photo-report';
+      reportBtn.textContent='•••';reportBtn.setAttribute('aria-label','Opsi foto menu');
+      reportBtn.onclick=(e)=>{
+        e.stopPropagation();
+        window.GMModeration?.openActions({
+          type:'menu_photo',id:photo.id,restoId:r.id,
+          name:'Foto menu '+r.name,
+          onRefresh:async()=>{await loadAllRestos();openDetail(r.id,showAllTesti);activateDetailTab('menu');}
+        });
+      };
+      card.append(reportBtn);
+    }
   });
   document.querySelectorAll('.photo-del-btn:not(.menu-photo-del-btn)').forEach(btn=>{
     btn.onclick = async (e)=>{
