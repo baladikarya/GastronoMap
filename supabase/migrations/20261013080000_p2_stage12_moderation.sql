@@ -48,7 +48,7 @@ create index if not exists moderation_actions_target_idx on public.moderation_ac
 alter table public.moderation_actions enable row level security;
 drop policy if exists moderation_actions_admin_read on public.moderation_actions;
 create policy moderation_actions_admin_read on public.moderation_actions for select to authenticated
-  using ((select public.is_admin(auth.uid())));
+  using ((select public.gm_moderator()));
 revoke all on public.moderation_actions from anon,authenticated;
 grant select on public.moderation_actions to authenticated;
 
@@ -66,6 +66,13 @@ $$;
 revoke all on function public.is_suspended_now(uuid) from public,anon;
 grant execute on function public.is_suspended_now(uuid) to authenticated,anon;
 
+-- RLS helper callable by visitors without exposing arbitrary role lookups.
+create or replace function public.gm_moderator()
+returns boolean language sql stable security definer set search_path = ''
+as $ select auth.uid() is not null and public.is_admin(auth.uid()); $;
+revoke all on function public.gm_moderator() from public,anon;
+grant execute on function public.gm_moderator() to anon,authenticated;
+
 -- Remove pre-existing permissive SELECT policies (OR-combined RLS policies
 -- would otherwise continue to expose hidden posts and images).
 do $$
@@ -81,18 +88,18 @@ end $$;
 
 create policy gm_posts_moderated_read on public.posts for select to anon,authenticated
   using ((moderation_state='visible' and not public.is_suspended_now(user_id))
-         or (select public.is_admin(auth.uid())));
+         or (select public.gm_moderator()));
 create policy gm_comments_moderated_read on public.comments for select to anon,authenticated
   using (((moderation_state='visible' and not public.is_suspended_now(user_id))
           and exists (select 1 from public.posts p where p.id=post_id))
-         or (select public.is_admin(auth.uid())));
+         or (select public.gm_moderator()));
 create policy gm_media_moderated_read on public.post_media for select to anon,authenticated
   using (((moderation_state='visible') and exists (select 1 from public.posts p where p.id=post_id))
-         or (select public.is_admin(auth.uid())));
+         or (select public.gm_moderator()));
 create policy gm_visit_photos_moderated_read on public.visit_photos for select to anon,authenticated
-  using (moderation_state='visible' or (select public.is_admin(auth.uid())));
+  using (moderation_state='visible' or (select public.gm_moderator()));
 create policy gm_menu_photos_moderated_read on public.menu_photos for select to anon,authenticated
-  using (moderation_state='visible' or (select public.is_admin(auth.uid())));
+  using (moderation_state='visible' or (select public.gm_moderator()));
 
 -- Prevent a user from restoring moderation_state through a direct UPDATE API call.
 -- Other columns required by current Community editing remain writable by owner RLS.
@@ -158,6 +165,13 @@ begin
   if new.user_id is distinct from auth.uid() or auth.uid() is null then
     raise exception 'Akun pelapor tidak valid';
   end if;
+  -- Never trust client-supplied status, timestamps or moderation metadata.
+  new.created_at := now();
+  new.updated_at := now();
+  new.status := 'pending';
+  new.admin_note := null;
+  new.resolved_by := null;
+  new.resolved_at := null;
   new.message := trim(coalesce(new.message,''));
   if char_length(new.message) < 10 or char_length(new.message) > 2000 then
     raise exception 'Detail laporan harus 10 sampai 2000 karakter';
@@ -220,6 +234,9 @@ begin
   if new.user_id is distinct from auth.uid() or auth.uid() is null then
     raise exception 'Akun pengguna tidak valid';
   end if;
+  new.created_at := now();
+  new.updated_at := now();
+  perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(auth.uid()::text || ':' || tg_table_name, 42));
   if public.is_suspended_now(auth.uid()) then
     raise exception 'Akun sementara dibatasi dari kontribusi';
   end if;
