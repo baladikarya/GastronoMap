@@ -69,7 +69,7 @@ grant execute on function public.is_suspended_now(uuid) to authenticated,anon;
 -- RLS helper callable by visitors without exposing arbitrary role lookups.
 create or replace function public.gm_moderator()
 returns boolean language sql stable security definer set search_path = ''
-as $ select auth.uid() is not null and public.is_admin(auth.uid()); $;
+as $$ select auth.uid() is not null and public.is_admin(auth.uid()); $$;
 revoke all on function public.gm_moderator() from public,anon;
 grant execute on function public.gm_moderator() to anon,authenticated;
 
