@@ -135,6 +135,11 @@ function renderProfile(){
   if(!uid()){follow.textContent='Login untuk Follow';}
   follow.setAttribute('aria-pressed',String(state.followed));
   actions.append(follow);
+  const report=btn('Laporkan Akun','social-profile-secondary',()=>{
+   window.openContentReport?.({type:'user',id,name:nameOf(p)});
+  });
+  report.setAttribute('aria-label','Laporkan akun '+nameOf(p));
+  actions.append(report);
  }
  body.append(actions);
  const contributions=el('div','social-profile-contributions');
