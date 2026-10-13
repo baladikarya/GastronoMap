@@ -236,3 +236,33 @@
 .community-comment-author-avatar:focus-visible,.community-comment-author-name:focus-visible{
  outline:2px solid var(--amber);outline-offset:2px;border-radius:6px;
 }
+
+/* P2/13: progressive content, accessible interactions, error and loading feedback */
+.community-skeleton{display:grid;gap:14px;min-height:300px;pointer-events:none;}
+.community-skeleton-line{height:12px;border-radius:6px;background:#e6e8e2;max-width:100%;}
+.community-skeleton-line--short{max-width:40%;}
+.community-skeleton-image{height:210px;border-radius:12px;background:#e6e8e2;}
+.community-skeleton-line,.community-skeleton-image{animation:gm-skeleton 1.5s ease-in-out infinite alternate;}
+@keyframes gm-skeleton{from{opacity:.45}to{opacity:1}}
+.community-comments-skeleton{padding:18px;background:linear-gradient(90deg,#ecefe9,#f9f9f5,#ecefe9);border-radius:12px;color:var(--muted);font-size:12px;}
+.community-feed[aria-busy="true"]{cursor:progress;}
+.community-comment.is-pending{opacity:.65;}
+.community-feed-empty-note{padding:26px 16px;}
+#communityView .community-filter{min-height:44px;}
+#communityView .community-post-action,.community-modal .community-comment-like,
+.community-modal .community-small-link,.community-modal .community-comment-author-name,
+.community-modal .community-replies-toggle{min-height:44px;}
+.community-modal .community-photo-tool{min-width:36px;min-height:36px;}
+.community-modal .community-comment-author-avatar{width:44px;height:44px;}
+.community-comment-tools{gap:10px;flex-wrap:wrap;}
+.community-modal .community-comment-more,.community-modal .community-more{
+  min-width:44px;min-height:44px;
+}
+.community-gallery-item:focus-visible,#communityView button:focus-visible,
+.community-modal button:focus-visible,.community-modal input:focus-visible,
+.community-modal textarea:focus-visible{outline:3px solid var(--teal-dark);outline-offset:2px;}
+@media(max-width:360px){.community-photos{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){
+  .community-skeleton-line,.community-skeleton-image{animation:none;opacity:.8;}
+  #communityView *, .community-modal *{scroll-behavior:auto!important;}
+}

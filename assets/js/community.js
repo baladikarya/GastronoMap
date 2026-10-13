@@ -51,13 +51,16 @@ function button(text,cls,handler,iconName){
 }
 const prettyTime=new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'});
 const state={posts:[],filter:'latest',gps:null,request:0,selectedPost:null,detailComments:[],commentLikes:new Set(),loading:false,deepLink:new URLSearchParams(location.search).get('post')};
-const FEED_PAGE_SIZE=10,FEED_CACHE_MS=45000;
-let renderedCount=0,lastLoadedAt=0,lastLoadedFilter='',lastLoadedUser=null;
+const FEED_PAGE_SIZE=12,COMMENT_PAGE_SIZE=40,FEED_CACHE_MS=45000;
+let lastLoadedAt=0,lastLoadedFilter='',lastLoadedUser=null;
+let feedOffset=0,feedHasMore=true,feedBusy=false,feedObserver=null,feedError=false,followingIds=null;
+let commentOffset=0,commentHasMore=true,commentBusyLoading=false,commentRequest=0;
+const pendingMutations=new Set();
 const user=()=>typeof myUserId==='string'&&myUserId?myUserId:null;
 const toast=message=>typeof showToast==='function'?showToast(message):console.info(message);
 const requireAuth=()=>typeof requireLogin==='function'&&requireLogin();
 function safeImage(url,cls,alt){
-  if(typeof url!=='string'||!/^https:\/\//i.test(url))return null;
+  if(typeof url!=='string'||!(/^(https:\/\/|blob:)/i).test(url))return null;
   const image=$('img',cls);
   image.src=url;image.alt=alt||'';image.loading='lazy';image.decoding='async';image.referrerPolicy='no-referrer';
   return image;
@@ -99,6 +102,9 @@ function openModal(surface){
   if(openedModal&&openedModal!==surface)openedModal.hidden=true;
   returnFocus=document.activeElement;surface.hidden=false;openedModal=surface;
   document.body.classList.add('community-dialog-open');
+  // Prevent keyboard focus from escaping the active Community dialog.
+  const target=surface.querySelector('button:not([disabled]),textarea:not([disabled]),input:not([disabled])');
+  target?.focus({preventScroll:true});
 }
 function closeModal(surface){
   surface.hidden=true;
@@ -106,12 +112,35 @@ function closeModal(surface){
   if(returnFocus?.isConnected)returnFocus.focus({preventScroll:true});
 }
 document.addEventListener('keydown',e=>{
-  if(e.key!=='Escape'||!openedModal)return;
-  if(openedModal===composer.surface)closeComposer();
-  else closeDetail();
+  if(!openedModal)return;
+  if(e.key==='Escape'){
+    if(openedModal===composer.surface)closeComposer();
+    else closeDetail();
+    return;
+  }
+  if(e.key!=='Tab')return;
+  const focusable=[...openedModal.querySelectorAll('button:not([disabled]):not([hidden]),input:not([disabled]):not([hidden]),textarea:not([disabled]):not([hidden]),[tabindex]:not([tabindex="-1"])')]
+    .filter(el=>el.getClientRects().length>0);
+  if(!focusable.length)return;
+  const first=focusable[0],last=focusable[focusable.length-1];
+  if(e.shiftKey&&(document.activeElement===first||!openedModal.contains(document.activeElement))){e.preventDefault();last.focus();}
+  else if(!e.shiftKey&&(document.activeElement===last||!openedModal.contains(document.activeElement))){e.preventDefault();first.focus();}
 });
 function status(message,action){
   feed.replaceChildren();
+  feed.setAttribute('aria-busy',String(!action));
+  if(!action){
+    for(let i=0;i<3;i++){
+      const shell=$('div','community-skeleton community-post');
+      shell.setAttribute('aria-hidden','true');
+      shell.append($('div','community-skeleton-line community-skeleton-line--short'),
+        $('div','community-skeleton-line'),
+        $('div','community-skeleton-image'),
+        $('div','community-skeleton-line community-skeleton-line--short'));
+      feed.append(shell);
+    }
+    return;
+  }
   const wrapper=$('div','community-feed-state');
   wrapper.append($('div','community-feed-state-title',message));
   if(action)wrapper.append(button('Coba lagi','community-try',loadCommunityFeed,'refresh'));
@@ -155,14 +184,14 @@ function selectFilter(key){
     return;
   }
   if(key==='following'||state.filter==='following'){
-    state.filter=key;loadCommunityFeed();return;
+    state.filter=key;loadCommunityFeed(true);return;
   }
   state.filter=key;renderFeed();
 }
 function filteredPosts(){
   const posts=[...state.posts];
   if(state.filter==='popular')posts.sort((a,b)=>(b.likeCount*2+b.commentCount)-(a.likeCount*2+a.commentCount)||new Date(b.created_at)-new Date(a.created_at));
-  if(state.filter==='nearby')return posts.filter(p=>p.resto&&Number.isFinite(p.resto.lat)&&Number.isFinite(p.resto.lng)&&distanceKm(state.gps.lat,state.gps.lng,p.resto.lat,p.resto.lng)<=25);
+  if(state.filter==='nearby')return posts.filter(p=>p.resto&&Number.isFinite(Number(p.resto.lat))&&Number.isFinite(Number(p.resto.lng))&&distanceKm(state.gps.lat,state.gps.lng,Number(p.resto.lat),Number(p.resto.lng))<=25);
   return posts;
 }
 function renderGallery(post,isDetail){
@@ -177,7 +206,8 @@ function renderGallery(post,isDetail){
       item.setAttribute('aria-label','Buka foto '+(index+1)+' dari '+post.media.length);
       item.addEventListener('click',()=>openDetail(post.id));
     }
-    const image=safeImage(photo.url,'community-gallery-image','Foto pengalaman kuliner '+(index+1));
+    const image=safeImage(isDetail?photo.url:(photo.thumbnail_url||photo.url),'community-gallery-image','Foto pengalaman kuliner '+(index+1));
+    if(image&&photo.thumbnail_url&&!isDetail)image.addEventListener('error',()=>{if(image.src!==photo.url)image.src=photo.url;},{once:true});
     if(image)item.append(image);
     if(isDetail&&photo.id&&(post.user_id!==user()||isAdmin)){
       const photoMenu=button('•••','community-photo-menu',()=>window.GMModeration?.openActions({
@@ -199,6 +229,7 @@ function renderGallery(post,isDetail){
 }
 function renderPost(post,isDetail=false){
   const card=$('article','community-post'+(isDetail?' community-post--full':''));
+  card.dataset.postId=post.id;
   const header=$('div','community-post-header');
   const author=button(null,'community-author',()=>openAuthorProfile(post.user_id));
   author.setAttribute('aria-label','Lihat profil '+displayName(post.profile));
@@ -224,7 +255,9 @@ function renderPost(post,isDetail=false){
       if(openedModal===detail.surface)closeDetail();
       navigatePrimaryView('home');openDetailRestaurant(post.resto_id);
     });
-    const miniature=(post.media[0]&&safeImage(post.media[0].url,'community-resto-mini',''))||$('span','community-resto-mini community-resto-mini--empty');
+    const firstPhoto=post.media[0];
+    const miniature=(firstPhoto&&safeImage(firstPhoto.thumbnail_url||firstPhoto.url,'community-resto-mini',''))||$('span','community-resto-mini community-resto-mini--empty');
+    if(firstPhoto?.thumbnail_url&&miniature.tagName==='IMG')miniature.addEventListener('error',()=>{miniature.src=firstPhoto.url;},{once:true});
     const info=$('span','community-resto-info');
     info.append($('strong','',post.resto.name));
     info.append($('small','',post.resto.address||'Lihat detail restoran'));
@@ -246,33 +279,44 @@ function renderPost(post,isDetail=false){
   card.append(actions);
   return card;
 }
+function stopFeedObserver(){
+  if(feedObserver){feedObserver.disconnect();feedObserver=null;}
+}
+function makeLoadMore(){
+  const more=button(feedError?'Gagal memuat. Coba lagi':'Muat cerita berikutnya','community-try',loadNextFeed,'refresh');
+  more.setAttribute('aria-label','Muat postingan Community berikutnya');
+  if(!feedError&&'IntersectionObserver' in window){
+    feedObserver=new IntersectionObserver(entries=>{
+      if(entries.some(entry=>entry.isIntersecting)&&!feedBusy){
+        stopFeedObserver();loadNextFeed();
+      }
+    },{rootMargin:'240px 0px'});
+    feedObserver.observe(more);
+  }
+  return more;
+}
 function renderFeed(){
-  for(const [key,btn] of filterButtons){const active=key===state.filter;btn.classList.toggle('is-active',active);btn.setAttribute('aria-pressed',String(active));}
+  stopFeedObserver();
+  feed.setAttribute('aria-busy',String(feedBusy));
+  for(const [key,btn] of filterButtons){
+    const active=key===state.filter;btn.classList.toggle('is-active',active);btn.setAttribute('aria-pressed',String(active));
+  }
   const posts=filteredPosts();
+  feed.replaceChildren(...posts.map(p=>renderPost(p)));
   if(!posts.length){
     const empty=$('div','community-feed-empty-note');
     empty.append($('p','',state.filter==='following'
-      ? 'Belum ada cerita dari akun yang Anda ikuti. Kunjungi profil pengguna di Community lalu tekan Follow.'
-      : state.filter==='nearby'
-      ? 'Belum ada cerita di dekatmu. Coba filter Terbaru untuk melihat cerita lainnya.'
-      : state.posts.length
-        ? 'Belum ada cerita pada filter ini.'
-        : 'Belum ada cerita. Jadilah yang pertama berbagi!'));
-    feed.replaceChildren(empty);return;
+      ? 'Belum ada cerita dari akun yang Anda ikuti.'
+      : state.filter==='nearby'?'Belum ada cerita terdekat dalam hasil yang dimuat.'
+      : state.posts.length?'Belum ada cerita pada filter ini.':'Belum ada cerita. Jadilah yang pertama berbagi!'));
+    feed.append(empty);
   }
-  renderedCount=Math.min(FEED_PAGE_SIZE,posts.length);
-  feed.replaceChildren(...posts.slice(0,renderedCount).map(p=>renderPost(p)));
-  if(renderedCount<posts.length)feed.append(makeLoadMore());
+  if(feedHasMore&&!feedBusy)feed.append(makeLoadMore());
 }
-function makeLoadMore(){
- const more=button('Muat postingan lainnya','community-try',()=>{
-  more.remove();const posts=filteredPosts();
-  const batch=posts.slice(renderedCount,renderedCount+FEED_PAGE_SIZE);
-  renderedCount+=batch.length;
-  feed.append(...batch.map(p=>renderPost(p)));
-  if(renderedCount<posts.length)feed.append(makeLoadMore());
- });
- more.setAttribute('aria-label','Muat 10 postingan Community berikutnya');return more;
+function refreshPost(post){
+  const previous=[...feed.querySelectorAll('.community-post[data-post-id]')].find(card=>card.dataset.postId===post.id);
+  if(previous)previous.replaceWith(renderPost(post));
+  if(openedModal===detail.surface&&state.selectedPost?.id===post.id)renderDetailPost(post);
 }
 function openDetailRestaurant(id){
   if(typeof window.openDetail==='function')window.openDetail(id);
@@ -286,95 +330,133 @@ async function fetchCommunityProfiles(ids){
     return sb.from('profiles').select('id,username,avatar_url').in('id',ids);
   return result;
 }
+async function hydrateFeedBatch(posts,ticket){
+  if(!posts.length)return [];
+  const ids=posts.map(p=>p.id),users=[...new Set(posts.map(p=>p.user_id))];
+  const restos=[...new Set(posts.map(p=>p.resto_id).filter(Boolean))];
+  let mediaRequest=await sb.from('post_media').select('id,post_id,url,thumbnail_url,position,moderation_state')
+    .in('post_id',ids).order('position',{ascending:true});
+  // Backwards compatible while the thumbnail column migration is being applied.
+  if(mediaRequest.error&&['42703','PGRST204'].includes(mediaRequest.error.code)){
+    mediaRequest=await sb.from('post_media').select('id,post_id,url,position,moderation_state')
+      .in('post_id',ids).order('position',{ascending:true});
+  }
+  const results=await Promise.all([
+    Promise.resolve(mediaRequest),
+    sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
+    sb.from('comments').select('post_id').in('post_id',ids),
+    fetchCommunityProfiles(users),
+    restos.length?sb.from('restos').select('id,name,address,lat,lng').in('id',restos):Promise.resolve({data:[]}),
+    user()?sb.from('post_saves').select('post_id').eq('user_id',user()).in('post_id',ids):Promise.resolve({data:[]})
+  ]);
+  if(ticket!==state.request)return [];
+  const [mediaRows,likeRows,commentRows,profileRows,restoRows,saveRows]=results.map(safeResult);
+  const mediaBy=new Map(),likesBy=new Map(),commentsBy=new Map();
+  for(const m of mediaRows){if(!mediaBy.has(m.post_id))mediaBy.set(m.post_id,[]);mediaBy.get(m.post_id).push(m);}
+  for(const l of likeRows){if(!likesBy.has(l.post_id))likesBy.set(l.post_id,[]);likesBy.get(l.post_id).push(l.user_id);}
+  for(const c of commentRows)commentsBy.set(c.post_id,(commentsBy.get(c.post_id)||0)+1);
+  const profiles=new Map(profileRows.map(p=>[p.id,p])),restoMap=new Map(restoRows.map(r=>[r.id,r])),saved=new Set(saveRows.map(p=>p.post_id));
+  return posts.map(p=>({
+    ...p,media:mediaBy.get(p.id)||[],profile:profiles.get(p.user_id)||null,
+    resto:restoMap.get(p.resto_id)||null,likeCount:(likesBy.get(p.id)||[]).length,
+    liked:(likesBy.get(p.id)||[]).includes(user()),commentCount:commentsBy.get(p.id)||0,saved:saved.has(p.id)
+  }));
+}
+async function loadNextFeed(){
+  if(feedBusy||!feedHasMore)return;
+  const ticket=state.request;
+  feedBusy=true;feedError=false;stopFeedObserver();feed.setAttribute('aria-busy','true');
+  try{
+    if(state.filter==='following'&&followingIds===null){
+      const links=safeResult(await sb.from('user_follows').select('following_id').eq('follower_id',user()).limit(1000));
+      if(ticket!==state.request)return;
+      followingIds=links.map(link=>link.following_id);
+    }
+    if(state.filter==='following'&&!followingIds?.length){
+      feedHasMore=false;renderFeed();return;
+    }
+    let query=sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state');
+    if(state.filter==='following')query=query.in('user_id',followingIds);
+    const fetched=safeResult(await query.order('created_at',{ascending:false}).order('id',{ascending:false})
+      .range(feedOffset,feedOffset+FEED_PAGE_SIZE));
+    if(ticket!==state.request)return;
+    const batch=fetched.slice(0,FEED_PAGE_SIZE);
+    const hydrated=await hydrateFeedBatch(batch,ticket);
+    if(ticket!==state.request)return;
+    feedOffset+=batch.length;
+    feedHasMore=fetched.length>FEED_PAGE_SIZE;
+    const seen=new Set(state.posts.map(p=>p.id));
+    state.posts.push(...hydrated.filter(p=>!seen.has(p.id)));
+    // Deep links work for posts beyond the first feed page without loading every page.
+    if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)&&!state.posts.some(p=>p.id===state.deepLink)){
+      const response=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state')
+        .eq('id',state.deepLink).maybeSingle();
+      if(ticket!==state.request)return;
+      if(!response.error&&response.data){
+        const extra=await hydrateFeedBatch([response.data],ticket);
+        if(ticket!==state.request)return;
+        state.posts.push(...extra);
+      }
+    }
+    lastLoadedAt=Date.now();lastLoadedFilter=state.filter;lastLoadedUser=user();
+    if(state.deepLink){
+      const target=state.deepLink;state.deepLink=null;
+      renderFeed();if(state.posts.some(p=>p.id===target))openDetail(target);
+    }else renderFeed();
+  }catch(err){
+    if(ticket!==state.request)return;
+    console.error('Community feed:',err);feedError=true;
+    if(!state.posts.length)status('Cerita belum bisa dimuat. Periksa koneksi lalu coba lagi.',true);
+    else{renderFeed();}
+  }finally{
+    if(ticket===state.request){feedBusy=false;feed.setAttribute('aria-busy','false');
+      if(!feedError)renderFeed();
+    }
+  }
+}
 async function loadCommunityFeed(force=false){
   if(!force&&state.posts.length&&lastLoadedFilter===state.filter&&lastLoadedUser===user()&&Date.now()-lastLoadedAt<FEED_CACHE_MS&&!state.deepLink){
     renderFeed();return;
   }
-  const ticket=++state.request;
-  state.loading=true;
+  ++state.request;
+  followingIds=null;feedOffset=0;feedHasMore=true;feedBusy=false;feedError=false;
+  state.posts=[];state.loading=true;stopFeedObserver();
   status('Menyiapkan cerita kuliner…');
-  try{
-    let followed=null;
-    if(state.filter==='following'){
-      if(!user()){state.posts=[];renderFeed();return;}
-      const links=safeResult(await sb.from('user_follows').select('following_id').eq('follower_id',user()).limit(1000));
-      if(ticket!==state.request)return;
-      followed=links.map(link=>link.following_id);
-      if(!followed.length){state.posts=[];renderFeed();return;}
-    }
-    let query=sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state');
-    if(followed)query=query.in('user_id',followed);
-    let posts=safeResult(await query.order('created_at',{ascending:false}).limit(50));
-    if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)&&!posts.some(p=>p.id===state.deepLink)){
-      const result=await sb.from('posts').select('id,user_id,resto_id,caption,location_name,created_at,moderation_state').eq('id',state.deepLink).maybeSingle();
-      if(!result.error&&result.data)posts.push(result.data);
-    }
-    if(ticket!==state.request)return;
-    if(!posts.length){state.posts=[];renderFeed();return;}
-    const ids=posts.map(p=>p.id), users=[...new Set(posts.map(p=>p.user_id))], restos=[...new Set(posts.map(p=>p.resto_id).filter(Boolean))];
-    const queries=[
-      sb.from('post_media').select('id,post_id,url,position,moderation_state').in('post_id',ids).order('position',{ascending:true}),
-      sb.from('post_likes').select('post_id,user_id').in('post_id',ids),
-      sb.from('comments').select('post_id').in('post_id',ids),
-      fetchCommunityProfiles(users),
-      restos.length?sb.from('restos').select('id,name,address,lat,lng').in('id',restos):Promise.resolve({data:[]})
-    ];
-    if(user())queries.push(sb.from('post_saves').select('post_id').eq('user_id',user()).in('post_id',ids));
-    const results=await Promise.all(queries);
-    if(ticket!==state.request)return;
-    const [mediaRows,likeRows,commentRows,profileRows,restoRows,saveRows]=results.map(safeResult);
-    const mediaBy=new Map(),likesBy=new Map(),commentsBy=new Map();
-    for(const m of mediaRows){if(!mediaBy.has(m.post_id))mediaBy.set(m.post_id,[]);mediaBy.get(m.post_id).push(m);}
-    for(const l of likeRows){if(!likesBy.has(l.post_id))likesBy.set(l.post_id,[]);likesBy.get(l.post_id).push(l.user_id);}
-    for(const c of commentRows)commentsBy.set(c.post_id,(commentsBy.get(c.post_id)||0)+1);
-    const profiles=new Map(profileRows.map(p=>[p.id,p])),restoMap=new Map(restoRows.map(r=>[r.id,r]));
-    const saved=new Set((saveRows||[]).map(p=>p.post_id));
-    state.posts=posts.map(p=>({
-      ...p,
-      media:mediaBy.get(p.id)||[],
-      profile:profiles.get(p.user_id)||null,
-      resto:restoMap.get(p.resto_id)||null,
-      likeCount:(likesBy.get(p.id)||[]).length,
-      liked:(likesBy.get(p.id)||[]).includes(user()),
-      commentCount:commentsBy.get(p.id)||0,
-      saved:saved.has(p.id)
-    }));
-    lastLoadedAt=Date.now();lastLoadedFilter=state.filter;lastLoadedUser=user();
-    renderFeed();
-    if(state.deepLink){
-      const target=state.deepLink;state.deepLink=null;
-      if(state.posts.some(p=>p.id===target))openDetail(target);
-    }
-  }catch(err){
-    if(ticket!==state.request)return;
-    console.error('Community feed:',err);
-    status('Cerita belum bisa dimuat. Periksa koneksi lalu coba lagi.',true);
-  }finally{if(ticket===state.request)state.loading=false;}
+  try{await loadNextFeed();}
+  finally{state.loading=false;}
 }
 async function toggleLike(post){
   if(!requireAuth())return;
+  const key='post-like:'+post.id;
+  if(pendingMutations.has(key))return;
+  pendingMutations.add(key);
+  const previous=post.liked;post.liked=!previous;post.likeCount+=previous?-1:1;refreshPost(post);
   try{
-    const wasLiked=post.liked;
-    const response=wasLiked
+    const result=previous
       ?await sb.from('post_likes').delete().eq('post_id',post.id).eq('user_id',user())
       :await sb.from('post_likes').insert({post_id:post.id,user_id:user()});
-    if(response.error)throw response.error;
-    post.liked=!wasLiked;post.likeCount+=wasLiked?-1:1;renderFeed();
-    if(openedModal===detail.surface&&state.selectedPost?.id===post.id)renderDetailPost(post);
-  }catch(error){console.error(error);toast('Gagal memperbarui suka. Silakan coba lagi.');}
+    if(result.error)throw result.error;
+  }catch(error){
+    console.error(error);post.liked=previous;post.likeCount+=previous?1:-1;refreshPost(post);
+    toast('Gagal memperbarui suka. Perubahan dibatalkan.');
+  }finally{pendingMutations.delete(key);}
 }
 async function toggleSave(post){
   if(!requireAuth())return;
+  const key='post-save:'+post.id;
+  if(pendingMutations.has(key))return;
+  pendingMutations.add(key);
+  const previous=post.saved;post.saved=!previous;refreshPost(post);
   try{
-    const old=post.saved;
-    const result=old
+    const result=previous
       ?await sb.from('post_saves').delete().eq('post_id',post.id).eq('user_id',user())
       :await sb.from('post_saves').insert({post_id:post.id,user_id:user()});
     if(result.error)throw result.error;
-    post.saved=!old;renderFeed();
-    if(openedModal===detail.surface&&state.selectedPost?.id===post.id)renderDetailPost(post);
     toast(post.saved?'Postingan disimpan.':'Postingan dihapus dari simpanan.');
-  }catch(error){console.error(error);toast('Gagal menyimpan postingan.');}
+  }catch(error){
+    console.error(error);post.saved=previous;refreshPost(post);
+    toast('Gagal menyimpan postingan. Perubahan dibatalkan.');
+  }finally{pendingMutations.delete(key);}
 }
 async function sharePost(post){
   const url=new URL(location.href);
@@ -521,15 +603,28 @@ async function publish(){
     const media=[];
     for(let i=0;i<photoFiles.length;i++){
       const file=photoFiles[i].file;
-      const extension=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
       const random=typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+i;
-      const path=user()+'/'+createdPost+'/'+random+'.'+extension;
-      const upload=await sb.storage.from('community-posts').upload(path,file,{contentType:file.type,upsert:false,cacheControl:'3600'});
+      const path=user()+'/'+createdPost+'/'+random+'.jpg';
+      const thumbnailPath=user()+'/'+createdPost+'/thumb-'+random+'.jpg';
+      // Original is bounded to 1600px; feed uses a separate small, cached thumbnail.
+      const optimized=await compressImage(file,1600,0.78);
+      const thumbnail=await compressImage(file,480,0.72);
+      const store=sb.storage.from('community-posts');
+      const upload=await store.upload(path,optimized,{contentType:'image/jpeg',upsert:false,cacheControl:'31536000'});
       if(upload.error)throw upload.error;
       uploaded.push(path);
-      media.push({post_id:createdPost,position:i,url:sb.storage.from('community-posts').getPublicUrl(path).data.publicUrl});
+      const thumbUpload=await store.upload(thumbnailPath,thumbnail,{contentType:'image/jpeg',upsert:false,cacheControl:'31536000'});
+      if(thumbUpload.error)throw thumbUpload.error;
+      uploaded.push(thumbnailPath);
+      media.push({post_id:createdPost,position:i,url:store.getPublicUrl(path).data.publicUrl,thumbnail_url:store.getPublicUrl(thumbnailPath).data.publicUrl});
     }
-    if(media.length){const written=await sb.from('post_media').insert(media);if(written.error)throw written.error;}
+    if(media.length){
+      let written=await sb.from('post_media').insert(media);
+      if(written.error&&['42703','PGRST204'].includes(written.error.code)){
+        written=await sb.from('post_media').insert(media.map(({thumbnail_url,...entry})=>entry));
+      }
+      if(written.error)throw written.error;
+    }
     uploadBusy=false;closeComposer();
     state.filter='latest';toast('Cerita berhasil diposting.');await loadCommunityFeed(true);
     view.scrollTo({top:0,behavior:'smooth'});
@@ -567,7 +662,7 @@ const expandedReplies=new Set();
 detail.surface.querySelector('.community-modal-shade').onclick=closeDetail;
 function closeDetail(){
   const returnToRewards=!!history.state?.gmRewardDetail;
-  closeModal(detail.surface);state.selectedPost=null;replyTo=null;expandedReplies.clear();
+  ++commentRequest;commentBusyLoading=false;closeModal(detail.surface);state.selectedPost=null;replyTo=null;expandedReplies.clear();
   if(returnToRewards){history.back();return;}
   const address=new URL(location.href);
   if(address.searchParams.has('post')){address.searchParams.delete('post');history.replaceState(history.state,'',address.href);}
@@ -583,7 +678,7 @@ function setReply(comment){
   commentInput.focus();
 }
 function commentItem(c,depth=0){
-  const wrap=$('div','community-comment'+(depth>0?' community-comment--reply':''));
+  const wrap=$('div','community-comment'+(depth>0?' community-comment--reply':'')+(c.pending?' is-pending':''));
   const commentAvatar=button(null,'community-comment-author-avatar',()=>openAuthorProfile(c.user_id));
   commentAvatar.setAttribute('aria-label','Lihat profil '+displayName(c.profile));
   commentAvatar.append(avatar(c.profile));wrap.append(commentAvatar);
@@ -594,14 +689,16 @@ function commentItem(c,depth=0){
   const bar=$('div','community-comment-tools');
   const like=button(String(c.likeCount),'community-comment-like'+(c.liked?' is-active':''),()=>toggleCommentLike(c),'heart');
   like.setAttribute('aria-label',c.liked?'Batal suka komentar':'Suka komentar');
+  like.setAttribute('aria-pressed',String(c.liked));
   if(c.liked)like.firstChild.querySelector('path').setAttribute('fill','currentColor');
+  if(c.pending)like.disabled=true;
   bar.append(like,button('Balas','community-small-link',()=>setReply(c)));
   const more=button('•••','community-comment-more',()=>window.GMModeration?.openActions({
     type:'comment',id:c.id,ownerId:c.user_id,name:'Komentar Community',
     onOwnerDelete:()=>deleteComment(c),
     onRefresh:()=>loadComments(c.post_id)
   }));
-  more.setAttribute('aria-label','Opsi komentar');
+  more.setAttribute('aria-label','Opsi komentar');if(c.pending)more.disabled=true;
   bar.append(more);
   if(c.moderation_state==='hidden')content.append($('span','community-moderated-chip','Disembunyikan'));
   content.append(bar);wrap.append(content);
@@ -611,7 +708,7 @@ function commentItem(c,depth=0){
 function renderComments(){
   commentsBody.replaceChildren();
   const list=state.detailComments;
-  if(!list.length){commentsBody.append($('div','community-comments-empty','Belum ada komentar. Mulai percakapan pertama.'));return;}
+  if(!list.length){commentsBody.append($('div','community-comments-empty','Belum ada komentar. Mulai percakapan pertama.'));if(!commentHasMore)return;}
   const byParent=new Map(),seen=new Set(),ids=new Set(list.map(c=>c.id));
   for(const c of list){
     const parent=c.parent_id&&ids.has(c.parent_id)?c.parent_id:null;
@@ -653,25 +750,48 @@ function renderComments(){
   for(const c of byParent.get(null)||[])append(c,commentsBody,0);
   // Guard against malformed cyclic relationships without duplicating comments.
   for(const c of list)if(!seen.has(c.id))append(c,commentsBody,0);
+  if(commentHasMore&&!commentBusyLoading){
+    const more=button('Muat komentar berikutnya','community-try',()=>loadComments(state.selectedPost?.id,true),'refresh');
+    more.setAttribute('aria-label','Muat komentar berikutnya');commentsBody.append(more);
+  }
 }
-async function loadComments(postId){
-  commentsBody.replaceChildren($('div','community-comments-empty','Memuat komentar…'));
+async function loadComments(postId,append=false){
+  if(!postId||commentBusyLoading)return;
+  if(!append){
+    ++commentRequest;commentOffset=0;commentHasMore=true;state.detailComments=[];
+    commentsBody.replaceChildren($('div','community-comments-skeleton','Memuat komentar…'));
+  }else if(!commentHasMore)return;
+  const ticket=commentRequest;
+  commentBusyLoading=true;commentsBody.setAttribute('aria-busy','true');
   try{
-    const response=await sb.from('comments').select('id,post_id,user_id,parent_id,body,created_at,moderation_state').eq('post_id',postId).order('created_at',{ascending:true}).limit(200);
-    const comments=safeResult(response);
-    if(state.selectedPost?.id!==postId)return;
+    const response=await sb.from('comments')
+      .select('id,post_id,user_id,parent_id,body,created_at,moderation_state')
+      .eq('post_id',postId).order('created_at',{ascending:true}).order('id',{ascending:true})
+      .range(commentOffset,commentOffset+COMMENT_PAGE_SIZE);
+    const fetched=safeResult(response),comments=fetched.slice(0,COMMENT_PAGE_SIZE);
+    if(ticket!==commentRequest||state.selectedPost?.id!==postId)return;
     const users=[...new Set(comments.map(c=>c.user_id))];
     const results=await Promise.all([
       users.length?fetchCommunityProfiles(users):Promise.resolve({data:[]}),
       comments.length?sb.from('comment_likes').select('comment_id,user_id').in('comment_id',comments.map(c=>c.id)):Promise.resolve({data:[]})
     ]);
-    if(state.selectedPost?.id!==postId)return;
+    if(ticket!==commentRequest||state.selectedPost?.id!==postId)return;
     const [profiles,likes]=results.map(safeResult),byId=new Map(profiles.map(p=>[p.id,p]));
     const counts=new Map(),mine=new Set();
     for(const like of likes){counts.set(like.comment_id,(counts.get(like.comment_id)||0)+1);if(like.user_id===user())mine.add(like.comment_id);}
-    state.detailComments=comments.map(c=>({...c,profile:byId.get(c.user_id),likeCount:counts.get(c.id)||0,liked:mine.has(c.id)}));
-    renderComments();
-  }catch(error){console.error(error);commentsBody.replaceChildren($('div','community-comments-empty','Komentar belum dapat dimuat.'));}
+    const known=new Set(state.detailComments.map(c=>c.id));
+    state.detailComments.push(...comments.filter(c=>!known.has(c.id)).map(c=>({...c,profile:byId.get(c.user_id),likeCount:counts.get(c.id)||0,liked:mine.has(c.id)})));
+    commentOffset+=comments.length;commentHasMore=fetched.length>COMMENT_PAGE_SIZE;
+  }catch(error){
+    if(ticket!==commentRequest)return;
+    console.error(error);
+    if(!append)commentsBody.replaceChildren($('div','community-comments-empty','Komentar belum dapat dimuat.'));
+    const retry=button('Coba lagi memuat komentar','community-try',()=>loadComments(postId,append),'refresh');
+    commentsBody.append(retry);return;
+  }finally{
+    if(ticket===commentRequest){commentBusyLoading=false;commentsBody.setAttribute('aria-busy','false');}
+  }
+  if(ticket===commentRequest)renderComments();
 }
 async function deleteComment(comment){
   const post=state.selectedPost;
@@ -697,14 +817,20 @@ async function deleteComment(comment){
   }
 }
 async function toggleCommentLike(comment){
-  if(!requireAuth())return;
+  if(!requireAuth()||comment.pending)return;
+  const key='comment-like:'+comment.id;if(pendingMutations.has(key))return;
+  pendingMutations.add(key);
+  const previous=comment.liked;
+  comment.liked=!previous;comment.likeCount+=previous?-1:1;renderComments();
   try{
-    const result=comment.liked
+    const result=previous
       ?await sb.from('comment_likes').delete().eq('comment_id',comment.id).eq('user_id',user())
       :await sb.from('comment_likes').insert({comment_id:comment.id,user_id:user()});
     if(result.error)throw result.error;
-    comment.liked=!comment.liked;comment.likeCount+=comment.liked?1:-1;renderComments();
-  }catch(error){console.error(error);toast('Gagal memperbarui suka komentar.');}
+  }catch(error){
+    console.error(error);comment.liked=previous;comment.likeCount+=previous?1:-1;renderComments();
+    toast('Gagal memperbarui suka komentar. Perubahan dibatalkan.');
+  }finally{pendingMutations.delete(key);}
 }
 function openDetail(postId){
   const post=state.posts.find(p=>p.id===postId);
@@ -719,43 +845,54 @@ commentForm.addEventListener('submit',async e=>{
   const post=state.selectedPost,comment=commentInput.value.trim();
   if(!comment)return;
   if(replyTo&&(replyTo.post_id!==post.id||!state.detailComments.some(c=>c.id===replyTo.id))){
-    toast('Komentar yang dibalas tidak tersedia lagi.');replyTo=null;replyLabel.hidden=true;
-    return;
+    toast('Komentar yang dibalas tidak tersedia lagi.');replyTo=null;replyLabel.hidden=true;return;
   }
   commentBusy=true;sendButton.disabled=true;
-  try{
-    const r=await sb.from('comments').insert({post_id:post.id,user_id:user(),parent_id:replyTo?.id||null,body:comment});
-    if(r.error)throw r.error;
-    const repliedTo=replyTo?.id||null;
-    if(repliedTo){
-      expandedReplies.add(repliedTo);
-      // Expand all ancestors as well, so the newly sent reply is visible.
-      let ancestor=state.detailComments.find(c=>c.id===repliedTo);
-      const visited=new Set();
-      while(ancestor?.parent_id&&!visited.has(ancestor.parent_id)){
-        visited.add(ancestor.parent_id);
-        expandedReplies.add(ancestor.parent_id);
-        ancestor=state.detailComments.find(c=>c.id===ancestor.parent_id);
-      }
+  const parentId=replyTo?.id||null;
+  const pending={id:'pending-'+Date.now(),post_id:post.id,user_id:user(),parent_id:parentId,body:comment,
+    created_at:new Date().toISOString(),profile:{username:myUsername,avatar_url:myAvatarUrl},likeCount:0,liked:false,pending:true};
+  if(parentId){
+    expandedReplies.add(parentId);
+    let ancestor=state.detailComments.find(c=>c.id===parentId);
+    const visited=new Set();
+    while(ancestor?.parent_id&&!visited.has(ancestor.parent_id)){
+      visited.add(ancestor.parent_id);expandedReplies.add(ancestor.parent_id);
+      ancestor=state.detailComments.find(c=>c.id===ancestor.parent_id);
     }
-    post.commentCount++;replyTo=null;replyLabel.hidden=true;commentInput.value='';
-    renderFeed();renderDetailPost(post);await loadComments(post.id);
-    detailScroll.scrollTo({top:detailScroll.scrollHeight,behavior:'smooth'});
-  }catch(error){console.error('Gagal mengirim komentar:',error);
-    const explanation=String(error?.message||'');
-    toast(/Terlalu sering|dibatasi|rate limit/i.test(explanation)?explanation:(replyTo?'Balasan gagal dikirim. Silakan coba lagi.':'Komentar gagal dikirim. Silakan coba lagi.'));
   }
-  finally{commentBusy=false;sendButton.disabled=false;}
+  state.detailComments.push(pending);post.commentCount++;replyTo=null;replyLabel.hidden=true;commentInput.value='';
+  renderComments();refreshPost(post);
+  try{
+    const result=await sb.from('comments')
+      .insert({post_id:post.id,user_id:user(),parent_id:parentId,body:comment})
+      .select('id,post_id,user_id,parent_id,body,created_at,moderation_state').single();
+    if(result.error)throw result.error;
+    if(state.selectedPost?.id===post.id){
+      Object.assign(pending,result.data,{pending:false});
+      renderComments();detailScroll.scrollTo({top:detailScroll.scrollHeight,behavior:'smooth'});
+    }
+  }catch(error){
+    console.error('Gagal mengirim komentar:',error);
+    state.detailComments=state.detailComments.filter(c=>c!==pending);
+    post.commentCount=Math.max(0,post.commentCount-1);
+    if(state.selectedPost?.id===post.id){
+      renderComments();refreshPost(post);commentInput.value=comment;
+    }
+    const explanation=String(error?.message||'');
+    toast(/Terlalu sering|dibatasi|rate limit/i.test(explanation)?explanation:'Komentar gagal dikirim. Perubahan dibatalkan.');
+  }finally{commentBusy=false;sendButton.disabled=false;}
 });
+
 async function deletePost(post){
   if(post.user_id!==user()||!window.confirm('Hapus postingan ini? Tindakan tidak dapat dibatalkan.'))return;
   try{
     const result=await sb.from('posts').delete().eq('id',post.id).eq('user_id',user());
     if(result.error)throw result.error;
     const base=sb.storage.from('community-posts').getPublicUrl('').data.publicUrl;
-    const uploaded=post.media.map(m=>m.url.startsWith(base)?decodeURIComponent(m.url.slice(base.length)).replace(/^\/+/,''):null).filter(Boolean);
+    const uploaded=post.media.flatMap(m=>[m.url,m.thumbnail_url].filter(Boolean))
+      .filter(url=>url.startsWith(base)).map(url=>decodeURIComponent(url.slice(base.length)).replace(/^\/+/,'')).filter(Boolean);
     if(uploaded.length)await sb.storage.from('community-posts').remove(uploaded);
-    closeDetail();toast('Postingan dihapus.');await loadCommunityFeed();
+    closeDetail();toast('Postingan dihapus.');await loadCommunityFeed(true);
   }catch(error){console.error(error);toast('Postingan gagal dihapus.');}
 }
 window.addEventListener('gm-content-moderated',()=>{
@@ -775,6 +912,7 @@ window.loadCommunityFeed=()=>loadCommunityFeed(true);
 window.openCommunityPost=async function(id,options={}){
   if(!/^[0-9a-f-]{36}$/i.test(id))return;
   state.deepLink=id;
+  state.filter='latest'; // deep links are not restricted by a previous Following filter
   if(options.returnToProfile){
     // The previous history entry remains the exact Profile subpage.
     navigatePrimaryView('community',{history:false});
@@ -782,7 +920,7 @@ window.openCommunityPost=async function(id,options={}){
   }else{
     navigatePrimaryView('community');
   }
-  await loadCommunityFeed();
+  await loadCommunityFeed(true);
 };
 if(state.deepLink&&/^[0-9a-f-]{36}$/i.test(state.deepLink)){
   navigatePrimaryView('community',{history:false});

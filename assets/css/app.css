@@ -2126,3 +2126,18 @@ button.platform-chip.summary-platform-chip{appearance:none;}
   box-shadow:0 0 0 3px color-mix(in srgb,var(--amber) 32%,transparent);
 }
 #detailPanel .ref-card-wrap.contribution-detail-focus{outline-offset:3px;}
+
+/* P2 Tahap 13 — progressive nearby results and keyboard access */
+.home-list-count{font-size:11px;line-height:1.5;color:var(--muted);margin:5px 0 12px;}
+.home-list-more,.home-list-retry{width:100%;min-height:44px;margin:14px 0 4px;padding:10px 16px;
+  border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);
+  font:700 12px/1.4 var(--font-body);cursor:pointer;}
+.home-list-close,.home-location-btn{min-height:44px;min-width:44px;}
+#locateBtn{min-width:44px;min-height:44px;}
+#searchClearBtn{width:40px;height:40px;right:42px;font-size:14px;background:transparent;color:var(--ink);}
+#searchFilterBtn{width:40px;height:40px;right:0;}
+#searchInput{padding-right:88px;}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,
+[role="button"]:focus-visible{outline:3px solid var(--teal-dark);outline-offset:2px;}
+.home-list-more:disabled{opacity:.5;cursor:wait;}
+@media(prefers-reduced-motion:reduce){html:focus-within{scroll-behavior:auto!important}}

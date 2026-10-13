@@ -1075,25 +1075,45 @@ function addFavRow(value=''){
 async function refreshAllData(){
   const logo = document.getElementById('logo');
   logo.classList.add('spinning');
-  await loadAllRestos();
+  const success=await loadAllRestos();
   await loadVisited();
   logo.classList.remove('spinning');
-  showToast('Data diperbarui');
+  if(success)showToast('Data diperbarui');
 }
 
+// PostgREST defaults to a 1000-row cap. Fetch every table in stable chunks.
+async function fetchPagedRows(table,columns='*',sort='id'){
+  const size=500,rows=[];
+  for(let offset=0;;offset+=size){
+    let query=sb.from(table).select(columns);
+    for(const column of sort.split(','))query=query.order(column,{ascending:true});
+    const result=await query.range(offset,offset+size-1);
+    if(result.error)throw result.error;
+    const batch=result.data||[];
+    rows.push(...batch);
+    if(batch.length<size)break;
+  }
+  return rows;
+}
+let restaurantDataLoading=false;
 async function loadAllRestos(){
+  restaurantDataLoading=true;
+  if(homeView==='list'&&myGpsLatLng&&!Object.keys(allRestos).length){
+    const results=document.getElementById('nearbyListResults');
+    if(results)results.innerHTML='<div class="home-empty home-list-loading" role="status">Memuat restoran di sekitar Anda…</div>';
+  }
   try{
-    const [{data: restos}, {data: ratingsRows}, {data: testiRows}, {data: favRows}, {data: refRows}, {data: photoRows}, {data: menuPhotoRows}, {data: menuItemRows}, {data: foodPhotoTagRows}, {data: profileRows}] = await Promise.all([
-      sb.from('restos').select('*'),
-      sb.from('ratings').select('*'),
-      sb.from('testimonials').select('*'),
-      sb.from('favorite_menu').select('*'),
-      sb.from('references_link').select('*'),
-      sb.from('visit_photos').select('*'),
-      sb.from('menu_photos').select('*'),
-      sb.from('menu_items').select('id, resto_id, name, normalized_name, created_by, created_at'),
-      sb.from('food_photo_menu_tags').select('photo_id, menu_item_id, tagged_by, created_at'),
-      sb.from('public_contributor_profiles').select('id, username')
+    const [restos,ratingsRows,testiRows,favRows,refRows,photoRows,menuPhotoRows,menuItemRows,foodPhotoTagRows,profileRows]=await Promise.all([
+      fetchPagedRows('restos'),
+      fetchPagedRows('ratings','*','resto_id,user_id'),
+      fetchPagedRows('testimonials','*','resto_id,user_id'),
+      fetchPagedRows('favorite_menu'),
+      fetchPagedRows('references_link'),
+      fetchPagedRows('visit_photos'),
+      fetchPagedRows('menu_photos'),
+      fetchPagedRows('menu_items','id, resto_id, name, normalized_name, created_by, created_at'),
+      fetchPagedRows('food_photo_menu_tags','photo_id, menu_item_id, tagged_by, created_at','photo_id,menu_item_id'),
+      fetchPagedRows('public_contributor_profiles','id, username')
     ]);
     profilesMap = {};
     (profileRows||[]).forEach(p=>{ if(p.username) profilesMap[p.id] = p.username; });
@@ -1173,11 +1193,20 @@ async function loadAllRestos(){
       const r = allRestos[row.resto_id]; if(!r) return;
       r.menuPhotos.push({id: row.id, storagePath: row.storage_path, userId: row.user_id, at: new Date(row.created_at).getTime()});
     });
+    restaurantDataLoading=false;
+    renderMarkers();
+    return true;
   }catch(e){
+    restaurantDataLoading=false;
     console.error('Gagal memuat data', e);
     showToast('Gagal memuat data dari server, cek koneksi internet');
+    const panel=document.getElementById('nearbyListResults');
+    if(homeView==='list'&&panel){
+      panel.innerHTML='<div class="home-empty" role="alert">Daftar resto gagal dimuat. <button type="button" class="home-list-retry">Coba lagi</button></div>';
+      panel.querySelector('.home-list-retry').onclick=loadAllRestos;
+    }
+    return false;
   }
-  renderMarkers();
 }
 
 /* Simpan hanya field INTI resto (dipakai form admin/tambah). Return ID resto. */
@@ -1356,7 +1385,7 @@ function buildHomeRestoCardHtml(r, distanceM){
   const tags = [r.type, r.priceRange, platforms.length ? `${platforms.length} layanan online` : null].filter(Boolean);
   const distanceHtml = Number.isFinite(distanceM) ? `<span class="home-resto-distance">${formatNearbyDistance(distanceM)}</span><span class="home-resto-dot">•</span>` : '';
   return `<button type="button" class="home-resto-card" data-resto-id="${escapeAttr(r.id)}" aria-label="Buka detail ${escapeAttr(r.name)}">
-    <span class="home-resto-photo"><img src="${escapeAttr(photo)}" loading="lazy" alt="Foto ${escapeAttr(r.name)}" onerror="this.src='icons/icon-192.png';this.onerror=null;"></span>
+    <span class="home-resto-photo"><img src="${escapeAttr(photo)}" loading="lazy" decoding="async" alt="Foto ${escapeAttr(r.name)}" onerror="this.src='icons/icon-192.png';this.onerror=null;"></span>
     <span class="home-resto-body">
       <span class="home-resto-name-row"><span class="home-resto-name">${escapeHtml(r.name)}</span>${r.isVerified ? '<span class="home-resto-verified" title="Verified">●</span>' : ''}</span>
       <span class="home-resto-address">${escapeHtml(r.address || 'Alamat belum tersedia')}</span>
@@ -1366,30 +1395,51 @@ function buildHomeRestoCardHtml(r, distanceM){
   </button>`;
 }
 
+const NEARBY_PAGE_SIZE=24;
+let nearbyVisibleCount=NEARBY_PAGE_SIZE,nearbyListKey='',nearbyObserver=null;
 function renderNearbyListResults(restos){
-  if(homeView !== 'list' || !myGpsLatLng) return;
-  const radiusMeters = nearbyRadiusKm * 1000;
-  const nearby = restos
-    .filter(r=> Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng)))
-    .map(r=>({
-      resto:r,
-      distanceM:distanceMetersBetween(myGpsLatLng.lat, myGpsLatLng.lng, Number(r.lat), Number(r.lng))
-    }))
-    .filter(item=> item.distanceM <= radiusMeters)
-    .sort((a,b)=> a.distanceM - b.distanceM);
-
-  const results = document.getElementById('nearbyListResults');
-  if(!results) return;
-  if(nearby.length === 0){
-    results.innerHTML = `<div class="home-empty"><b>Tidak ada resto yang cocok dalam radius ${nearbyRadiusKm} km.</b><br>Coba tambah radius, kurangi filter, atau ubah pencarian.</div>`;
-  }else{
-    results.innerHTML = `<div class="home-resto-list">${nearby.map(item=>buildHomeRestoCardHtml(item.resto,item.distanceM)).join('')}</div>`;
+  if(homeView!=='list'||!myGpsLatLng)return;
+  if(restaurantDataLoading&&!restos.length){
+    const results=document.getElementById('nearbyListResults');
+    if(results)results.innerHTML='<div class="home-empty home-list-loading" role="status">Memuat restoran di sekitar Anda…</div>';
+    return;
   }
-  results.querySelectorAll('.home-resto-card').forEach(card=>{
-    card.onclick = ()=> openDetail(card.dataset.restoId);
-  });
+  if(nearbyObserver){nearbyObserver.disconnect();nearbyObserver=null;}
+  const radiusMeters=nearbyRadiusKm*1000;
+  const nearby=restos.filter(r=>Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)))
+    .map(r=>({resto:r,distanceM:distanceMetersBetween(myGpsLatLng.lat,myGpsLatLng.lng,Number(r.lat),Number(r.lng))}))
+    .filter(item=>item.distanceM<=radiusMeters)
+    .sort((a,b)=>a.distanceM-b.distanceM);
+  const key=nearbyRadiusKm+'|'+myGpsLatLng.lat.toFixed(5)+'|'+myGpsLatLng.lng.toFixed(5)+'|'+nearby.map(item=>item.resto.id).join(',');
+  if(nearbyListKey!==key){nearbyListKey=key;nearbyVisibleCount=NEARBY_PAGE_SIZE;}
+  const results=document.getElementById('nearbyListResults');
+  if(!results)return;
+  if(!nearby.length){
+    results.innerHTML='<div class="home-empty"><b>Tidak ada resto yang cocok dalam radius '+nearbyRadiusKm+' km.</b><br>Coba tambah radius, kurangi filter, atau ubah pencarian.</div>';
+    return;
+  }
+  const visible=nearby.slice(0,nearbyVisibleCount);
+  results.innerHTML='<p class="home-list-count" role="status">Menampilkan '+visible.length+' dari '+nearby.length+' resto terdekat</p>'+
+    '<div class="home-resto-list">'+visible.map(item=>buildHomeRestoCardHtml(item.resto,item.distanceM)).join('')+'</div>';
+  results.querySelectorAll('.home-resto-card').forEach(card=>{card.onclick=()=>openDetail(card.dataset.restoId);});
+  if(visible.length<nearby.length){
+    const more=document.createElement('button');
+    more.type='button';more.className='home-list-more';
+    more.textContent='Muat '+Math.min(NEARBY_PAGE_SIZE,nearby.length-visible.length)+' resto berikutnya';
+    more.addEventListener('click',()=>{
+      if(nearbyObserver){nearbyObserver.disconnect();nearbyObserver=null;}
+      nearbyVisibleCount+=NEARBY_PAGE_SIZE;
+      renderNearbyListResults(getFilteredRestos());
+    });
+    results.append(more);
+    if('IntersectionObserver' in window){
+      nearbyObserver=new IntersectionObserver(entries=>{
+        if(entries.some(entry=>entry.isIntersecting))more.click();
+      },{root:document.getElementById('listView'),rootMargin:'240px 0px'});
+      nearbyObserver.observe(more);
+    }
+  }
 }
-
 function renderNearbyList(restos){
   if(homeView !== 'list') return;
   if(!myGpsLatLng){
@@ -1397,7 +1447,7 @@ function renderNearbyList(restos){
     return;
   }
   const list = document.getElementById('listView');
-  list.innerHTML = buildNearbyPanelHeader() + '<div id="nearbyListResults"></div>';
+  list.innerHTML = buildNearbyPanelHeader() + '<div id="nearbyListResults" aria-live="polite"></div>';
   bindNearbyPanelControls();
   renderNearbyListResults(restos);
 }
@@ -1562,7 +1612,7 @@ function buildPhotoCard(photo, idx){
     ? `<button type="button" class="photo-more-btn food-photo-more-btn" data-id="${escapeAttr(photo.id)}" title="Kelola foto makanan" aria-label="Kelola foto makanan">•••</button>`
     : `<button type="button" class="photo-del-btn" data-path="${escapeAttr(photo.storagePath)}" data-id="${escapeAttr(photo.id)}" title="Hapus foto" aria-label="Hapus foto">✕</button>`);
   return `<div class="photo-card" data-idx="${idx}">
-    <img src="${escapeAttr(url)}" loading="lazy" alt="${isFoodPhoto ? 'Foto makanan' : 'Foto kunjungan'}">
+    <img src="${escapeAttr(url)}" loading="lazy" decoding="async" alt="${isFoodPhoto ? 'Foto makanan' : 'Foto kunjungan'}">
     ${actionHtml}
   </div>`;
 }
@@ -1601,30 +1651,38 @@ function buildPhotosCarouselHtml(photos){
 }
 
 /* ---- Lightbox (mode ukuran penuh) foto -- dipakai bersama untuk Foto Kunjungan & Foto Menu ---- */
+let photoLightboxReturnFocus=null;
 function photoLightboxKeyHandler(e){
-  const track = document.getElementById('photoLightboxTrack');
-  if(!track) return;
-  if(e.key === 'Escape') closePhotoLightbox();
-  else if(e.key === 'ArrowRight') track.scrollBy({left: track.clientWidth, behavior:'smooth'});
-  else if(e.key === 'ArrowLeft') track.scrollBy({left: -track.clientWidth, behavior:'smooth'});
+  const track=document.getElementById('photoLightboxTrack');
+  if(!track)return;
+  if(e.key==='Escape'){e.preventDefault();closePhotoLightbox();}
+  else if(e.key==='Tab'){e.preventDefault();document.querySelector('#photoLightboxOverlay .photo-lightbox-close')?.focus();}
+  else if(e.key==='ArrowRight')track.scrollBy({left:track.clientWidth,behavior:'smooth'});
+  else if(e.key==='ArrowLeft')track.scrollBy({left:-track.clientWidth,behavior:'smooth'});
 }
 function closePhotoLightbox(){
-  const overlay = document.getElementById('photoLightboxOverlay');
-  if(overlay) overlay.remove();
-  document.removeEventListener('keydown', photoLightboxKeyHandler);
+  const overlay=document.getElementById('photoLightboxOverlay');
+  if(overlay)overlay.remove();
+  document.removeEventListener('keydown',photoLightboxKeyHandler);
+  if(photoLightboxReturnFocus?.isConnected)photoLightboxReturnFocus.focus({preventScroll:true});
+  photoLightboxReturnFocus=null;
 }
 /* urls: array URL gambar yang ditampilkan sebagai carousel penuh, bisa digeser kanan-kiri.
    captionFn(idx) opsional -- kalau diisi, keterangan di bawah foto mengikuti foto yang aktif. */
 function openPhotoLightbox(urls, startIdx, captionFn){
   if(!urls || !urls.length) return;
   closePhotoLightbox();
+  photoLightboxReturnFocus=document.activeElement;
   const overlay = document.createElement('div');
   overlay.id = 'photoLightboxOverlay';
   overlay.className = 'photo-lightbox-overlay';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.setAttribute('aria-label','Galeri foto restoran');
   overlay.innerHTML = `
-    <button type="button" class="photo-lightbox-close" title="Tutup">✕</button>
+    <button type="button" class="photo-lightbox-close" title="Tutup" aria-label="Tutup galeri foto">✕</button>
     <div class="photo-lightbox-track" id="photoLightboxTrack">
-      ${urls.map(u=>`<div class="photo-lightbox-slide"><img src="${escapeAttr(u)}" alt="Foto"></div>`).join('')}
+      ${urls.map((u,i)=>`<div class="photo-lightbox-slide"><img src="${escapeAttr(u)}" loading="lazy" decoding="async" alt="Foto ${i+1} dari ${urls.length}"></div>`).join('')}
     </div>
     ${captionFn ? '<div class="photo-lightbox-caption" id="photoLightboxCaption"></div>' : ''}
   `;
@@ -1649,6 +1707,7 @@ function openPhotoLightbox(urls, startIdx, captionFn){
     updateCaption();
   });
   document.addEventListener('keydown', photoLightboxKeyHandler);
+  overlay.querySelector('.photo-lightbox-close').focus({preventScroll:true});
 }
 /* Keterangan nama pengunggah + tanggal untuk lightbox Foto Kunjungan */
 function visitPhotoCaptionFromList(photos, idx){
@@ -1685,7 +1744,7 @@ function buildMenuPhotosCarouselHtml(legacyImgs, crowdPhotos){
   const hiddenCount = Math.max(0, currentDetailMenuItems.length - 6);
   return `<div class="menu-photo-gallery-grid" id="menuPhotoDisplayGrid">${visible.map((item, idx)=>`
     <div class="photo-card menu-document-card" data-idx="${idx}">
-      <img src="${escapeAttr(item.url)}" loading="lazy" alt="Foto menu" onerror="this.style.opacity=0.2">
+      <img src="${escapeAttr(item.url)}" loading="lazy" decoding="async" alt="Foto menu" onerror="this.style.opacity=0.2">
       ${isAdmin ? `<button class="photo-del-btn menu-photo-del-btn" data-idx="${idx}" title="Hapus foto (khusus admin)">✕</button>` : ''}
       ${idx === 5 && hiddenCount > 0 ? `<span class="photo-grid-more" aria-hidden="true">+${hiddenCount}</span>` : ''}
     </div>`).join('')}</div>`;
