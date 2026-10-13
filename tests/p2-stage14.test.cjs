@@ -71,7 +71,7 @@ test('service worker waits for consent, only clears owned caches and serves offl
   };
   const cachesMock = {
     open: async () => fakeCache,
-    keys: async () => ['other-app-cache', 'gastronomap-v151', 'gastronomap-shell-outdated', 'gastronomap-shell-p2-14-20261013-1'],
+    keys: async () => ['other-app-cache', 'gastronomap-v151', 'gastronomap-shell-outdated', 'gastronomap-shell-p2-14-20261013-1', 'gastronomap-shell-p3-15-20261013-1'],
     delete: async key => {deleted.push(key); return true;}
   };
   const scope = 'https://example.test/GastronoMap/';
@@ -96,7 +96,7 @@ test('service worker waits for consent, only clears owned caches and serves offl
   handlers.activate({waitUntil: promise => activation.push(promise)});
   await Promise.all(activation);
   assert.equal(calls.claim, 1);
-  assert.deepEqual(deleted.sort(), ['gastronomap-shell-outdated','gastronomap-shell-p2-14-20261013-1','gastronomap-v151'].sort());
+  assert.deepEqual(deleted.sort(), ['gastronomap-shell-outdated','gastronomap-shell-p2-14-20261013-1','gastronomap-shell-p3-15-20261013-1','gastronomap-v151'].sort());
   handlers.message({data:{type:'IGNORED'}});
   assert.equal(calls.skip, 0);
   handlers.message({data:{type:'SKIP_WAITING'}});
